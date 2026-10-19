@@ -154,6 +154,28 @@ dialog label.full{grid-column:1/-1}
 .org .row.click{cursor:pointer}
 .org .row.sel{background:var(--cyan-soft)}
 @media (prefers-reduced-motion:no-preference){.meter b{transition:width .4s ease}}
+.vchart{position:relative;min-height:280px}
+.vtip{position:absolute;pointer-events:none;background:var(--sheet);border:1px solid var(--rule);border-radius:6px;box-shadow:var(--shadow);padding:6px 10px;font-size:.76rem;white-space:nowrap;z-index:5;font-variant-numeric:tabular-nums}
+.vtip .h{color:var(--ink-2);margin-bottom:2px}
+.vtip i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px}
+.v-lbl{display:flex;flex-direction:column;gap:5px}
+.v-up{color:var(--ok)}.v-down{color:var(--bad)}
+.vt{max-height:32rem;overflow:auto}
+.vt th:first-child,.vt td:first-child{position:sticky;left:0;background:var(--sheet);z-index:1}
+.vt thead th:first-child{background:var(--paper);z-index:2}
+.vt tr.vtot td{font-weight:600;background:var(--paper)}
+.vt td.num{font-size:.8rem}
+.vbars{display:flex;flex-direction:column;gap:7px}
+.vbar{display:grid;grid-template-columns:minmax(7rem,12rem) 1fr auto;gap:10px;align-items:center;font-size:.82rem}
+.vbar .t{height:12px;background:var(--rule-2);border-radius:3px;overflow:hidden}
+.vbar .t b{display:block;height:100%;border-radius:3px}
+.vbar .val{font-family:var(--mono);font-size:.76rem;color:var(--ink-2);text-align:right;white-space:nowrap}
+.vch{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
+.vch .kpi{padding:10px 12px}
+.vch .kpi .l{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vlead{font-size:.95rem;color:var(--ink-2);max-width:70rem;margin:0}
+.vlead b{color:var(--ink)}
+@media (max-width:560px){.vbar{grid-template-columns:minmax(0,1fr) auto}.vbar .t{grid-column:1/-1;grid-row:2}}
 </style>
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px}img{max-width:100%}[hidden]{display:none!important}</style>
 <script src="config.js?v=2"></script>
@@ -168,7 +190,7 @@ dialog label.full{grid-column:1/-1}
         <div class="reg" aria-hidden="true"><i style="background:var(--cyan)"></i><i style="background:var(--magenta)"></i><i style="background:var(--yellow)"></i><i style="background:var(--key)"></i></div>
         <div style="min-width:0">
           <h1>Planes Gerenciales de la Editorial</h1>
-          <div class="sub">Proyectos consolidados por unidad: actividades, tareas, comisiones y metas, con personal y presupuesto</div>
+          <div class="sub">Proyectos, iniciativas y mejoras consolidados por unidad: actividades, tareas, comisiones y metas, con personal y presupuesto</div>
         </div>
       </div>
       <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div class="status" id="status"><span class="dot"></span><span id="statusTxt">Conectando…</span></div><button class="btn small" id="myPassBtn" hidden>Mi clave</button><button class="btn small" id="logoutBtn" hidden>Cerrar sesión</button></div>
@@ -235,7 +257,7 @@ const SCH={
   ['tipo','Modalidad','sel',0,['Planilla','Locación de servicios','Practicante','Temporal']],
   ['fechaIngreso','Fecha de ingreso (real o proyectada)','date'],['remuneracion','Remuneración mensual (S/)','num'],
   ['dni','Documento / código interno','text'],['contacto','Teléfono o correo','text'],['obs','Observaciones (perfil requerido, motivo de la plaza)','area']]},
- proyectos:{t:'Proyectos',one:'proyecto',fields:[
+ proyectos:{t:'Proyectos/Iniciativas/Mejoras',one:'proyecto, iniciativa o mejora',fields:[
   ['codigo','Código (automático)','code'],['nombre','Nombre del proyecto','text',1],['unidad','Unidad responsable','unit',1],
   ['responsable','Responsable (gerente, jefe o coordinador)','lider'],['objetivo','Objetivo estratégico','area'],
   ['periodos','Periodos de ejecución','periods'],['prioridad','Prioridad','sel',0,PRIO],['estado','Estado','sel',1,EST_PROY],
@@ -500,7 +522,7 @@ async function loadUsers(){
 }
 
 /* ===== Navegación ===== */
-const TABS=[['dash','Dashboard'],['org','Unidades'],['cal','Calendario'],...COLS.map(c=>[c,SCH[c].t])];
+const TABS=[['dash','Dashboard'],['ventas','Reportes'],['org','Unidades'],['cal','Calendario'],...COLS.map(c=>[c,SCH[c].t])];
 let tab='dash',filterUnit='ALL',q='';
 try{const h=location.hash.slice(1);if(TABS.some(t=>t[0]===h))tab=h}catch(e){}
 function tabsList(){return canManage()&&mode==='db'?[...TABS,['users','Usuarios']]:TABS}
@@ -527,6 +549,7 @@ function render(){
   if(tab==='dash')v.innerHTML=viewDash();
   else if(tab==='org')v.innerHTML=viewUnits();
   else if(tab==='cal')v.innerHTML=viewCal();
+  else if(tab==='ventas')v.innerHTML=viewVentas();
   else if(tab==='users')v.innerHTML=viewUsers();
   else v.innerHTML=viewList(tab);
   bindView();
@@ -623,7 +646,7 @@ function viewUnits(){
   const coms=S.comisiones.filter(c=>unitOf('comisiones',c)===u.id);
   let h=`<div class="bar"><div class="uhead"><span class="crumb">${chain(u.id).map(x=>esc(x.n)).join(' › ')}</span><h2>${esc(u.n)}</h2></div>
     <div class="right"><select id="su" aria-label="Elegir unidad">${unitOpts.map(([v,l])=>`<option value="${v}" ${v===u.id?'selected':''}>${esc(l)}</option>`).join('')}</select>${readOnly?'':`<button class="btn primary" data-add="proyectos:unidad:${u.id}">+ Nuevo proyecto</button>`}</div></div>
-  <div class="kpis"><div class="kpi"><span class="l">Proyectos de la unidad</span><span class="v">${own.length}</span><span class="s">${own.filter(p=>p.estado==='En curso').length} en curso</span></div>
+  <div class="kpis"><div class="kpi"><span class="l">Proyectos/Iniciativas/Mejoras de la unidad</span><span class="v">${own.length}</span><span class="s">${own.filter(p=>p.estado==='En curso').length} en curso</span></div>
    <div class="kpi"><span class="l">Avance consolidado</span><span class="v">${pct(avg(own.map(proyAvance)))}</span><span class="s">promedio de proyectos</span></div>
    <div class="kpi"><span class="l">Presupuesto consolidado</span><span class="v">${kmoney(bud)}</span><span class="s">ejecutado ${kmoney(ej)}${bud?' · '+pct(ej/bud*100):''}</span></div>
    <div class="kpi"><span class="l">Cumplimiento de metas</span><span class="v">${pct(avg(ms.map(m=>Math.min(100,metaAvance(m)))))}</span><span class="s">${ms.length} indicadores</span></div>
@@ -725,7 +748,7 @@ function viewDash(){
   const hasEx=COLS.some(c=>S[c].some(r=>r.ejemplo));
   let h=`<div class="bar"><div class="left"><h2>${access()==='all'?'Dashboard gerencial':'Mi tablero'}</h2>${unitFilterSel()}</div><div class="right">${hasEx&&!readOnly&&access()==='all'?'<button class="btn small" id="clearEx">Quitar datos de ejemplo</button>':''}</div></div>`;
   if(hasEx)h+=`<div class="note">Los registros marcados <span class="ex">EJEMPLO</span> muestran cómo se ve el tablero con datos. Reemplázalos por los de tu editorial o quítalos con el botón.</div>`;
-  if(!total){return h+`<div class="panel empty"><strong>Aún no hay registros</strong>Empieza por la pestaña Personal y luego registra Proyectos, Actividades, Tareas y Metas. Este tablero se llenará solo.</div>`}
+  if(!total){return h+`<div class="panel empty"><strong>Aún no hay registros</strong>Empieza por la pestaña Personal y luego registra Proyectos/Iniciativas/Mejoras, Actividades, Tareas y Metas. Este tablero se llenará solo.</div>`}
   const act=pers.filter(r=>r.estado==='Activo').length,vac=pers.filter(r=>r.estado==='Vacante').length,pro=pers.filter(r=>r.estado==='Proyectado').length;
   const bud=proy.reduce((s,r)=>s+n(r._bud),0),ej=proy.reduce((s,r)=>s+n(r._ej),0);
   const avg=proy.length?proy.reduce((s,p)=>s+proyAvance(p),0)/proy.length:0;
@@ -734,7 +757,7 @@ function viewDash(){
   const open=tars.filter(t=>t.estado!=='Hecha').length;
   h+=`<div class="kpis">
    <div class="kpi"><span class="l">Personal activo</span><span class="v">${act}</span><span class="s">${vac} vacantes · ${pro} proyectados</span></div>
-   <div class="kpi"><span class="l">Proyectos</span><span class="v">${proy.length}</span><span class="s">${proy.filter(p=>p.estado==='En curso').length} en curso · ${proy.filter(p=>p.estado==='En riesgo').length} en riesgo</span></div>
+   <div class="kpi"><span class="l">Proyectos/Iniciativas/Mejoras</span><span class="v">${proy.length}</span><span class="s">${proy.filter(p=>p.estado==='En curso').length} en curso · ${proy.filter(p=>p.estado==='En riesgo').length} en riesgo</span></div>
    <div class="kpi"><span class="l">Avance promedio</span><span class="v">${pct(avg)}</span><span class="s">${acts.length} actividades</span></div>
    <div class="kpi"><span class="l">Presupuesto ejecutado</span><span class="v">${bud?pct(ej/bud*100):'—'}</span><span class="s">${kmoney(ej)} de ${kmoney(bud)}</span></div>
    <div class="kpi"><span class="l">Cumplimiento de metas</span><span class="v">${pct(metAvg)}</span><span class="s">${mets.length} indicadores</span></div>
@@ -1072,10 +1095,394 @@ function bindImport(){
   const g=$('#impGo');if(g)g.onclick=runImport;
 }
 
+/* ===== Módulo de Reportes: ventas por canales (datos en Supabase, colección "ventas") ===== */
+const V_MES=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Set','Oct','Nov','Dic'];
+const V_MESL=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','setiembre','octubre','noviembre','diciembre'];
+const V_ORDEN=['Suscripciones','Clientes UPN','Clientes UPS','Universidades','Libro Misionero','Clientes UPeU','Tienda Editorial','Cliente ACES','Clientes Institucionales','Librería Móvil','Librería Juliaca','Clientes Externos','Clientes Extranjeros'];
+const V_COD={'Suscripciones':'33020101','Clientes UPN':'33020102','Clientes UPS':'33020103','Clientes Institucionales':'33020104','Clientes Externos':'33020105','Clientes UPeU':'33020106','Clientes Extranjeros':'33020107','Tienda Editorial':'33020108','Libro Misionero':'33020109','Universidades':'33020110','Librería Juliaca':'33020111','Cliente ACES':'33020112','Librería Móvil':'33020114'};
+/* Un color por canal (13 canales) */
+const V_CCOL=['#0a8fb8','#c2185b','#e5a50a','#2f8a4f','#7c5cc4','#d2691e','#3a9d9b','#5b8def','#b7791f','#e45a92','#6b8e23','#8a94a6','#a0522d','#20b2aa','#9370db'];
+const vColor=(k,M)=>{const i=M.canales.indexOf(k);return V_CCOL[(i<0?0:i)%V_CCOL.length]};
+const V_YCOL=['var(--cyan)','var(--magenta)','var(--yellow)','var(--ok)','#7c5cc4','var(--warn)','#8a94a6','#5b8def','#d2691e','#3a9d9b'];
+let VENTAS=[];
+const vf={anio:null,corte:null,canal:'Todos'};
+const vImp={open:false,text:'',anio:new Date().getFullYear(),hasta:'',parsed:null,busy:false};
+let vFocus=null;
+
+const vRank=c=>{if(c==='Todos')return 99;const i=V_ORDEN.indexOf(c);return i<0?50:i};
+const vLabel=c=>c==='Todos'?'Total':c;
+const vSlug=s=>norm(s).replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+const vN=v=>v==null?'—':Math.round(v).toLocaleString('es-PE');
+const vS=v=>v==null?'—':'S/ '+Math.round(v).toLocaleString('es-PE');
+const vM=v=>v==null?'—':Math.abs(v)>=1e6?'S/ '+(v/1e6).toLocaleString('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2})+' M':'S/ '+Math.round(v/1e3).toLocaleString('es-PE')+' mil';
+const vP=v=>v==null||!isFinite(v)?'—':(v>0?'+':'')+(v*100).toLocaleString('es-PE',{minimumFractionDigits:1,maximumFractionDigits:1})+'%';
+const vP1=v=>v==null||!isFinite(v)?'—':(v*100).toLocaleString('es-PE',{minimumFractionDigits:1,maximumFractionDigits:1})+'%';
+const vAx=v=>Math.abs(v)>=1e6?(+(v/1e6).toFixed(1)).toLocaleString('es-PE')+' M':Math.abs(v)>=1e3?Math.round(v/1e3).toLocaleString('es-PE')+' mil':String(Math.round(v));
+const vVar=(a,b)=>a==null||b==null||!b?null:a/Math.abs(b)-(b<0?-1:1);
+const vCls=v=>v==null||!isFinite(v)?'':v>=0?'v-up':'v-down';
+const vTextW=t=>Math.max(0,...t.map(s=>String(s).length))*6.8;
+
+/* Canal según código y nombre del reporte (corrige códigos repetidos o nombres que cambian) */
+function vCanal(code,name){
+  const s=norm(String(name||'').replace(/^\s*IU\s+/i,''));
+  if(s.includes('suscrip'))return 'Suscripciones';
+  if(s.includes('universidad'))return 'Universidades';
+  if(/\bupn\b/.test(s))return 'Clientes UPN';
+  if(/\bups\b/.test(s))return 'Clientes UPS';
+  if(s.includes('upeu'))return 'Clientes UPeU';
+  if(s.includes('institucion'))return 'Clientes Institucionales';
+  if(s.includes('extranj'))return 'Clientes Extranjeros';
+  if(s.includes('extern'))return 'Clientes Externos';
+  if(s.includes('tienda')||s.includes('panolenci'))return 'Tienda Editorial';
+  if(s.includes('misioner'))return 'Libro Misionero';
+  if(s.includes('juliaca'))return 'Librería Juliaca';
+  if(/\baces\b/.test(s))return 'Cliente ACES';
+  if(s.includes('movil'))return 'Librería Móvil';
+  const byCode=Object.entries(V_COD).find(([,c])=>c===String(code));
+  return byCode?byCode[0]:String(name||code).trim();
+}
+function vNum(s){
+  s=String(s??'').trim();if(!s)return null;if(/^-+$/.test(s))return 0;
+  let neg=false;if(/^\(.*\)$/.test(s)){neg=true;s=s.slice(1,-1)}
+  s=s.replace(/S\/\s*/i,'').replace(/\s/g,'').replace(/,/g,'');
+  const v=Number(s);if(!isFinite(v))return null;return neg?-v:v;
+}
+
+/* Modelo de cálculo */
+function vModel(){
+  const map=new Map(),maxMes={};
+  VENTAS.forEach(r=>{const y=+r.anio;map.set(y+'|'+r.canal,r.meses||[]);const mm=(r.meses||[]).reduce((m,v,i)=>v!=null?i+1:m,0);maxMes[y]=Math.max(maxMes[y]||0,mm)});
+  const years=[...new Set(VENTAS.map(r=>+r.anio))].filter(y=>maxMes[y]).sort((a,b)=>a-b);
+  const canales=[...new Set(VENTAS.map(r=>r.canal))].sort((a,b)=>vRank(a)-vRank(b));
+  const memo=new Map();
+  const mens=(y,c)=>{const k=y+'|'+c;if(memo.has(k))return memo.get(k);let out=null;
+    if(c==='Todos'||c==='Resto de canales'){
+      const cs=canales.filter(x=>(c==='Todos'||(x!=='Suscripciones'&&x!=='Libro Misionero'))&&map.has(y+'|'+x));
+      if(cs.length)out=V_MES.map((_,i)=>i<maxMes[y]?cs.reduce((s,x)=>s+(+map.get(y+'|'+x)[i]||0),0):null);
+    }else if(map.has(k)){const m=map.get(k);out=V_MES.map((_,i)=>i<maxMes[y]?(+m[i]||0):null)}
+    memo.set(k,out);return out};
+  const acum=(y,c,corte)=>{if(!maxMes[y]||corte>maxMes[y])return null;const m=mens(y,c);if(!m)return null;let s=0;for(let i=0;i<corte;i++)s+=m[i]||0;return s};
+  const anual=(y,c)=>acum(y,c,maxMes[y]);
+  return {years,canales,maxMes,mens,acum,anual};
+}
+function vStats(M,y,corte,c){
+  const m=M.mens(y,c);if(!m||corte>M.maxMes[y])return null;
+  const vals=m.slice(0,corte).map(v=>v||0),n=vals.length,total=vals.reduce((a,b)=>a+b,0),prom=total/n;
+  const s=[...vals].sort((a,b)=>a-b),med=n%2?s[(n-1)/2]:(s[n/2-1]+s[n/2])/2;
+  const desv=n>1?Math.sqrt(vals.reduce((a,v)=>a+(v-prom)**2,0)/(n-1)):0;
+  const iMax=vals.indexOf(Math.max(...vals)),iMin=vals.indexOf(Math.min(...vals));
+  const tot=M.acum(y,'Todos',corte),prev=M.acum(y-1,c,corte);
+  return {total,prom,med,desv,cv:prom?desv/Math.abs(prom):null,max:vals[iMax],mesMax:V_MES[iMax],min:vals[iMin],mesMin:V_MES[iMin],part:tot?total/tot:null,var:vVar(total,prev)};
+}
+const vYearCol=(y,years)=>V_YCOL[(years.length-1-years.indexOf(y))%V_YCOL.length];
+
+/* Vista */
+function viewVentas(){
+  const fe=document.activeElement;vFocus=fe&&fe.id&&/^vi/.test(fe.id)?{id:fe.id,s:fe.selectionStart,e:fe.selectionEnd,top:fe.scrollTop}:null;
+  const adm=canManage(),M=vModel();
+  let h=`<div class="bar"><div class="left"><h2>Reportes · Ventas por canales</h2><span class="note">${M.years.length?`${M.years[0]}–${M.years[M.years.length-1]} · fuente AASINET`:'Sin datos cargados'}</span></div>
+   <div class="right">${M.years.length?'<button class="btn" id="vCsv">Exportar CSV</button>':''}${adm?`<button class="btn ${vImp.open?'':'primary'}" id="vImpBtn" aria-pressed="${vImp.open}">${vImp.open?'Cerrar carga de datos':'Cargar o actualizar datos'}</button>`:''}</div></div>`;
+  if(adm&&vImp.open)h+=viewVImport(M);
+  if(!M.years.length)return h+`<div class="panel empty"><strong>Aún no hay datos de ventas</strong>${adm?'Usa “Cargar o actualizar datos” para pegar el cuadro de AASINET o subir el archivo de datos.':'El administrador todavía no carga los reportes de ventas.'}</div>`;
+  if(!M.years.includes(vf.anio)){vf.anio=M.years[M.years.length-1];vf.corte=null}
+  if(!vf.corte)vf.corte=M.maxMes[vf.anio]||12;
+  if(!['Todos',...M.canales].includes(vf.canal))vf.canal='Todos';
+  const y=vf.anio,c=vf.corte,per=`Ene–${V_MES[c-1]} ${y}`,mesL=V_MESL[c-1];
+
+  h+=`<div class="panel" style="flex-direction:row;flex-wrap:wrap;gap:14px;align-items:end;padding:14px 18px">
+   <label class="note v-lbl" for="vAnio">Año<select id="vAnio">${[...M.years].reverse().map(x=>`<option ${x===y?'selected':''}>${x}</option>`).join('')}</select></label>
+   <label class="note v-lbl" for="vCorte">Acumulado hasta<select id="vCorte">${V_MESL.map((m,i)=>`<option value="${i+1}" ${i+1===c?'selected':''}>${m[0].toUpperCase()+m.slice(1)}</option>`).join('')}</select></label>
+   <label class="note v-lbl" for="vCanal">Canal para gráficos<select id="vCanal"><option value="Todos">Todos los canales (detallado)</option>${M.canales.map(k=>`<option ${k===vf.canal?'selected':''}>${esc(k)}</option>`).join('')}</select></label>
+   <span class="note" style="flex:1 1 200px;text-align:right">${y} tiene datos hasta ${V_MESL[(M.maxMes[y]||1)-1]}</span></div>`;
+
+  const T=M.acum(y,'Todos',c),Tp=M.acum(y-1,'Todos',c);
+  const chs=M.canales.map(k=>{const a=M.acum(y,k,c),b=M.acum(y-1,k,c);return {k,a,b,v:vVar(a,b)}}).filter(o=>o.a!=null).sort((p,q)=>q.a-p.a);
+  const cv=chs.filter(o=>o.v!=null).sort((p,q)=>q.v-p.v),sube=cv.length&&cv[0].v>0?cv[0]:null,baja=cv.length&&cv[cv.length-1].v<0?cv[cv.length-1]:null;
+  h+=T==null?`<p class="vlead">${y} tiene datos hasta ${V_MESL[(M.maxMes[y]||1)-1]}. Elige un mes de corte hasta ese mes para ver el acumulado.</p>`
+   :`<p class="vlead">A ${mesL} de ${y}, la venta acumulada suma <b>${vM(T)}</b>${Tp!=null?` (<b class="${vCls(vVar(T,Tp))}">${vP(vVar(T,Tp))}</b> frente a ${y-1})`:''}.${chs[0]?` El canal de mayor venta es ${esc(chs[0].k)}, con <b>${vP1(chs[0].a/T)}</b> del total.`:''}${sube?` El que más crece es ${esc(sube.k)} (<b class="v-up">${vP(sube.v)}</b>)`:''}${baja?`${sube?' y el':' El'} que más cae es ${esc(baja.k)} (<b class="v-down">${vP(baja.v)}</b>)`:''}${sube||baja?'.':''}</p>`;
+  h+=`<div class="kpis"><div class="kpi"><span class="l">Total acumulado · ${per}</span><span class="v">${vM(T)}</span><span class="s"><span class="${vCls(vVar(T,Tp))}">${vP(vVar(T,Tp))}</span> vs ${y-1} (${vM(Tp)})</span></div></div>`;
+  if(chs.length)h+=`<div class="panel"><h2 style="font-size:1.05rem">Venta por canal · ${per}</h2><div class="note">Acumulado de cada canal, su peso en el total y la variación contra el mismo periodo del año anterior.</div>
+   <div class="vch">${chs.map(o=>`<div class="kpi"><span class="l"><i style="display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;background:${vColor(o.k,M)}"></i>${esc(o.k)}</span><span class="v" style="font-size:1.25rem">${vM(o.a)}</span><span class="s">${vP1(T?o.a/T:null)} del total · <span class="${vCls(o.v)}">${o.v==null?'sin año anterior':vP(o.v)}</span></span></div>`).join('')}</div></div>`;
+
+  const keys=vf.canal==='Todos'?M.canales:[vf.canal];
+  const lg=keys.map(k=>`<span><i style="background:${keys.length>1?vColor(k,M):'var(--cyan)'}"></i>${esc(k)}</span>`).join('');
+  const ylg=[...M.years].reverse().map(x=>`<span style="${x===y?'font-weight:600;color:var(--ink)':''}"><i style="background:${vYearCol(x,M.years)}"></i>${x}</span>`).join('');
+  const cnote=vf.canal==='Todos'?'':` Canal: ${esc(vf.canal)}.`;
+
+  const yrsB=M.years.filter(x=>M.acum(x,'Todos',c)!=null);
+  h+=`<h3 style="margin-top:6px">Comparativo acumulado enero–${mesL} de todos los años</h3>
+   <div class="panel"><h2 style="font-size:1.05rem">Total acumulado enero–${mesL} por año</h2><div class="note">La línea punteada es el promedio de los años anteriores; debajo de cada año, la variación frente al año anterior.</div><div class="vchart" id="vcComp"></div></div>
+   <div class="grid2"><div class="panel"><h2 style="font-size:1.05rem">Qué canales explican el cambio${yrsB.length>1?` · ${yrsB[yrsB.length-2]} a ${yrsB[yrsB.length-1]}`:''}</h2><div class="note">Variación de cada canal en el mismo periodo. Verde: canales que suben; rojo: canales que bajan.</div><div class="vchart" id="vcPuente"></div></div>
+   <div class="panel"><h2 style="font-size:1.05rem">Peso de Suscripciones y Libro Misionero</h2><div class="note">Participación de los dos canales más grandes en la venta acumulada de cada año.</div><div class="legend"><span><i style="background:var(--cyan)"></i>Suscripciones</span><span><i style="background:#b9bec8"></i>Libro Misionero</span></div><div class="vchart" id="vcPeso"></div></div></div>
+   <div class="grid2">
+   <div class="panel"><h2 style="font-size:1.05rem">Acumulado enero–${mesL} por año</h2><div class="note">Mismo periodo cada año, para comparar parejo.${cnote}</div><div class="legend">${lg}</div><div class="vchart" id="vcAcum"></div></div>
+   <div class="panel"><h2 style="font-size:1.05rem">Acumulado mes a mes por año</h2><div class="note">Cómo se va formando la venta del año; la línea punteada marca el mes de corte.${cnote}</div><div class="legend">${ylg}</div><div class="vchart" id="vcAcumL"></div></div></div>`;
+
+  const rowsAll=[...M.canales,'Todos'];
+  const yrsC=M.years.filter(x=>M.acum(x,'Todos',c)!=null),[yp,yl]=yrsC.slice(-2);
+  h+=`<div class="panel"><h2 style="font-size:1.05rem">Cuadro acumulado enero–${mesL} por canal</h2><div class="note">Soles. La variación compara los dos últimos años con datos en ese periodo.</div>
+   <div class="tbl vt"><table><thead><tr><th>Canal</th>${M.years.map(x=>`<th class="num">${x}</th>`).join('')}<th class="num">${yl&&yp?`Var. ${yl}/${yp}`:'Variación'}</th><th class="num">${yl?`Part. ${yl}`:'Part.'}</th></tr></thead><tbody>${rowsAll.map(k=>{const v=yl&&yp?vVar(M.acum(yl,k,c),M.acum(yp,k,c)):null;
+    return `<tr class="${k==='Todos'?'vtot':''}"><td>${esc(vLabel(k))}</td>${M.years.map(x=>`<td class="num">${vN(M.acum(x,k,c))}</td>`).join('')}<td class="num ${vCls(v)}">${vP(v)}</td><td class="num">${vP1(yl&&M.acum(yl,k,c)!=null&&M.acum(yl,'Todos',c)?M.acum(yl,k,c)/M.acum(yl,'Todos',c):null)}</td></tr>`}).join('')}</tbody></table></div></div>`;
+
+  const comp=M.years.filter(x=>M.maxMes[x]===12),cl=comp[comp.length-1],cp=comp.includes(cl-1)?cl-1:comp[comp.length-2];
+  const base=comp.includes(2022)?2022:comp[0],totCl=cl?M.anual(cl,'Todos'):null;
+  h+=`<h3 style="margin-top:6px">Comparativo anual</h3>
+   <div class="panel"><h2 style="font-size:1.05rem">Venta anual por año</h2><div class="note">El año que aún no cierra va con asterisco.${cnote}</div><div class="legend">${lg}</div><div class="vchart" id="vcAnual"></div></div>
+   <div class="panel"><h2 style="font-size:1.05rem">Cuadro anual por canal</h2><div class="note">Soles. Variación y participación del último año completo; crecimiento promedio anual compuesto desde ${base||'—'}.</div>
+   <div class="tbl vt"><table><thead><tr><th>Canal</th>${M.years.map(x=>`<th class="num">${M.maxMes[x]<12?`${x} (a ${V_MES[M.maxMes[x]-1].toLowerCase()}.)`:x}</th>`).join('')}${cl&&cp?`<th class="num">Var. ${cl}/${cp}</th>`:''}${cl?`<th class="num">Part. ${cl}</th>`:''}${cl&&base&&cl>base?`<th class="num">Crec. prom. ${base}–${cl}</th>`:''}</tr></thead><tbody>${rowsAll.map(k=>{
+    const a=cl?M.anual(cl,k):null,b=cp?M.anual(cp,k):null,z=base?M.anual(base,k):null,v=vVar(a,b),g=a>0&&z>0&&cl>base?Math.pow(a/z,1/(cl-base))-1:null;
+    return `<tr class="${k==='Todos'?'vtot':''}"><td>${esc(vLabel(k))}</td>${M.years.map(x=>`<td class="num">${vN(M.anual(x,k))}</td>`).join('')}${cl&&cp?`<td class="num ${vCls(v)}">${vP(v)}</td>`:''}${cl?`<td class="num">${vP1(a!=null&&totCl?a/totCl:null)}</td>`:''}${cl&&base&&cl>base?`<td class="num ${vCls(g)}">${vP(g)}</td>`:''}</tr>`}).join('')}</tbody></table></div></div>`;
+
+  const mm=M.maxMes[y]||12,rowsY=rowsAll.filter(k=>M.mens(y,k));
+  h+=`<h3 style="margin-top:6px">Comparativo mensual</h3>
+   <div class="panel"><h2 style="font-size:1.05rem">Venta mensual por año</h2><div class="note">Cada línea es un año; el año elegido va resaltado.${cnote}</div><div class="legend">${ylg}</div><div class="vchart" id="vcMens"></div></div>
+   <div class="panel"><h2 style="font-size:1.05rem">Cuadro mensual por canal · ${y}</h2><div class="note">Soles, por mes.</div>
+   <div class="tbl vt"><table><thead><tr><th>Canal</th>${V_MES.slice(0,mm).map(m=>`<th class="num">${m}</th>`).join('')}<th class="num">${mm<12?`Total a ${V_MES[mm-1].toLowerCase()}.`:'Total'}</th></tr></thead><tbody>${rowsY.map(k=>{const m=M.mens(y,k);
+    return `<tr class="${k==='Todos'?'vtot':''}"><td>${esc(vLabel(k))}</td>${m.slice(0,mm).map(v=>`<td class="num">${vN(v)}</td>`).join('')}<td class="num">${vN(M.anual(y,k))}</td></tr>`}).join('')}</tbody></table></div></div>`;
+
+  const part=M.canales.map(k=>({k,a:M.acum(y,k,c)})).filter(o=>o.a!=null).sort((a,b)=>b.a-a.a);
+  const pmax=Math.max(1e-9,...part.map(o=>T?o.a/T:0));
+  h+=`<h3 style="margin-top:6px">Cuadros estadísticos</h3><div class="grid2">
+   <div class="panel"><h2 style="font-size:1.05rem">Participación por canal · ${per}</h2><div class="note">Peso de cada canal en el total acumulado del periodo.</div>
+    ${T==null?'<div class="note">Sin datos para este periodo.</div>':`<div class="vbars">${part.map((o,i)=>`<div class="vbar"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(o.k)}</span><div class="t"><b style="width:${Math.max(0,(o.a/T)/pmax*100)}%;background:${i<3?'var(--cyan)':'var(--ink-2)'};opacity:${i<3?1:.45}"></b></div><span class="val">${vM(o.a)} · ${vP1(o.a/T)}</span></div>`).join('')}</div>`}</div>
+   <div class="panel"><h2 style="font-size:1.05rem">Cómo leer los estadísticos</h2><ul class="note" style="margin:0;padding-left:1.1em;line-height:1.6">
+    <li><b>Promedio y mediana mensual:</b> venta típica de un mes. Si la mediana queda muy por debajo del promedio, la venta se concentra en pocos meses.</li>
+    <li><b>Desviación estándar:</b> cuánto se alejan los meses del promedio, en soles.</li>
+    <li><b>Coeficiente de variación:</b> desviación entre promedio. Bajo 50% es un canal estable; sobre 100%, uno que vende por campañas o cobros puntuales.</li>
+    <li><b>Mes más alto y más bajo:</b> los negativos son ajustes o notas de crédito.</li>
+    <li><b>Variación:</b> contra el mismo periodo del año anterior.</li></ul></div></div>`;
+
+  const st=rowsAll.map(k=>({k,s:vStats(M,y,c,k)})).filter(o=>o.s);
+  h+=`<div class="panel"><h2 style="font-size:1.05rem">Estadísticos por canal · ${per}</h2><div class="note">Calculados sobre los meses de enero al mes de corte.</div>
+   ${st.length?`<div class="tbl vt"><table><thead><tr><th>Canal</th><th class="num">Acumulado</th><th class="num">Part.</th><th class="num">Prom. mensual</th><th class="num">Mediana</th><th class="num">Desv. estándar</th><th class="num">Coef. variación</th><th class="num">Mes más alto</th><th>Mes</th><th class="num">Mes más bajo</th><th>Mes</th><th class="num">Var. vs ${y-1}</th></tr></thead><tbody>${st.map(({k,s})=>`<tr class="${k==='Todos'?'vtot':''}"><td>${esc(vLabel(k))}</td><td class="num">${vN(s.total)}</td><td class="num">${vP1(s.part)}</td><td class="num">${vN(s.prom)}</td><td class="num">${vN(s.med)}</td><td class="num">${vN(s.desv)}</td><td class="num">${vP1(s.cv)}</td><td class="num">${vN(s.max)}</td><td>${s.mesMax}</td><td class="num">${vN(s.min)}</td><td>${s.mesMin}</td><td class="num ${vCls(s.var)}">${vP(s.var)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="note">Sin datos para este periodo.</div>'}</div>`;
+  return h;
+}
+
+/* Carga de datos (solo administradores) */
+function viewVImport(M){
+  const p=vImp.parsed;
+  let h=`<div class="panel"><h3>Cargar o actualizar datos de ventas</h3>
+   <div class="note">Copia desde AASINET el cuadro de ventas por canales de un año, desde el encabezado hasta la fila de total, y pégalo abajo. Si ese año ya existe, se reemplaza. También puedes subir un archivo de datos en formato JSON con varios años.</div>
+   <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:end">
+    <label class="note v-lbl" for="viAnio">Año del cuadro<input id="viAnio" type="number" min="2000" max="2100" value="${esc(vImp.anio)}" style="width:110px"></label>
+    <label class="note v-lbl" for="viHasta">Meses con datos hasta<select id="viHasta"><option value="">Detectar automáticamente</option>${V_MESL.map((m,i)=>`<option value="${i+1}" ${+vImp.hasta===i+1?'selected':''}>${m}</option>`).join('')}</select></label>
+    <label class="btn" style="cursor:pointer">Subir archivo JSON<input id="viFile" type="file" accept=".json,application/json" hidden></label>
+   </div>
+   <textarea id="viText" placeholder="Pega aquí el cuadro de AASINET" style="font-family:var(--mono);font-size:.76rem;min-height:150px;white-space:pre;overflow-x:auto">${esc(vImp.text)}</textarea>
+   <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" id="viPrev">Revisar antes de guardar</button></div>`;
+  if(p){
+    h+=`<div class="alert ${p.err?'bad':''}" style="${!p.err&&!p.warn.length?'border-left-color:var(--ok);background:var(--ok-soft)':''}"><div>${esc(p.msg)}${p.warn.length?`<ul style="margin:6px 0 0;padding-left:1.1em">${p.warn.map(w=>`<li>${esc(w)}</li>`).join('')}</ul>`:''}</div></div>`;
+    if(p.preview&&p.preview.length)h+=`<div class="tbl vt"><table><thead><tr>${p.head.map((x,i)=>`<th class="${i>1?'num':''}">${esc(x)}</th>`).join('')}</tr></thead><tbody>${p.preview.map(r=>`<tr>${r.map((x,i)=>`<td class="${i>1?'num':''}">${esc(x)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+    if(!p.err&&p.docs.length)h+=`<div><button class="btn primary" id="viSave" ${vImp.busy?'disabled':''}>${vImp.busy?'Guardando…':`Guardar ${p.years.length>1?'los años '+p.years.join(', '):'el año '+p.years[0]}`}</button></div>`;
+  }
+  if(M.years.length)h+=`<div class="note">Años cargados: ${M.years.map(x=>`<span style="display:inline-flex;gap:6px;align-items:center;margin-right:12px"><b>${x}</b> (a ${V_MESL[M.maxMes[x]-1]}) <button class="link" data-vdel="${x}">Quitar</button></span>`).join('')}</div>`;
+  return h+'</div>';
+}
+function vParse(text,anio,hasta){
+  const warn=[];anio=+anio;
+  if(!(anio>=2000&&anio<=2100))return {err:1,msg:'Escribe el año del cuadro.',warn,docs:[],years:[]};
+  const lines=String(text||'').split(/\r?\n/).filter(l=>l.trim());
+  const rows=[];let repTotal=null,noTabs=false;
+  for(const line of lines){
+    let cells=line.split('\t');
+    if(cells.length<4){noTabs=true;const m=line.trim().match(/^(\d{6,10})\s+(.+?)\s+((?:-?[\d,.]+|-|\([\d,.]+\))(?:\s+(?:-?[\d,.]+|-|\([\d,.]+\)))*)\s*$/);
+      if(m)cells=[m[1],m[2],...m[3].split(/\s+/)];else if(/total/i.test(line)){const nums=line.match(/-?[\d,]+\.\d{2}/g);if(nums)repTotal=vNum(nums[nums.length-1])}}
+    const code=(cells[0]||'').trim();
+    if(!/^\d{6,10}$/.test(code)){if(/total/i.test(cells.slice(0,2).join(' '))){const nums=cells.slice(1).map(vNum).filter(v=>v!=null);if(nums.length)repTotal=nums[nums.length-1]}continue}
+    const name=(cells[1]||'').trim(),meses=[];for(let i=0;i<12;i++)meses.push(vNum(cells[2+i])??0);
+    rows.push({code,name,canal:vCanal(code,name),meses,total:vNum(cells[14])});
+  }
+  if(!rows.length)return {err:1,msg:'No encontré filas de canales. Copia el cuadro desde AASINET (o Excel) incluyendo la columna del código de centro de costo.',warn,docs:[],years:[]};
+  if(noTabs)warn.push('El texto pegado no trae separaciones de columna; si alguna fila tenía celdas vacías los meses pueden quedar corridos. Revisa la columna “Diferencia”.');
+  let hm=+hasta||0;if(!hm)rows.forEach(r=>r.meses.forEach((v,i)=>{if(v)hm=Math.max(hm,i+1)}));hm=hm||12;
+  const by=new Map();
+  rows.forEach(r=>{const o=by.get(r.canal);if(o){warn.push(`“${r.name}” y otra fila se agruparon como ${r.canal}.`);o.meses=o.meses.map((v,i)=>v+r.meses[i]);o.total=(o.total||0)+(r.total||0);o.names.push(r.name)}else by.set(r.canal,{...r,names:[r.name]})});
+  const preview=[];let sum=0;
+  for(const o of by.values()){
+    const s=o.meses.slice(0,hm).reduce((a,b)=>a+b,0);sum+=s;const d=o.total==null?null:o.total-s;
+    if(d!=null&&Math.abs(d)>1)warn.push(`${o.canal}: la suma de los meses (${vN(s)}) no coincide con el total de la fila (${vN(o.total)}). Revisa si hay celdas vacías corridas.`);
+    if(o.code!==V_COD[o.canal]&&V_COD[o.canal])warn.push(`${o.names.join(' / ')} venía con el código ${o.code}; se registra como ${o.canal} (${V_COD[o.canal]}).`);
+    preview.push([o.names.join(' / '),o.canal,vN(s),o.total==null?'—':vN(o.total),d==null?'—':vN(d)]);
+  }
+  if(repTotal!=null&&Math.abs(repTotal-sum)>1)warn.push(`La suma de las filas (${vN(sum)}) no coincide con el total del cuadro (${vN(repTotal)}); se guarda la suma de las filas.`);
+  const docs=[...by.values()].map(o=>({id:`${anio}-${vSlug(o.canal)}`,data:{anio,canal:o.canal,codigo:V_COD[o.canal]||o.code,meses:o.meses.map((v,i)=>i<hm?Math.round(v*100)/100:null),fuente:'AASINET',actualizado:today(),creadoPor:actorId()}}));
+  return {msg:`${anio}: ${docs.length} canales, de enero a ${V_MESL[hm-1]}, total ${vS(sum)}.${VENTAS.some(v=>+v.anio===anio)?' Reemplazará los datos ya cargados de ese año.':''}`,warn,docs,years:[anio],head:['Fila del reporte','Canal','Suma de meses','Total de la fila','Diferencia'],preview};
+}
+function vParseJson(obj){
+  const warn=[];const arr=Array.isArray(obj)?obj:Array.isArray(obj?.rows)?obj.rows:Array.isArray(obj?.data)?obj.data:null;
+  if(!arr||!arr.length)return {err:1,msg:'El archivo no tiene filas de ventas.',warn,docs:[],years:[]};
+  const by=new Map();
+  for(const r of arr){
+    const anio=+r.anio;if(!(anio>=2000&&anio<=2100))continue;const canal=vCanal(r.codigo,r.canal);const k=anio+'|'+canal;
+    const o=by.get(k)||{anio,canal,codigo:V_COD[canal]||String(r.codigo||''),meses:Array(12).fill(null)};
+    if(Array.isArray(r.meses))r.meses.forEach((v,i)=>{if(i<12&&v!=null)o.meses[i]=(o.meses[i]||0)+(+v||0)});
+    else if(+r.mes>=1&&+r.mes<=12)o.meses[+r.mes-1]=(o.meses[+r.mes-1]||0)+(+r.monto||0);
+    by.set(k,o);
+  }
+  const vals=[...by.values()];if(!vals.length)return {err:1,msg:'No reconocí filas con año, canal y montos.',warn,docs:[],years:[]};
+  const years=[...new Set(vals.map(o=>o.anio))].sort();
+  const mmY={};vals.forEach(o=>o.meses.forEach((v,i)=>{if(v!=null)mmY[o.anio]=Math.max(mmY[o.anio]||0,i+1)}));
+  const docs=vals.map(o=>({id:`${o.anio}-${vSlug(o.canal)}`,data:{anio:o.anio,canal:o.canal,codigo:o.codigo,meses:o.meses.map((v,i)=>i<mmY[o.anio]?Math.round((v||0)*100)/100:null),fuente:'AASINET',actualizado:today(),creadoPor:actorId()}}));
+  const preview=years.map(y=>{const ds=vals.filter(o=>o.anio===y);return [String(y),`${ds.length} canales`,vN(ds.reduce((s,o)=>s+o.meses.reduce((a,b)=>a+(b||0),0),0)),`a ${V_MESL[mmY[y]-1]}`,'']});
+  const rep=years.filter(y=>VENTAS.some(v=>+v.anio===y));
+  return {msg:`Archivo con ${years.length} años (${years.join(', ')}) y ${docs.length} registros.${rep.length?` Reemplazará los datos ya cargados de ${rep.join(', ')}.`:''}`,warn,docs,years,head:['Año','Canales','Total','Meses',''],preview};
+}
+async function vSave(docs,years){
+  const ids=new Set(docs.map(d=>d.id)),now=new Date().toISOString();
+  const rows=docs.map(d=>({col:'ventas',id:d.id,data:d.data,updated_at:now}));
+  for(let i=0;i<rows.length;i+=200){const r=await sb.from('registros').upsert(rows.slice(i,i+200));if(r.error)throw r.error}
+  const stale=VENTAS.filter(v=>years.includes(+v.anio)&&!ids.has(v.id)).map(v=>v.id);
+  if(stale.length){const r=await sb.from('registros').delete().eq('col','ventas').in('id',stale);if(r.error)throw r.error}
+  db.reloadAll();
+}
+async function vDeleteYear(y){
+  const ids=VENTAS.filter(v=>+v.anio===+y).map(v=>v.id);if(!ids.length)return;
+  const r=await sb.from('registros').delete().eq('col','ventas').in('id',ids);if(r.error)throw r.error;db.reloadAll();
+}
+function vExport(){
+  const out=[['anio','mes','canal','codigo','monto']];
+  VENTAS.slice().sort((a,b)=>a.anio-b.anio||vRank(a.canal)-vRank(b.canal)).forEach(r=>(r.meses||[]).forEach((v,i)=>{if(v!=null)out.push([r.anio,i+1,r.canal,r.codigo||'',v])}));
+  const csv='﻿'+out.map(r=>r.map(x=>/[",;\n]/.test(String(x))?'"'+String(x).replace(/"/g,'""')+'"':x).join(',')).join('\n');
+  downloads.save({filename:'ventas_por_canales.csv',data:csv,mimeType:'text/csv'});
+}
+
+/* Gráficos SVG */
+function vTicks(lo,hi){if(!(hi>lo))hi=lo+1;const st0=(hi-lo)/5,mag=10**Math.floor(Math.log10(st0)),f=st0/mag,step=(f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*mag;
+  const a=Math.floor(lo/step)*step,b=Math.ceil(hi/step)*step,out=[];for(let v=a;v<=b+step/2;v+=step)out.push(Math.round(v/step)*step);return out}
+function vHover(el,tips,idxFn){
+  const tip=el.querySelector('.vtip'),svg=el.querySelector('svg');if(!svg)return;
+  svg.addEventListener('mousemove',ev=>{const i=idxFn(ev);const t=tips[i];if(!t){tip.hidden=true;return}
+    tip.innerHTML=`<div class="h">${esc(t.h)}</div>`+t.l.map(l=>`<div${l.b?' style="font-weight:600"':''}>${l.c?`<i style="background:${l.c}"></i>`:''}${esc(l.n)}: ${esc(l.v)}</div>`).join('');
+    tip.hidden=false;const r=el.getBoundingClientRect();const x=Math.min(ev.clientX-r.left+14,el.clientWidth-tip.offsetWidth);
+    tip.style.left=Math.max(0,x)+'px';tip.style.top=Math.max(0,ev.clientY-r.top-tip.offsetHeight-10)+'px'});
+  svg.addEventListener('mouseleave',()=>{tip.hidden=true;el.querySelectorAll('.vrule').forEach(l=>l.setAttribute('opacity',0));el.querySelectorAll('.vdot').forEach(d=>d.remove())});
+}
+function vStack(el,rows,keys,cols,head){
+  if(!el)return;if(!rows.length){el.innerHTML='<div class="note" style="padding:40px 0;text-align:center">Sin datos para este periodo.</div>';return}
+  const W=Math.max(300,el.clientWidth||600),H=280,mb=24,mt=16;let lo=0,hi=0;
+  rows.forEach(r=>{let p=0,n2=0;keys.forEach(k=>{const v=r.vals[k]||0;if(v>=0)p+=v;else n2+=v});hi=Math.max(hi,p);lo=Math.min(lo,n2)});
+  const tk=vTicks(lo,hi*1.1),t0=tk[0],t1=tk[tk.length-1],ml=vTextW(tk.map(vAx))+14;
+  const y=v=>mt+(t1-v)/(t1-t0)*(H-mb-mt),band=(W-ml-6)/rows.length,bw=Math.min(44,band*.62);
+  let s=`<svg width="100%" viewBox="0 0 ${W} ${H}" role="img">`;
+  tk.forEach(t=>{s+=`<line x1="${ml}" x2="${W}" y1="${y(t)}" y2="${y(t)}" stroke="${t===0?'var(--ink-2)':'var(--rule)'}"/><text x="${ml-8}" y="${y(t)}" dy=".32em" text-anchor="end">${vAx(t)}</text>`});
+  rows.forEach((r,i)=>{const cx=ml+band*i+band/2;let p=0,n2=0;
+    keys.forEach((k,j)=>{const v=r.vals[k]||0;if(!v)return;let a,b;if(v>=0){a=p;b=p+v;p=b}else{a=n2;b=n2+v;n2=b}
+      s+=`<rect x="${cx-bw/2}" width="${bw}" y="${Math.min(y(a),y(b))}" height="${Math.max(.5,Math.abs(y(a)-y(b)))}" fill="${cols[j]}" rx="${keys.length>1?2:4}"/>`});
+    const tot=keys.reduce((a,k)=>a+(r.vals[k]||0),0);
+    if(band>40)s+=`<text x="${cx}" y="${y(Math.max(p,0))-5}" text-anchor="middle" style="fill:var(--ink)">${vAx(tot)}</text>`;
+    s+=`<text x="${cx}" y="${H-6}" text-anchor="middle">${esc(r.x)}</text>`;
+    s+=`<rect x="${ml+band*i}" y="0" width="${band}" height="${H-mb}" fill="transparent" data-ti="${i}"/>`});
+  el.innerHTML=s+'</svg><div class="vtip" hidden></div>';
+  const tips=rows.map(r=>({h:head(r),l:[...keys.map((k,j)=>({c:cols[j],n:k,v:vS(r.vals[k]),z:keys.length>3&&!r.vals[k]})).filter(l=>!l.z),...(keys.length>1?[{n:'Total',v:vS(keys.reduce((a,k)=>a+(r.vals[k]||0),0)),b:1}]:[])]}));
+  vHover(el,tips,ev=>ev.target.dataset&&ev.target.dataset.ti!=null?+ev.target.dataset.ti:null);
+}
+function vLines(el,series,rule,labels,fmt,axf){
+  labels=labels||V_MES;fmt=fmt||vS;axf=axf||vAx;const L=labels.length-1;
+  if(!el)return;const all=series.flatMap(s=>s.vals.filter(v=>v!=null));
+  if(!all.length){el.innerHTML='<div class="note" style="padding:40px 0;text-align:center">Sin datos.</div>';return}
+  const W=Math.max(300,el.clientWidth||600),H=280,mb=24,mt=12;
+  const tk=vTicks(Math.min(0,...all),(Math.max(...all)||1)*1.04),t0=tk[0],t1=tk[tk.length-1];
+  const ml=vTextW(tk.map(axf))+14,mr=vTextW(series.map(s=>s.n))+14,stp=(W-ml-8-mr)/Math.max(1,L);
+  const x=i=>ml+8+i*stp,y=v=>mt+(t1-v)/(t1-t0)*(H-mb-mt);
+  let s=`<svg width="100%" viewBox="0 0 ${W} ${H}" role="img">`;
+  tk.forEach(t=>{s+=`<line x1="${ml}" x2="${W-mr+6}" y1="${y(t)}" y2="${y(t)}" stroke="${t===0?'var(--ink-2)':'var(--rule)'}"/><text x="${ml-8}" y="${y(t)}" dy=".32em" text-anchor="end">${axf(t)}</text>`});
+  labels.forEach((m,i)=>{if(W<460&&L>7&&i%2)return;s+=`<text x="${x(i)}" y="${H-6}" text-anchor="middle">${m}</text>`});
+  if(rule)s+=`<line x1="${x(rule-1)}" x2="${x(rule-1)}" y1="${mt}" y2="${H-mb}" stroke="var(--ink-2)" stroke-dasharray="4 4" opacity=".7"/>`;
+  [...series].sort((a,b)=>(a.strong?1:0)-(b.strong?1:0)).forEach(se=>{let d='',pen=false;
+    se.vals.forEach((v,i)=>{if(v==null){pen=false;return}d+=(pen?'L':'M')+x(i).toFixed(1)+','+y(v).toFixed(1);pen=true});
+    s+=`<path d="${d}" fill="none" stroke="${se.c}" stroke-width="${se.strong?3:1.6}" stroke-opacity="${se.strong?1:.55}" stroke-linecap="round" stroke-linejoin="round"/>`});
+  const ends=series.map(se=>{let i=se.vals.length-1;while(i>=0&&se.vals[i]==null)i--;return i<0?null:{se,x:x(i),y:y(se.vals[i])}}).filter(Boolean).sort((a,b)=>a.y-b.y);
+  for(let i=1;i<ends.length;i++)if(ends[i].y-ends[i-1].y<13)ends[i].y=ends[i-1].y+13;
+  ends.forEach(e=>{s+=`<text x="${e.x+6}" y="${e.y}" dy=".32em" style="fill:${e.se.c};${e.se.strong?'font-weight:600':''}">${esc(e.se.n)}</text>`});
+  s+=`<line class="vrule" y1="${mt}" y2="${H-mb}" stroke="var(--ink-2)" opacity="0"/><rect x="${ml}" y="0" width="${W-ml}" height="${H-mb}" fill="transparent"/>`;
+  el.innerHTML=s+'</svg><div class="vtip" hidden></div>';
+  const svg=el.querySelector('svg'),rl=el.querySelector('.vrule');
+  const tips=labels.map((m,i)=>({h:String(m),l:series.filter(se=>se.vals[i]!=null).map(se=>({c:se.c,n:se.n,v:fmt(se.vals[i]),b:se.strong}))}));
+  vHover(el,tips,ev=>{const r=svg.getBoundingClientRect(),px=(ev.clientX-r.left)*W/r.width;const i=Math.max(0,Math.min(L,Math.round((px-x(0))/stp)));
+    rl.setAttribute('x1',x(i));rl.setAttribute('x2',x(i));rl.setAttribute('opacity',.6);
+    el.querySelectorAll('.vdot').forEach(d=>d.remove());
+    series.forEach(se=>{if(se.vals[i]==null)return;const c=document.createElementNS('http://www.w3.org/2000/svg','circle');c.setAttribute('class','vdot');c.setAttribute('cx',x(i));c.setAttribute('cy',y(se.vals[i]));c.setAttribute('r',se.strong?4:3);c.setAttribute('fill',se.c);svg.appendChild(c)});
+    return tips[i].l.length?i:null});
+}
+
+/* Total por año con promedio de años anteriores y variación anual */
+function vComp(el,M,c){
+  if(!el)return;const ys=M.years.filter(x=>M.acum(x,'Todos',c)!=null);
+  if(!ys.length){el.innerHTML='<div class="note" style="padding:40px 0;text-align:center">Sin datos para este periodo.</div>';return}
+  const v=ys.map(x=>M.acum(x,'Todos',c)),prev=v.slice(0,-1),avg=prev.length?prev.reduce((a,b)=>a+b,0)/prev.length:null;
+  const W=Math.max(300,el.clientWidth||700),H=300,mt=16,base=H-46,mr=avg!=null?vTextW(['Promedio años previos'])+16:8;
+  const max=Math.max(...v,1),y=x=>base-(Math.max(0,x))/(max*1.12)*(base-mt),band=(W-8-mr)/ys.length,bw=Math.min(52,band*.6);
+  let s=`<svg width="100%" viewBox="0 0 ${W} ${H}" role="img"><line x1="4" x2="${W-mr+4}" y1="${base}" y2="${base}" stroke="var(--ink-2)"/>`;
+  ys.forEach((yr,i)=>{const cx=8+band*i+band/2,last=i===ys.length-1;
+    s+=`<rect x="${cx-bw/2}" y="${y(v[i])}" width="${bw}" height="${base-y(v[i])}" rx="4" fill="${last?'var(--cyan)':'#b9bec8'}"/>`;
+    if(band>44)s+=`<text x="${cx}" y="${y(v[i])-6}" text-anchor="middle" style="fill:var(--ink);${last?'font-weight:600':''}">${vAx(v[i])}</text>`;
+    s+=`<text x="${cx}" y="${base+16}" text-anchor="middle">${yr}</text>`;
+    if(i>0){const d=vVar(v[i],v[i-1]);s+=`<text x="${cx}" y="${base+32}" text-anchor="middle" style="fill:${d>=0?'var(--ok)':'var(--bad)'}">${vP(d)}</text>`}
+    s+=`<rect x="${8+band*i}" y="0" width="${band}" height="${base}" fill="transparent" data-ti="${i}"/>`});
+  if(avg!=null)s+=`<line x1="4" x2="${W-mr+4}" y1="${y(avg)}" y2="${y(avg)}" stroke="var(--ink-2)" stroke-dasharray="5 4" opacity=".8"/><text x="${W-mr+10}" y="${y(avg)-4}">Promedio años previos</text><text x="${W-mr+10}" y="${y(avg)+12}">${vM(avg)}</text>`;
+  el.innerHTML=s+'</svg><div class="vtip" hidden></div>';
+  const tips=ys.map((yr,i)=>({h:`Ene–${V_MES[c-1]} ${yr}`,l:[{n:'Total',v:vS(v[i]),b:1},...(i>0?[{n:'Vs año anterior',v:vP(vVar(v[i],v[i-1]))}]:[]),...(i===ys.length-1&&avg!=null?[{n:'Vs promedio',v:vP(vVar(v[i],avg))}]:[])]}));
+  vHover(el,tips,ev=>ev.target.dataset&&ev.target.dataset.ti!=null?+ev.target.dataset.ti:null);
+}
+/* Puente por canal entre los dos últimos años con datos */
+function vBridge(el,M,c){
+  if(!el)return;const ys=M.years.filter(x=>M.acum(x,'Todos',c)!=null);
+  if(ys.length<2){el.innerHTML='<div class="note" style="padding:40px 0;text-align:center">Se necesitan dos años con datos.</div>';return}
+  const yp=ys[ys.length-2],yl=ys[ys.length-1],b0=M.acum(yp,'Todos',c),b1=M.acum(yl,'Todos',c);
+  const st=M.canales.map(k=>{const a=M.acum(yp,k,c),b=M.acum(yl,k,c);return a==null&&b==null?null:{k,a,b,d:(b||0)-(a||0)}}).filter(Boolean)
+    .sort((p,q)=>(q.d>=0)-(p.d>=0)||Math.abs(q.d)-Math.abs(p.d));
+  const km=x=>(x>0?'+':'−')+'S/ '+Math.round(Math.abs(x)/1000).toLocaleString('es-PE')+' mil';
+  let run=b0;const it=st.map(o=>{const a=run;run+=o.d;return {...o,s:a,e:run}});
+  const W=Math.max(300,el.clientWidth||600),rh=22,bh=14,n=it.length,H=(n+2)*rh+10;
+  const lw=vTextW([...st.map(o=>o.k),`Ene–${V_MES[c-1]} ${yp}`])*0.95+12,vw=vTextW([`${vM(b1)} (${km(b1-b0)})`])+10;
+  const mx=Math.max(b0,...it.map(o=>Math.max(o.s,o.e))),x=v=>lw+Math.max(0,v)/mx*(W-lw-vw),yy=i=>4+i*rh;
+  let s=`<svg width="100%" viewBox="0 0 ${W} ${H}" role="img"><line x1="${lw}" x2="${lw}" y1="0" y2="${H-6}" stroke="var(--ink-2)"/>`;
+  const lab=(i,t,b)=>`<text x="${lw-8}" y="${yy(i)+bh-3}" text-anchor="end" style="fill:var(--ink);${b?'font-weight:600':''}">${esc(t)}</text>`;
+  s+=lab(0,`Ene–${V_MES[c-1]} ${yp}`,1)+`<rect x="${lw}" y="${yy(0)}" width="${x(b0)-lw}" height="${bh}" rx="2" fill="#b9bec8"/><text x="${x(b0)+6}" y="${yy(0)+bh-3}" style="fill:var(--ink)">${vM(b0)}</text>`;
+  it.forEach((o,i)=>{s+=lab(i+1,o.k)+`<line x1="${x(o.s)}" x2="${x(o.s)}" y1="${yy(i)+bh}" y2="${yy(i+1)}" stroke="var(--rule)"/><rect x="${Math.min(x(o.s),x(o.e))}" y="${yy(i+1)}" width="${Math.max(1.5,Math.abs(x(o.e)-x(o.s)))}" height="${bh}" rx="2" fill="${o.d>=0?'var(--ok)':'var(--bad)'}" fill-opacity=".6"/><text x="${Math.max(x(o.s),x(o.e))+6}" y="${yy(i+1)+bh-3}">${km(o.d)}</text><rect x="0" y="${yy(i+1)-3}" width="${W}" height="${rh}" fill="transparent" data-ti="${i}"/>`});
+  s+=lab(n+1,`Ene–${V_MES[c-1]} ${yl}`,1)+`<line x1="${x(run)}" x2="${x(run)}" y1="${yy(n)+bh}" y2="${yy(n+1)}" stroke="var(--rule)"/><rect x="${lw}" y="${yy(n+1)}" width="${x(b1)-lw}" height="${bh}" rx="2" fill="#b9bec8"/><text x="${x(b1)+6}" y="${yy(n+1)+bh-3}" style="fill:var(--ink);font-weight:600">${vM(b1)} (${km(b1-b0)})</text>`;
+  el.innerHTML=s+'</svg><div class="vtip" hidden></div>';el.style.minHeight=H+'px';
+  const tips=it.map(o=>({h:o.k,l:[{n:String(yp),v:vS(o.a)},{n:String(yl),v:vS(o.b)},{n:'Cambio',v:km(o.d),b:1}]}));
+  vHover(el,tips,ev=>ev.target.dataset&&ev.target.dataset.ti!=null?+ev.target.dataset.ti:null);
+}
+
+function bindVentas(){
+  const g=id=>document.getElementById(id);
+  if(g('vAnio'))g('vAnio').onchange=e=>{vf.anio=+e.target.value;render()};
+  if(g('vCorte'))g('vCorte').onchange=e=>{vf.corte=+e.target.value;render()};
+  if(g('vCanal'))g('vCanal').onchange=e=>{vf.canal=e.target.value;render()};
+  if(g('vCsv'))g('vCsv').onclick=vExport;
+  if(g('vImpBtn'))g('vImpBtn').onclick=()=>{vImp.open=!vImp.open;render()};
+  if(g('viText'))g('viText').oninput=e=>{vImp.text=e.target.value};
+  if(g('viAnio'))g('viAnio').oninput=e=>{vImp.anio=e.target.value};
+  if(g('viHasta'))g('viHasta').onchange=e=>{vImp.hasta=e.target.value};
+  if(g('viPrev'))g('viPrev').onclick=()=>{vImp.text=g('viText').value;vImp.anio=g('viAnio').value;vImp.parsed=vParse(vImp.text,vImp.anio,vImp.hasta);render()};
+  if(g('viFile'))g('viFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{vImp.parsed=vParseJson(JSON.parse(await f.text()))}catch(err){vImp.parsed={err:1,msg:'No se pudo leer el archivo: no es un JSON válido.',warn:[],docs:[],years:[]}}render()};
+  if(g('viSave'))g('viSave').onclick=async()=>{const p=vImp.parsed;if(!p||vImp.busy)return;vImp.busy=true;render();
+    try{await vSave(p.docs,p.years);toast('Datos de ventas guardados.');vImp.parsed=null;vImp.text='';vf.anio=null}
+    catch(e){toast('No se pudo guardar: '+(e.message||e))}finally{vImp.busy=false;render()}};
+  document.querySelectorAll('[data-vdel]').forEach(b=>b.onclick=async()=>{if(!b.dataset.arm){b.dataset.arm=1;b.textContent='Confirmar: quitar '+b.dataset.vdel;return}
+    try{await vDeleteYear(b.dataset.vdel);toast('Año quitado.')}catch(e){toast('No se pudo quitar: '+(e.message||e))}});
+  if(vFocus){const f=g(vFocus.id);if(f){f.focus();try{if(vFocus.s!=null)f.setSelectionRange(vFocus.s,vFocus.e);f.scrollTop=vFocus.top||0}catch(_){}}vFocus=null}
+
+  const M=vModel();if(!M.years.length||!g('vcAcum'))return;
+  const y=vf.anio,c=vf.corte,keys=vf.canal==='Todos'?M.canales:[vf.canal],cols=keys.length>1?keys.map(k=>vColor(k,M)):['var(--cyan)'];
+  vStack(g('vcAcum'),M.years.map(x=>({x:String(x),vals:Object.fromEntries(keys.map(k=>[k,M.acum(x,k,c)]))})).filter(r=>keys.some(k=>r.vals[k]!=null)),keys,cols,r=>`Ene–${V_MES[c-1]} ${r.x}`);
+  vStack(g('vcAnual'),M.years.map(x=>({x:M.maxMes[x]<12?x+'*':String(x),y:x,vals:Object.fromEntries(keys.map(k=>[k,M.anual(x,k)]))})).filter(r=>keys.some(k=>r.vals[k]!=null)),keys,cols,r=>M.maxMes[r.y]<12?`${r.y} (enero–${V_MESL[M.maxMes[r.y]-1]})`:`Año ${r.y}`);
+  const ser=f=>[...M.years].reverse().map(x=>({n:String(x),c:vYearCol(x,M.years),strong:x===y,vals:f(x)})).filter(se=>se.vals.some(v=>v!=null));
+  vLines(g('vcAcumL'),ser(x=>V_MES.map((_,i)=>M.acum(x,vf.canal,i+1))),c);
+  vLines(g('vcMens'),ser(x=>M.mens(x,vf.canal)||V_MES.map(()=>null)),null);
+  vComp(g('vcComp'),M,c);vBridge(g('vcPuente'),M,c);
+  const yrsP=M.years.filter(x=>M.acum(x,'Todos',c)!=null),sh=k=>yrsP.map(x=>{const a=M.acum(x,k,c),t=M.acum(x,'Todos',c);return a==null||!t?null:a/t});
+  vLines(g('vcPeso'),[{n:'Libro Misionero',c:'#b9bec8',strong:false,vals:sh('Libro Misionero')},{n:'Suscripciones',c:'var(--cyan)',strong:true,vals:sh('Suscripciones')}],null,yrsP.map(String),v=>vP1(v),v=>Math.round(v*100)+'%');
+}
+let vRT;window.addEventListener('resize',()=>{if(tab!=='ventas')return;clearTimeout(vRT);vRT=setTimeout(()=>{try{bindVentas()}catch(e){}},200)});
+
 /* ===== Eventos de la vista ===== */
 function bindView(){
   if(tab==='users'&&canManage())bindUsers();
   if(tab==='cal')bindCal();
+  if(tab==='ventas')bindVentas();
   const lf=$('#loginF');if(lf){lf.onsubmit=doLogin;const lu=$('#lgUser');if(lu&&!lu.value)lu.focus()}
   const ba=$('#baGo');if(ba)ba.onclick=becomeAdmin;
   const l2=$('#lgOut2');if(l2)l2.onclick=logout;
@@ -1138,6 +1545,7 @@ render();
   let migrated=false;const migrate=()=>{if(migrated||!isAdm())return;const old=PUBP.filter(p=>SENS.some(k=>k in p));if(!old.length)return;migrated=true;old.forEach(p=>put('personal',{...p,...(PRIV[p.id]||{})}).catch(()=>{}))};
   const startData=()=>{if(started){db.reloadAll();return}started=true;
     db.collection('personal_priv').onSnapshot(snap=>{Object.keys(PRIV).forEach(k=>delete PRIV[k]);snap.docs.forEach(d=>{PRIV[d.id]=d.data()});mergeP();migrate();render()},()=>{});
+    db.collection('ventas').onSnapshot(snap=>{VENTAS=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
     COLS.forEach(c=>db.collection(c).onSnapshot(snap=>{const rows=snap.docs.map(d=>({...d.data(),id:d.id}));if(c==='personal'){PUBP.length=0;PUBP.push(...rows);mergeP();migrate()}else RAW[c]=rows;render()},()=>toast('No se pudieron cargar los datos. Revisa tu conexión.')))};
   sb.auth.onAuthStateChange((ev,sess)=>{const had=!!SESSION;SESSION=sess;if(sess){loadUsers().then(startData)}else{USR=[];USR_READY=false;if(had){COLS.forEach(c=>RAW[c]=[]);db.clear()}loadUsers()}});
   sb.channel('perfiles-cambios').on('postgres_changes',{event:'*',schema:'public',table:'perfiles'},()=>{if(SESSION)loadUsers()}).subscribe();
