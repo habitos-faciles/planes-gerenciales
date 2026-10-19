@@ -167,7 +167,7 @@ dialog label.full{grid-column:1/-1}
       <div style="display:flex;gap:14px;align-items:center;min-width:0">
         <div class="reg" aria-hidden="true"><i style="background:var(--cyan)"></i><i style="background:var(--magenta)"></i><i style="background:var(--yellow)"></i><i style="background:var(--key)"></i></div>
         <div style="min-width:0">
-          <h1>Plan Gerencial Editorial</h1>
+          <h1>Planes Gerenciales de la Editorial</h1>
           <div class="sub">Proyectos consolidados por unidad: actividades, tareas, comisiones y metas, con personal y presupuesto</div>
         </div>
       </div>
@@ -271,11 +271,18 @@ function loadLocal(){try{const j=JSON.parse(localStorage.getItem(LKEY)||'{}');CO
 function saveLocal(){try{localStorage.setItem(LKEY,JSON.stringify(RAW))}catch(e){}}
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 
+const SENS=['remuneracion','dni','contacto'];
+const isAdm=()=>typeof canManage==='function'&&canManage();
 async function put(col,obj){
+  if(col==='personal'&&!isAdm())throw {code:'invalid_argument',message:'Solo el administrador registra personal.'};
+  if(mode==='db'&&col==='personal'){const pub={...obj},priv={id:obj.id};SENS.forEach(k=>{if(k in pub){priv[k]=pub[k];delete pub[k]}});
+    await db.collection('personal').doc(obj.id).set(pub);await db.collection('personal_priv').doc(obj.id).set(priv);return}
   if(mode==='db'){await db.collection(col).doc(obj.id).set(obj)}
   else{const i=RAW[col].findIndex(x=>x.id===obj.id);if(i>=0)RAW[col][i]=obj;else RAW[col].push(obj);saveLocal();render()}
 }
 async function del(col,id){
+  if(col==='personal'&&!isAdm())throw {code:'invalid_argument',message:'Solo el administrador elimina personal.'};
+  if(mode==='db'&&col==='personal'){await db.collection('personal').doc(id).delete();await db.collection('personal_priv').doc(id).delete().catch(()=>{});return}
   if(mode==='db'){await db.collection(col).doc(id).delete()}
   else{RAW[col]=RAW[col].filter(x=>x.id!==id);saveLocal();render()}
 }
@@ -377,7 +384,7 @@ function applyScope(ac){
   S.comisiones=RAW.comisiones.filter(x=>C.has(x.id));
   S.metas=RAW.metas.filter(x=>P.has(x.proyecto)||mine(x));
   S.riesgos=RAW.riesgos.filter(x=>P.has(x.proyecto)||mine(x));
-  S.personal=RAW.personal.filter(x=>x.id===per||units.includes(x.unidad)||(me&&x.creadoPor===me));
+  S.personal=RAW.personal.map(x=>{const o={...x};SENS.forEach(k=>delete o[k]);return o});
 }
 function scopeLabel(){const a=myAcc();if(!a)return '';return a.nombre+' · '+a.rol+(a.rol==='Responsable de unidad'&&U[a.unidad]?' ('+U[a.unidad].n+')':'')}
 
@@ -527,7 +534,7 @@ function render(){
 
 /* ===== Vista: listas ===== */
 const LISTCOLS={
- personal:r=>[['Nombre',`<strong>${esc(r.nombre)}</strong>${exTag(r)}<div class="note">${esc(r.cargo)}</div>`],['Unidad',`<span class="unit-tag">${esc(U[r.unidad]?.n||'—')}</span>`],['Situación',pillFor(r.estado)],['Modalidad',esc(r.tipo||'—')],['Ingreso',fdate(r.fechaIngreso)],['Remuneración',money(r.remuneracion),'num']],
+ personal:r=>[['Nombre',`<strong>${esc(r.nombre)}</strong>${exTag(r)}<div class="note">${esc(r.cargo)}</div>`],['Unidad',`<span class="unit-tag">${esc(U[r.unidad]?.n||'—')}</span>`],['Situación',pillFor(r.estado)],['Modalidad',esc(r.tipo||'—')],['Ingreso',fdate(r.fechaIngreso)],...(isAdm()?[['Remuneración',money(r.remuneracion),'num'],['Documento',esc(r.dni||'—')],['Contacto',esc(r.contacto||'—')]]:[])],
  proyectos:r=>{const av=proyAvance(r),ej=n(r._bud)?n(r._ej)/n(r._bud)*100:0;return [['Proyecto',`<strong>${esc(r.nombre)}</strong>${exTag(r)}<div class="note">${esc(r.codigo||'')} ${r.codigo?'·':''} ${esc(pname(r.responsable))}</div>`],['Unidad',`<span class="unit-tag">${esc(U[r.unidad]?.n||'—')}</span>`],['Estado',pillFor(r.estado)],['Periodos',periodsHTML(r,true)],['Avance',`${meter(av)}<div class="note">${pct(av)}</div>`],['Presupuesto',money(r._bud),'num'],['Ejecución',`${money(r._ej)}<div class="note">${pct(ej)}</div>`,'num']]},
  actividades:r=>{const p=byId('proyectos',r.proyecto),av=actAvance(r);return [['Actividad',`<strong>${esc(r.nombre)}</strong>${exTag(r)}<div class="note">${esc(p?.nombre||'Sin proyecto')}${r.linea?' · '+esc(r.linea):''}</div>`],['Responsable',esc(pname(r.responsable))],['Estado',pillFor(r.estado)],['Periodos',periodsHTML(r,true)],['Avance',`${meter(av)}<div class="note">${pct(av)}</div>`],['Presupuesto',money(r.presupuesto),'num'],['Ejecutado',money(r.ejecutado),'num']]},
  tareas:r=>{const a=byId('actividades',r.actividad);const late=r.vence&&r.vence<today()&&r.estado!=='Hecha';return [['Tarea',`<strong>${esc(r.nombre)}</strong>${exTag(r)}<div class="note">${esc(a?.nombre||'Sin actividad')}</div>`],['Responsable',esc(pname(r.responsable))],['Prioridad',pillFor(r.prioridad)],['Estado',pillFor(r.estado)],['Periodos',`${periodsHTML(r,true)}${late?' <span class="pill bad">Vencida</span>':''}`]]},
@@ -544,16 +551,16 @@ function viewList(col){
   const blocked=needs&&!S[needs].length;
   let html=`<div class="bar"><div class="left"><h2>${sc.t}</h2><span class="note">${rows.length} de ${S[col].length} registros</span></div>
   <div class="right"><input class="search" id="q" type="search" placeholder="Buscar…" value="${esc(q)}" aria-label="Buscar">${unitFilterSel()}
-  <button class="btn" data-export="${col}">Exportar CSV</button>${col==='personal'&&!readOnly?`<button class="btn" data-import aria-pressed="${imp.open}">Importar lista</button>`:''}
-  <button class="btn primary" data-new="${col}" ${readOnly||blocked?'disabled':''}>+ Nuevo ${sc.one}</button></div></div>`;
+  <button class="btn" data-export="${col}">Exportar CSV</button>${col==='personal'&&!readOnly&&isAdm()?`<button class="btn" data-import aria-pressed="${imp.open}">Importar lista</button>`:''}
+  ${col==='personal'&&!isAdm()?'<span class="note">Solo el administrador registra personal</span>':`<button class="btn primary" data-new="${col}" ${readOnly||blocked?'disabled':''}>+ Nuevo ${sc.one}</button>`}</div></div>`;
   if(col==='personal'&&imp.open)html+=viewImport();
   if(blocked)html+=`<div class="note">Primero registra al menos un ${SCH[needs].one} para poder crear ${sc.t.toLowerCase()}.</div>`;
   if(!rows.length){html+=`<div class="panel empty"><strong>Aún no hay ${sc.t.toLowerCase()} ${filterUnit!=='ALL'?'en esta unidad':''}</strong>Usa “+ Nuevo ${sc.one}” para registrar el primero.</div>`;return html}
   const heads=LISTCOLS[col](rows[0]);
   html+=`<div class="tbl"><table><thead><tr>${heads.map(h=>`<th class="${h[2]||''}">${h[0]}</th>`).join('')}<th></th></tr></thead><tbody>`;
-  const heads2=heads;rows.forEach(r=>{html+=`<tr>${LISTCOLS[col](r).map(c=>`<td class="${c[2]||''}">${c[1]}</td>`).join('')}<td class="acts"><button class="btn small" data-edit="${col}:${r.id}">${readOnly?'Ver':'Editar'}</button></td></tr>`});
+  const heads2=heads;rows.forEach(r=>{html+=`<tr>${LISTCOLS[col](r).map(c=>`<td class="${c[2]||''}">${c[1]}</td>`).join('')}<td class="acts"><button class="btn small" data-edit="${col}:${r.id}">${readOnly||(col==='personal'&&!isAdm())?'Ver':'Editar'}</button></td></tr>`});
   html+='</tbody></table></div>';
-  if(col==='personal')html+=personalSummary(rows);
+  if(col==='personal'&&isAdm())html+=personalSummary(rows);
   return html;
 }
 function personalSummary(rows){
@@ -747,7 +754,7 @@ function viewDash(){
   const items=scope.map(u=>{const d=(filterUnit==='ALL'&&u.id==='GG')?['GG']:(u.id===filterUnit?[u.id]:desc(u.id));const pr=proy.filter(p=>d.includes(p.unidad));return {label:u.n.replace('Gerencia ','G. ').replace('Coordinación ','Coord. ').replace('Jefatura ','Jef. '),a:pr.reduce((s,p)=>s+n(p._bud),0),b:pr.reduce((s,p)=>s+n(p._ej),0)}}).filter(i=>i.a||i.b);
   const P=projection(pers);
   h+=`<div class="grid2"><div class="panel"><div class="bar"><h3>Presupuesto por unidad</h3><div class="legend"><span><i style="background:var(--cyan);opacity:.35"></i>Asignado</span><span><i style="background:var(--cyan)"></i>Ejecutado</span></div></div>${items.length?`<div style="overflow-x:auto">${hbars(items)}</div>`:'<div class="empty">Sin presupuesto registrado en proyectos.</div>'}</div>
-  <div class="panel"><div class="bar"><h3>Proyección de personal · 12 meses</h3><span class="note">${P.first.v} → ${P.last.v} personas</span></div>${P.svg}<div class="note">Planilla mensual estimada al final del periodo: <strong style="font-family:var(--mono)">${money(P.last.c)}</strong> (actual ${money(P.first.c)}). Considera vacantes y proyectados según su fecha de ingreso.</div></div></div>`;
+  <div class="panel"><div class="bar"><h3>Proyección de personal · 12 meses</h3><span class="note">${P.first.v} → ${P.last.v} personas</span></div>${P.svg}${isAdm()?'':'<!--'}<div class="note">Planilla mensual estimada al final del periodo: <strong style="font-family:var(--mono)">${money(P.last.c)}</strong> (actual ${money(P.first.c)}). Considera vacantes y proyectados según su fecha de ingreso.</div>${isAdm()?'':'-->'}</div></div>`;
 
   // Personal por gerencia + tareas por estado
   const gers=UNITS.filter(u=>u.p==='GG'||u.id==='GG');
@@ -890,9 +897,9 @@ function openForm(col,id,defs){
   const r=id?{...byId(col,id)}:{...(defs||{})};
   if(!id){if(col==='personal')r.estado='Activo';else if(col==='proyectos')r.estado='Por iniciar';else if(col==='actividades')r.estado='Pendiente';else if(col==='tareas')r.estado='Pendiente';else if(col==='riesgos')r.estado='Abierto';else if(col==='comisiones')r.estado='Asignada';else if(col==='metas'){r.tipo=r.tipo||'Numérico'}
     if((col==='personal'||col==='proyectos')&&!r.unidad&&filterUnit!=='ALL')r.unidad=filterUnit}
-  editing={col,id,r};
+  editing={col,id,r};const lockP=col==='personal'&&!isAdm();const ro0=readOnly;if(lockP)readOnly=true;
   $('#dlgTitle').textContent=(id?(readOnly?'Ver ':'Editar '):'Nuevo ')+SCH[col].one;
-  $('#dlgBody').innerHTML=SCH[col].fields.map(f=>field(f,r)).join('');
+  $('#dlgBody').innerHTML=SCH[col].fields.filter(f=>!(lockP&&SENS.includes(f[0]))).map(f=>field(f,r)).join('');
   if(SCH[col].fields.some(f=>f[2]==='periods')){editing.r.periodos=periodsOf(r).map(x=>({...x}));if(!editing.r.periodos.length)editing.r.periodos=[{ini:'',fin:'',desc:''}];renderPeriods()}
   if(col==='proyectos'){const fu2=$('#f_unidad'),fc2=$('#f_codigo');const upd=()=>{const u=fu2.value;fc2.value=!u?'Elige la unidad':(id&&r.unidad===u&&r.codigo&&r.codigo.startsWith(unitPrefix(u)+'-'))?r.codigo:nextCode(u,id)};upd();fu2.addEventListener('change',upd)}
   if(col==='metas'){const fi=$('#f_indicador');const upd=()=>{const p=byId('proyectos',$('#f_proyecto')?.value);const list=p?INDICADORES[gerenciaOf(p.unidad)]||INDICADORES[p.unidad]:null;let dl=$('#indList');if(!dl){dl=document.createElement('datalist');dl.id='indList';document.body.appendChild(dl)}dl.innerHTML=(list||[]).map(x=>`<option value="${esc(x)}">`).join('');fi&&fi.setAttribute('list','indList')};upd();$('#f_proyecto')?.addEventListener('change',upd)}
@@ -900,7 +907,7 @@ function openForm(col,id,defs){
   const d=$('#dlgDel');d.hidden=!id||readOnly;d.textContent='Eliminar';d.dataset.arm='';
   $('#dlgSave').hidden=readOnly;
   if(EV_COLS.includes(col)){editing.r.evidencias=[...(r.evidencias||[])];$('#dlgBody').insertAdjacentHTML('beforeend',evBlock());renderEv();const ef=$('#evFile');if(ef)ef.onchange=e=>{const fs=[...e.target.files];e.target.value='';if(fs.length)uploadEv(fs)}}
-  $('#dlg').showModal();
+  $('#dlg').showModal();readOnly=ro0;$('#dlgSave').hidden=readOnly||lockP;$('#dlgDel').hidden=!id||readOnly||lockP;
 }
 $('#dlgCancel').onclick=()=>$('#dlg').close();
 $('#dlgDel').onclick=async e=>{const b=e.currentTarget;
@@ -908,7 +915,7 @@ $('#dlgDel').onclick=async e=>{const b=e.currentTarget;
   const {col,id}=editing;$('#dlg').close();
   try{await del(col,id);toast(`Se eliminó el ${SCH[col].one}.`)}catch(err){dbErr(err)}};
 $('#frm').addEventListener('submit',async e=>{
-  e.preventDefault();if(readOnly)return;
+  e.preventDefault();if(readOnly)return;if(editing.col==='personal'&&!isAdm()){toast('Solo el administrador registra personal.');return}
   const {col,id,r}=editing;const fd=new FormData(e.target);const o={...r};
   for(const f of SCH[col].fields){let v=fd.get(f[0]);if(v===null)continue;v=String(v).trim();if(f[2]==='num')v=v===''?'':+v;o[f[0]]=v}
   const miss=SCH[col].fields.filter(f=>f[3]&&(o[f[0]]===''||o[f[0]]===undefined));
@@ -1127,7 +1134,11 @@ render();
   db=makeDb();downloads=webDownloads;assets=webAssets;mode='db';
   const s=await sb.auth.getSession();SESSION=s.data.session;ME.ready=true;
   let started=false;
-  const startData=()=>{if(started){db.reloadAll();return}started=true;COLS.forEach(c=>db.collection(c).onSnapshot(snap=>{RAW[c]=snap.docs.map(d=>({...d.data(),id:d.id}));render()},()=>toast('No se pudieron cargar los datos. Revisa tu conexión.')))};
+  const PUBP=[],PRIV={};const mergeP=()=>{RAW.personal=PUBP.map(p=>({...p,...(PRIV[p.id]||{}),id:p.id}))};
+  let migrated=false;const migrate=()=>{if(migrated||!isAdm())return;const old=PUBP.filter(p=>SENS.some(k=>k in p));if(!old.length)return;migrated=true;old.forEach(p=>put('personal',{...p,...(PRIV[p.id]||{})}).catch(()=>{}))};
+  const startData=()=>{if(started){db.reloadAll();return}started=true;
+    db.collection('personal_priv').onSnapshot(snap=>{Object.keys(PRIV).forEach(k=>delete PRIV[k]);snap.docs.forEach(d=>{PRIV[d.id]=d.data()});mergeP();migrate();render()},()=>{});
+    COLS.forEach(c=>db.collection(c).onSnapshot(snap=>{const rows=snap.docs.map(d=>({...d.data(),id:d.id}));if(c==='personal'){PUBP.length=0;PUBP.push(...rows);mergeP();migrate()}else RAW[c]=rows;render()},()=>toast('No se pudieron cargar los datos. Revisa tu conexión.')))};
   sb.auth.onAuthStateChange((ev,sess)=>{const had=!!SESSION;SESSION=sess;if(sess){loadUsers().then(startData)}else{USR=[];USR_READY=false;if(had){COLS.forEach(c=>RAW[c]=[]);db.clear()}loadUsers()}});
   sb.channel('perfiles-cambios').on('postgres_changes',{event:'*',schema:'public',table:'perfiles'},()=>{if(SESSION)loadUsers()}).subscribe();
   await loadUsers();if(SESSION)startData();
