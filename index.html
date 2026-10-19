@@ -1,0 +1,1131 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Planes Gerenciales de la Editorial</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,500;7..72,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: imprenta — barra superior con marcas de registro CMYK, pestañas de módulo, contenido en rejilla de pliego */
+:root{
+  --paper:#f6f7f9; --sheet:#ffffff; --ink:#18202e; --ink-2:#4a5568; --rule:#dde1e8; --rule-2:#eceff3;
+  --cyan:#0a8fb8; --cyan-soft:#e2f3f9; --magenta:#c2185b; --yellow:#e5a50a; --key:#18202e;
+  --ok:#2f8a4f; --ok-soft:#e5f3ea; --warn:#b7791f; --warn-soft:#fbf1dc; --bad:#c53030; --bad-soft:#fbe5e5;
+  --display:"Literata",Georgia,"Times New Roman",serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --shadow:0 1px 2px rgba(24,32,46,.06),0 4px 14px rgba(24,32,46,.05);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#11151c; --sheet:#181d26; --ink:#e8ebf0; --ink-2:#a3adbd; --rule:#2c3340; --rule-2:#232a35;
+  --cyan:#3fb6dc; --cyan-soft:#16313c; --magenta:#e45a92; --yellow:#f0bd3a; --key:#e8ebf0;
+  --ok:#5cc07d; --ok-soft:#1a3324; --warn:#e2a64a; --warn-soft:#3a2d16; --bad:#f07070; --bad-soft:#3d1c1c;
+  --shadow:0 1px 2px rgba(0,0,0,.3); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#11151c; --sheet:#181d26; --ink:#e8ebf0; --ink-2:#a3adbd; --rule:#2c3340; --rule-2:#232a35;
+  --cyan:#3fb6dc; --cyan-soft:#16313c; --magenta:#e45a92; --yellow:#f0bd3a; --key:#e8ebf0;
+  --ok:#5cc07d; --ok-soft:#1a3324; --warn:#e2a64a; --warn-soft:#3a2d16; --bad:#f07070; --bad-soft:#3d1c1c;
+  --shadow:0 1px 2px rgba(0,0,0,.3); color-scheme:dark}
+*{box-sizing:border-box}
+html,body{background:var(--paper)}
+body{color:var(--ink);font-family:var(--body);font-size:14px;line-height:1.5}
+.wrap{max-width:1280px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{background:var(--sheet);border-bottom:1px solid var(--rule)}
+header.top .wrap{padding-block:18px 0;display:flex;flex-direction:column;gap:14px}
+.brand{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:space-between}
+.brand h1{font-family:var(--display);font-weight:700;font-size:1.65rem;margin:0;letter-spacing:-.01em;text-wrap:balance}
+.brand .sub{color:var(--ink-2);font-size:.85rem}
+.reg{display:flex;gap:4px;align-items:center}
+.reg i{width:12px;height:12px;border-radius:50%;display:block}
+.status{font-family:var(--mono);font-size:.75rem;color:var(--ink-2);display:flex;align-items:center;gap:8px}
+.status .dot{width:8px;height:8px;border-radius:50%;background:var(--warn)}
+.status.on .dot{background:var(--ok)}
+nav.tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+nav.tabs::-webkit-scrollbar{display:none}
+nav.tabs button{font:500 .9rem var(--body);color:var(--ink-2);background:none;border:0;padding:10px 14px;border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--cyan)}
+nav.tabs button:hover{color:var(--ink)}
+nav.tabs .n{font-family:var(--mono);font-size:.72rem;color:var(--ink-2);margin-left:6px}
+main .wrap{padding-block:22px 48px;display:flex;flex-direction:column;gap:20px}
+button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+.bar .left,.bar .right{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+h2{font-family:var(--display);font-weight:700;font-size:1.3rem;margin:0}
+h3{font-family:var(--body);font-weight:600;font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);margin:0}
+select,input,textarea{font:inherit;color:var(--ink);background:var(--sheet);border:1px solid var(--rule);border-radius:6px;padding:8px 10px;min-width:0}
+textarea{min-height:70px;resize:vertical}
+.btn{font:500 .88rem var(--body);border:1px solid var(--rule);background:var(--sheet);color:var(--ink);border-radius:6px;padding:8px 14px;cursor:pointer}
+.btn:hover{border-color:var(--ink-2)}
+.btn.primary{background:var(--ink);color:var(--sheet);border-color:var(--ink)}
+.btn.danger{color:var(--bad);border-color:var(--bad)}
+.btn.small{padding:4px 10px;font-size:.8rem}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.panel{background:var(--sheet);border:1px solid var(--rule);border-radius:8px;padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.kpi{background:var(--sheet);border:1px solid var(--rule);border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:4px}
+.kpi .v{font-family:var(--display);font-size:1.7rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.15}
+.kpi .l{font-size:.78rem;color:var(--ink-2)}
+.kpi .s{font-family:var(--mono);font-size:.74rem;color:var(--ink-2)}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.grid3{display:grid;grid-template-columns:2fr 1fr;gap:16px}
+@media (max-width:860px){.grid2,.grid3{grid-template-columns:minmax(0,1fr)}}
+.tbl{overflow-x:auto;border:1px solid var(--rule);border-radius:8px;background:var(--sheet)}
+table{border-collapse:collapse;width:100%;font-size:.86rem}
+th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--rule-2);vertical-align:top}
+th{font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);font-weight:600;background:var(--paper);white-space:nowrap;position:sticky;top:0}
+tr:last-child td{border-bottom:0}
+td.num,th.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+td.acts{white-space:nowrap;text-align:right}
+tbody tr:hover{background:var(--rule-2)}
+.pill{display:inline-block;font-size:.74rem;font-weight:500;padding:2px 9px;border-radius:999px;white-space:nowrap;background:var(--rule-2);color:var(--ink-2)}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.pill.info{background:var(--cyan-soft);color:var(--cyan)}
+.ex{font-family:var(--mono);font-size:.68rem;color:var(--magenta);border:1px solid var(--magenta);border-radius:3px;padding:0 4px;margin-left:6px;vertical-align:1px}
+.meter{height:6px;background:var(--rule-2);border-radius:3px;overflow:hidden;min-width:70px}
+.meter b{display:block;height:100%;background:var(--cyan)}
+.meter.over b{background:var(--bad)}
+.unit-tag{font-family:var(--mono);font-size:.72rem;color:var(--ink-2)}
+.empty{padding:32px 16px;text-align:center;color:var(--ink-2)}
+.empty strong{display:block;color:var(--ink);font-family:var(--display);font-size:1.1rem;margin-bottom:4px}
+.org{display:flex;flex-direction:column;gap:2px}
+.org .row{display:grid;grid-template-columns:minmax(0,1fr) 56px 56px 110px;gap:10px;align-items:center;padding:7px 8px;border-radius:6px;font-size:.86rem}
+.org .row:hover{background:var(--rule-2)}
+.org .row.h{font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-2)}
+.org .row .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.org .lvl1{padding-left:22px}.org .lvl2{padding-left:44px}
+.org .t{font-family:var(--mono);font-size:.68rem;color:var(--ink-2);margin-right:6px}
+.org .c{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+@media (max-width:560px){.org .row{grid-template-columns:minmax(0,1fr) 40px 40px}.org .row>:nth-child(4){display:none}}
+svg text{fill:var(--ink-2);font-family:var(--mono);font-size:11px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.78rem;color:var(--ink-2)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:2px;display:inline-block}
+.alerts{display:flex;flex-direction:column;gap:8px}
+.alert{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:6px;border-left:3px solid var(--warn);background:var(--warn-soft);font-size:.85rem}
+.alert.bad{border-left-color:var(--bad);background:var(--bad-soft)}
+.alert b{font-weight:600}
+dialog{border:1px solid var(--rule);border-radius:10px;padding:0;background:var(--sheet);color:var(--ink);width:min(720px,calc(100vw - 24px));max-height:calc(100vh - 40px)}
+dialog::backdrop{background:rgba(10,14,22,.45)}
+dialog form{display:flex;flex-direction:column;max-height:calc(100vh - 40px)}
+dialog .hd{padding:16px 20px;border-bottom:1px solid var(--rule)}
+dialog .bd{padding:18px 20px;overflow-y:auto;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+dialog .ft{padding:14px 20px;border-top:1px solid var(--rule);display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap}
+dialog label{display:flex;flex-direction:column;gap:5px;font-size:.8rem;font-weight:500;color:var(--ink-2);min-width:0}
+dialog label.full{grid-column:1/-1}
+@media (max-width:560px){dialog .bd{grid-template-columns:minmax(0,1fr)}}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--sheet);padding:10px 16px;border-radius:8px;font-size:.88rem;z-index:50;max-width:calc(100vw - 32px)}
+.note{font-size:.8rem;color:var(--ink-2)}
+.search{width:220px}
+@media (max-width:560px){.search{width:100%}}
+/* árbol consolidado de proyecto */
+.uhead{display:flex;flex-direction:column;gap:4px}
+.crumb{font-family:var(--mono);font-size:.74rem;color:var(--ink-2)}
+.proj{background:var(--sheet);border:1px solid var(--rule);border-radius:8px;overflow:hidden;min-width:0}
+.proj>.ph{padding:14px 16px;display:flex;gap:14px;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;border-bottom:1px solid var(--rule)}
+.proj>.ph .ttl{min-width:0;flex:1 1 260px}
+.proj>.ph .ttl strong{font-family:var(--display);font-size:1.08rem}
+.proj .nums{display:flex;gap:18px;flex-wrap:wrap}
+.proj .nums div{display:flex;flex-direction:column;font-size:.72rem;color:var(--ink-2);gap:2px}
+.proj .nums b{font-family:var(--mono);font-size:.9rem;color:var(--ink);font-weight:500;font-variant-numeric:tabular-nums}
+.tree{display:flex;flex-direction:column}
+.node{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 16px;border-bottom:1px solid var(--rule-2);font-size:.86rem}
+.node:last-child{border-bottom:0}
+.node .lbl{min-width:0;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.node .kind{font-family:var(--mono);font-size:.64rem;letter-spacing:.06em;text-transform:uppercase;padding:1px 6px;border-radius:3px;border:1px solid var(--rule);color:var(--ink-2)}
+.node.l1{padding-left:16px;background:var(--paper)}
+.node.l2{padding-left:40px}
+.node.l3{padding-left:64px}
+.node.l1 .kind{border-color:var(--cyan);color:var(--cyan)}
+.node.l3 .kind{border-color:var(--magenta);color:var(--magenta)}
+.node .side{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.node .side .meter{width:80px}
+.node .mono{font-family:var(--mono);font-size:.78rem;color:var(--ink-2);white-space:nowrap}
+.adder{display:flex;gap:6px;flex-wrap:wrap;padding:8px 16px;border-bottom:1px solid var(--rule-2)}
+.adder.l2{padding-left:40px}.adder.l3{padding-left:64px}
+.link{background:none;border:0;padding:0;font:inherit;color:var(--cyan);cursor:pointer;font-size:.8rem}
+.link:hover{text-decoration:underline}
+.metas{padding:12px 16px;background:var(--cyan-soft);display:flex;flex-direction:column;gap:8px}
+.metas .m{display:grid;grid-template-columns:minmax(0,1fr) 120px 60px;gap:10px;align-items:center;font-size:.86rem}
+@media (max-width:560px){.node.l2{padding-left:28px}.node.l3{padding-left:40px}.adder.l2{padding-left:28px}.adder.l3{padding-left:40px}.metas .m{grid-template-columns:minmax(0,1fr) 60px}.metas .m>:nth-child(2){display:none}.node{grid-template-columns:minmax(0,1fr)}.node .side{justify-content:flex-start}}
+.org .row.click{cursor:pointer}
+.org .row.sel{background:var(--cyan-soft)}
+@media (prefers-reduced-motion:no-preference){.meter b{transition:width .4s ease}}
+</style>
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px}img{max-width:100%}[hidden]{display:none!important}</style>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <div style="display:flex;gap:14px;align-items:center;min-width:0">
+        <div class="reg" aria-hidden="true"><i style="background:var(--cyan)"></i><i style="background:var(--magenta)"></i><i style="background:var(--yellow)"></i><i style="background:var(--key)"></i></div>
+        <div style="min-width:0">
+          <h1>Plan Gerencial Editorial</h1>
+          <div class="sub">Proyectos consolidados por unidad: actividades, tareas, comisiones y metas, con personal y presupuesto</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div class="status" id="status"><span class="dot"></span><span id="statusTxt">Conectando…</span></div><button class="btn small" id="myPassBtn" hidden>Mi clave</button><button class="btn small" id="logoutBtn" hidden>Cerrar sesión</button></div>
+    </div>
+    <div id="myPassBox" hidden style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;padding-bottom:12px"><label class="note" for="myPass1" style="display:flex;flex-direction:column;gap:5px">Nueva clave<input id="myPass1" type="password" autocomplete="new-password"></label><label class="note" for="myPass2" style="display:flex;flex-direction:column;gap:5px">Repetir clave<input id="myPass2" type="password" autocomplete="new-password"></label><button class="btn primary small" id="myPassGo">Cambiar mi clave</button></div>
+    <nav class="tabs" id="tabs" role="tablist"></nav>
+  </div>
+</header>
+<main><div class="wrap" id="view"></div></main>
+
+<dialog id="dlg"><form id="frm" method="dialog" novalidate>
+  <div class="hd"><h2 id="dlgTitle">Registro</h2></div>
+  <div class="bd" id="dlgBody"></div>
+  <div class="ft"><div><button type="button" class="btn danger" id="dlgDel" hidden>Eliminar</button></div>
+  <div style="display:flex;gap:10px"><button type="button" class="btn" id="dlgCancel">Cancelar</button><button type="submit" class="btn primary" id="dlgSave">Guardar</button></div></div>
+</form></dialog>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+/* ===== Estructura organizacional ===== */
+const UNITS=[
+ {id:'GG',ab:'GG',n:'Gerencia General',t:'Gerencia',p:null},
+ {id:'GFC',ab:'GFC',n:'Gerencia Financiera Contable',t:'Gerencia',p:'GG'},
+ {id:'CC',ab:'CC',n:'Coordinación Contable',t:'Coordinación',p:'GFC'},
+ {id:'CAMP',ab:'CA',n:'Coordinación de Almacén de Materia Prima',t:'Coordinación',p:'GFC'},
+ {id:'GV',ab:'GV',n:'Gerencia de Ventas',t:'Gerencia',p:'GG'},
+ {id:'JV',ab:'JV',n:'Jefatura de Ventas',t:'Jefatura',p:'GV'},
+ {id:'VDEN',ab:'CVD',n:'Coordinación de Ventas Denominacionales',t:'Coordinación',p:'GV'},
+ {id:'VEDU',ab:'CVE',n:'Coordinación de Ventas Educación',t:'Coordinación',p:'GV'},
+ {id:'JD',ab:'JD',n:'Jefatura de Diseño',t:'Jefatura',p:'GV'},
+ {id:'JAPT',ab:'JA',n:'Jefatura de Almacén de Productos Terminados',t:'Jefatura',p:'GV'},
+ {id:'CPA',ab:'CP',n:'Coordinación de Pañolenci',t:'Coordinación',p:'GV'},
+ {id:'GP',ab:'GP',n:'Gerencia de Producción',t:'Gerencia',p:'GG'},
+ {id:'CPP',ab:'CPP',n:'Coordinación de Preprensa',t:'Coordinación',p:'GP'},
+ {id:'JPR',ab:'JPR',n:'Jefatura de Prensa',t:'Jefatura',p:'GP'},
+ {id:'JPP',ab:'JPP',n:'Jefatura de Posprensa',t:'Jefatura',p:'GP'},
+ {id:'CMT',ab:'CM',n:'Coordinación de Mantenimiento',t:'Coordinación',p:'GP'},
+ {id:'CSO',ab:'CS',n:'Coordinación de SOMA',t:'Coordinación',p:'GG'},
+ {id:'CCOM',ab:'CC',n:'Coordinación de Comunicaciones',t:'Coordinación',p:'GG'},
+ {id:'CAP',ab:'CA',n:'Capellanía',t:'Capellanía',p:'GG'}
+];
+const U=Object.fromEntries(UNITS.map(u=>[u.id,u]));
+/* Código correlativo de proyecto: siglas de la gerencia + siglas de la unidad + número */
+function parentGer(id){let u=U[U[id]?.p];while(u&&u.t!=='Gerencia')u=U[u.p];return u}
+function unitPrefix(id){const u=U[id];if(!u)return 'PR';return u.t==='Gerencia'?u.ab:(parentGer(id)?.ab||'')+u.ab}
+function nextCode(unit,exceptId){const pre=unitPrefix(unit);const re=new RegExp('^'+pre+'-(\\d+)$');let max=0;RAW.proyectos.forEach(p=>{if(p.id===exceptId)return;const m=String(p.codigo||'').match(re);if(m)max=Math.max(max,+m[1])});return pre+'-'+String(max+1).padStart(3,'0')}
+const kids=id=>UNITS.filter(u=>u.p===id);
+function desc(id){const out=[id];kids(id).forEach(k=>out.push(...desc(k.id)));return out}
+function depth(id){let d=0,u=U[id];while(u&&u.p){d++;u=U[u.p]}return d}
+function gerenciaOf(id){let u=U[id];if(!u)return null;if(u.id==='GG')return 'GG';while(u.p&&u.p!=='GG')u=U[u.p];return u.id}
+const unitOpts=UNITS.map(u=>[u.id,' '.repeat(depth(u.id))+u.n]);
+
+/* ===== Esquemas de registro ===== */
+const EST_PROY=['Por iniciar','En curso','En riesgo','Detenido','Cerrado'];
+const EST_ACT=['Pendiente','En curso','Atrasada','Completada'];
+const EST_TAR=['Pendiente','En proceso','Bloqueada','Hecha'];
+const PRIO=['Alta','Media','Baja'];
+const NIV=['Baja','Media','Alta'];
+const EST_COM=['Asignada','En proceso','Cumplida','No cumplida'];
+const SCH={
+ personal:{t:'Personal',one:'colaborador',fields:[
+  ['nombre','Nombre completo','text',1],['cargo','Cargo / puesto','text',1],['unidad','Unidad','unit',1],
+  ['estado','Situación','sel',1,['Activo','Vacante','Proyectado','Cesado']],
+  ['tipo','Modalidad','sel',0,['Planilla','Locación de servicios','Practicante','Temporal']],
+  ['fechaIngreso','Fecha de ingreso (real o proyectada)','date'],['remuneracion','Remuneración mensual (S/)','num'],
+  ['dni','Documento / código interno','text'],['contacto','Teléfono o correo','text'],['obs','Observaciones (perfil requerido, motivo de la plaza)','area']]},
+ proyectos:{t:'Proyectos',one:'proyecto',fields:[
+  ['codigo','Código (automático)','code'],['nombre','Nombre del proyecto','text',1],['unidad','Unidad responsable','unit',1],
+  ['responsable','Responsable (gerente, jefe o coordinador)','lider'],['objetivo','Objetivo estratégico','area'],
+  ['periodos','Periodos de ejecución','periods'],['prioridad','Prioridad','sel',0,PRIO],['estado','Estado','sel',1,EST_PROY],
+  ['presupuesto','Techo presupuestal aprobado (S/)','num'],['fuente','Fuente / partida presupuestal','text']]},
+ actividades:{t:'Actividades',one:'actividad',fields:[
+  ['proyecto','Proyecto','ref:proyectos',1],['catalogo','Actividad principal de la gerencia','catalog'],['nombre','Actividad','text',1],['responsable','Responsable','person'],
+  ['periodos','Periodos de ejecución','periods'],['estado','Estado','sel',1,EST_ACT],['avance','Avance manual (%) — solo si no tiene tareas','num'],
+  ['presupuesto','Presupuesto (S/)','num'],['ejecutado','Ejecutado (S/)','num'],['entregable','Entregable / evidencia de cumplimiento','text']]},
+ tareas:{t:'Tareas',one:'tarea',fields:[
+  ['actividad','Actividad','ref:actividades',1],['nombre','Tarea','text',1],['responsable','Responsable','person'],
+  ['periodos','Periodos de ejecución','periods'],['prioridad','Prioridad','sel',0,PRIO],['estado','Estado','sel',1,EST_TAR],['obs','Notas','area']]},
+ comisiones:{t:'Comisiones',one:'comisión',fields:[
+  ['tarea','Tarea','ref:tareas',1],['persona','Persona comisionada','person',1],['encargo','Encargo / compromiso personal','area',1],
+  ['periodos','Periodos de ejecución','periods'],['estado','Estado','sel',1,EST_COM],['cumplimiento','Cumplimiento (%)','num'],['evidencia','Evidencia / entregable','text']]},
+ metas:{t:'Metas',one:'meta',fields:[
+  ['proyecto','Proyecto','ref:proyectos',1],['gerente','Gerente que registra la meta','gerente',1],
+  ['indicador','Indicador','text',1],['tipo','Tipo de indicador','sel',1,['Numérico','Porcentual']],['medida','Unidad de medida (ej. ejemplares, librerías, %)','text'],
+  ['base','Línea base','num'],['meta','Meta','num',1],['logrado','Logrado a la fecha','num'],['fecha','Fecha meta','date'],
+  ['frecuencia','Frecuencia de medición','sel',0,['Mensual','Trimestral','Semestral','Anual']],['actividad','Actividad vinculada (opcional)','ref:actividades']]},
+ riesgos:{t:'Riesgos',one:'riesgo',fields:[
+  ['proyecto','Proyecto','ref:proyectos',1],['descripcion','Riesgo','area',1],
+  ['probabilidad','Probabilidad','sel',1,NIV],['impacto','Impacto','sel',1,NIV],
+  ['mitigacion','Acción de mitigación','area'],['responsable','Responsable','person'],
+  ['estado','Estado','sel',0,['Abierto','Mitigado','Cerrado']]]}
+};
+const COLS=Object.keys(SCH);
+
+/* ===== Estado y almacenamiento ===== */
+const S={},RAW={};COLS.forEach(c=>{S[c]=[];RAW[c]=[]});
+let db=null,downloads=null,assets=null,mode='init',readOnly=false;
+const LKEY='plan-gerencial-local-v1';
+function loadLocal(){try{const j=JSON.parse(localStorage.getItem(LKEY)||'{}');COLS.forEach(c=>RAW[c]=j[c]||[])}catch(e){}}
+function saveLocal(){try{localStorage.setItem(LKEY,JSON.stringify(RAW))}catch(e){}}
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+
+async function put(col,obj){
+  if(mode==='db'){await db.collection(col).doc(obj.id).set(obj)}
+  else{const i=RAW[col].findIndex(x=>x.id===obj.id);if(i>=0)RAW[col][i]=obj;else RAW[col].push(obj);saveLocal();render()}
+}
+async function del(col,id){
+  if(mode==='db'){await db.collection(col).doc(id).delete()}
+  else{RAW[col]=RAW[col].filter(x=>x.id!==id);saveLocal();render()}
+}
+function dbErr(e){
+  if(e&&e.code==='invalid_argument'){readOnly=true;toast('No tienes permiso para guardar. Verifica que tu usuario esté activo o vuelve a ingresar.');render()}
+  else if(e&&e.code==='quota_exceeded')toast('Se alcanzó el límite de registros. Elimina registros antiguos para continuar.');
+  else toast('No se pudo guardar. Revisa tu conexión e inténtalo de nuevo.');
+}
+
+/* ===== Utilidades ===== */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const n=v=>+v||0;
+const money=v=>'S/ '+n(v).toLocaleString('es-PE',{maximumFractionDigits:0});
+const kmoney=v=>{v=n(v);return v>=1e6?'S/ '+(v/1e6).toFixed(2)+' M':v>=1e3?'S/ '+(v/1e3).toFixed(1)+' k':'S/ '+v.toFixed(0)};
+const pct=v=>Math.round(v)+'%';
+const fdate=d=>d?new Date(d+'T12:00:00').toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric'}):'—';
+const today=()=>new Date().toISOString().slice(0,10);
+const byId=(col,id)=>RAW[col].find(x=>x.id===id);
+const pname=id=>byId('personal',id)?.nombre||'—';
+const exTag=r=>r.ejemplo?'<span class="ex" title="Registro de ejemplo">EJEMPLO</span>':'';
+function unitOfAct(a){return byId('proyectos',a?.proyecto)?.unidad}
+function unitOf(col,r){
+  if(col==='personal'||col==='proyectos')return r.unidad;
+  if(col==='actividades')return unitOfAct(r);
+  if(col==='tareas')return unitOfAct(byId('actividades',r.actividad));
+  if(col==='comisiones')return unitOfAct(byId('actividades',byId('tareas',r.tarea)?.actividad));
+  return byId('proyectos',r.proyecto)?.unidad;
+}
+function pillFor(v){
+  const ok=['Activo','Cerrado','Completada','Hecha','Mitigado','Baja','Cumplida'],warn=['En riesgo','Atrasada','Vacante','Media','Proyectado','Detenido','Abierto'],
+        bad=['Bloqueada','Alta','No cumplida'],info=['En curso','En proceso'];
+  const c=ok.includes(v)?'ok':warn.includes(v)?'warn':bad.includes(v)?'bad':info.includes(v)?'info':'';
+  return v?`<span class="pill ${c}">${esc(v)}</span>`:'—';
+}
+function meter(p){p=Math.max(0,p);return `<div class="meter ${p>100?'over':''}"><b style="width:${Math.min(100,p)}%"></b></div>`}
+/* Consolidación: comisión → tarea → actividad → proyecto */
+const comsOf=t=>S.comisiones.filter(c=>c.tarea===t.id);
+const tarsOf=a=>S.tareas.filter(t=>t.actividad===a.id);
+const actsOf=p=>S.actividades.filter(a=>a.proyecto===p.id);
+const avg=a=>a.length?a.reduce((s,v)=>s+v,0)/a.length:0;
+function comAv(c){if(c.cumplimiento!==undefined&&c.cumplimiento!=='')return Math.min(100,n(c.cumplimiento));return c.estado==='Cumplida'?100:0}
+function tarAv(t){const cs=comsOf(t);if(cs.length)return avg(cs.map(comAv));return t.estado==='Hecha'?100:0}
+function actAvance(a){
+  const ts=tarsOf(a);
+  if(ts.length)return avg(ts.map(tarAv));
+  if(a.avance!==undefined&&a.avance!=='')return n(a.avance);
+  return a.estado==='Completada'?100:0;
+}
+function consolidate(){S.proyectos.forEach(p=>{const as=actsOf(p);p._bud=as.length?as.reduce((s,a)=>s+n(a.presupuesto),0):n(p.presupuesto);p._ej=as.length?as.reduce((s,a)=>s+n(a.ejecutado),0):n(p.ejecutado)})}
+function proyAvance(p){const as=S.actividades.filter(a=>a.proyecto===p.id);if(!as.length)return p.estado==='Cerrado'?100:0;return as.reduce((s,a)=>s+actAvance(a),0)/as.length}
+function metaAvance(m){const den=n(m.meta)-n(m.base);if(!den)return 0;return (n(m.logrado)-n(m.base))/den*100}
+function riesgoNivel(r){const v={Baja:1,Media:2,Alta:3};return v[r.probabilidad]*v[r.impacto]}
+let toastT;function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,3600)}
+
+/* ===== Usuarios con clave (Supabase Auth), roles y alcance ===== */
+const ROLES=['Administrador','Responsable de unidad','Usuario'];
+const ROLE_HINT={'Administrador':'ve y registra todo, con el dashboard completo','Responsable de unidad':'ve y registra lo de su unidad y dependencias','Usuario':'ve y registra solo lo suyo y lo que tiene asignado'};
+let USR=[],USR_READY=false,HAY_ADMIN=null,SESSION=null,newPassShown=null,authBusy=false;
+const ME={ready:false,owner:false};
+const CONFIG_OK=!!(window.PLAN_CONFIG&&PLAN_CONFIG.SUPABASE_URL&&PLAN_CONFIG.SUPABASE_ANON_KEY&&window.supabase);
+const sb=CONFIG_OK?supabase.createClient(PLAN_CONFIG.SUPABASE_URL,PLAN_CONFIG.SUPABASE_ANON_KEY):null;
+const EMAIL_DOM=(window.PLAN_CONFIG&&PLAN_CONFIG.DOMINIO_USUARIOS)||'plan-editorial.app';
+const userKey=u=>norm(u).replace(/[^a-z0-9._-]/g,'');
+const toEmail=u=>userKey(u)+'@'+EMAIL_DOM;
+function genPass(){const a='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';return [...crypto.getRandomValues(new Uint8Array(8))].map(b=>a[b%a.length]).join('')}
+function myAcc(){const id=SESSION?.user?.id;return id?USR.find(u=>u.id===id&&u.activo!==false)||null:null}
+function actorId(){return myAcc()?.id||''}
+const canManage=()=>myAcc()?.rol==='Administrador';
+function access(){
+  if(!CONFIG_OK)return 'none';
+  if(!ME.ready||(SESSION&&!USR_READY))return 'pending';
+  const a=myAcc();if(!a)return 'none';
+  return a.rol==='Administrador'?'all':a.rol==='Responsable de unidad'?'unidad':'usuario';
+}
+function applyScope(ac){
+  if(ac==='all'){COLS.forEach(c=>S[c]=RAW[c]);return}
+  const a=myAcc()||{};const per=a.persona||'';const me=a.id;
+  const mine=r=>(me&&r.creadoPor===me)||(per&&(r.responsable===per||r.persona===per||r.gerente===per));
+  const units=ac==='unidad'&&a.unidad?desc(a.unidad):[];
+  const P=new Set(RAW.proyectos.filter(p=>units.includes(p.unidad)||mine(p)).map(p=>p.id));
+  const A=new Set(RAW.actividades.filter(x=>P.has(x.proyecto)||mine(x)).map(x=>x.id));
+  const T=new Set(RAW.tareas.filter(x=>A.has(x.actividad)||mine(x)).map(x=>x.id));
+  const C=new Set(RAW.comisiones.filter(x=>T.has(x.tarea)||mine(x)).map(x=>x.id));
+  RAW.comisiones.forEach(x=>{if(C.has(x.id))T.add(x.tarea)});
+  RAW.tareas.forEach(x=>{if(T.has(x.id))A.add(x.actividad)});
+  const Pall=new Set(P);RAW.actividades.forEach(x=>{if(A.has(x.id))Pall.add(x.proyecto)});
+  S.proyectos=RAW.proyectos.filter(x=>Pall.has(x.id));
+  S.actividades=RAW.actividades.filter(x=>A.has(x.id));
+  S.tareas=RAW.tareas.filter(x=>T.has(x.id));
+  S.comisiones=RAW.comisiones.filter(x=>C.has(x.id));
+  S.metas=RAW.metas.filter(x=>P.has(x.proyecto)||mine(x));
+  S.riesgos=RAW.riesgos.filter(x=>P.has(x.proyecto)||mine(x));
+  S.personal=RAW.personal.filter(x=>x.id===per||units.includes(x.unidad)||(me&&x.creadoPor===me));
+}
+function scopeLabel(){const a=myAcc();if(!a)return '';return a.nombre+' · '+a.rol+(a.rol==='Responsable de unidad'&&U[a.unidad]?' ('+U[a.unidad].n+')':'')}
+
+/* Pantallas sin sesión */
+const fld=(id,label,type='text',extra='')=>`<label class="note" for="${id}" style="display:flex;flex-direction:column;gap:5px">${label}<input id="${id}" type="${type}" ${extra}></label>`;
+function viewLogin(){
+  if(!CONFIG_OK)return `<div class="panel" style="max-width:560px;margin:24px auto"><h2>Falta configurar la base de datos</h2><div class="note">Abre el archivo <b>config.js</b> y pega la <b>URL del proyecto</b> y la <b>clave anon</b> de Supabase, como indica la guía de instalación. Luego recarga esta página.</div></div>`;
+  if(SESSION&&!myAcc()){
+    if(HAY_ADMIN===false)return `<div class="panel" style="max-width:440px;margin:24px auto;gap:14px"><h2>Crear administrador</h2><div class="note">Ingresaste, pero aún no existe un administrador. Completa tus datos para convertirte en el primero.</div>${fld('baNom','Nombre completo')}<div><button class="btn primary" id="baGo">Ser administrador</button></div></div>`;
+    return `<div class="panel empty" style="max-width:480px;margin:24px auto"><strong>Tu usuario está desactivado o no tiene perfil</strong>Consulta con el administrador.<div style="margin-top:12px"><button class="btn" id="lgOut2">Cerrar sesión</button></div></div>`;
+  }
+  const first=HAY_ADMIN===false;
+  return `<div class="panel" style="max-width:420px;margin:24px auto;gap:16px">
+   <div style="display:flex;flex-direction:column;gap:4px"><h2>${first?'Configurar primer administrador':'Ingresar'}</h2><span class="note">Planes Gerenciales de la Editorial${first?' · aún no hay usuarios: crea la cuenta del administrador':' · acceso para gerentes, jefes y coordinadores'}</span></div>
+   <form id="loginF" style="display:flex;flex-direction:column;gap:12px" novalidate>
+    ${first?fld('lgNom','Nombre completo'):''}
+    ${fld('lgUser','Usuario','text','autocomplete="username" autocapitalize="none" spellcheck="false"')}
+    ${fld('lgPass','Clave'+(first?' (mínimo 6 caracteres)':''),'password',first?'autocomplete="new-password"':'autocomplete="current-password"')}
+    <div id="lgMsg" class="note" style="color:var(--bad);min-height:1.2em"></div>
+    <button class="btn primary" type="submit" ${authBusy?'disabled':''}>${first?'Crear administrador':'Ingresar'}</button>
+   </form>
+   ${first?'':'<span class="note">¿Olvidaste tu clave? Pide al administrador que te asigne una nueva.</span>'}
+  </div>`;
+}
+async function doLogin(e){
+  e.preventDefault();const msg=$('#lgMsg');const first=HAY_ADMIN===false;
+  const usuario=userKey($('#lgUser').value),pw=$('#lgPass').value;
+  if(!usuario||!pw){msg.textContent='Escribe tu usuario y tu clave.';return}
+  authBusy=true;msg.textContent='';
+  try{
+    if(first){
+      const nombre=($('#lgNom')?.value||'').trim();
+      if(!nombre){msg.textContent='Escribe tu nombre.';return}
+      if(pw.length<6){msg.textContent='La clave debe tener al menos 6 caracteres.';return}
+      const {data,error}=await sb.auth.signUp({email:toEmail(usuario),password:pw});
+      if(error)throw error;
+      if(!data.session){msg.textContent='En Supabase, desactiva "Confirm email" (Authentication > Sign In / Providers > Email) y vuelve a intentarlo.';return}
+      const r=await sb.rpc('crear_primer_admin',{p_nombre:nombre,p_usuario:usuario});if(r.error)throw r.error;
+      await loadUsers();toast('Administrador creado. Bienvenido, '+nombre+'.');
+    }else{
+      const {error}=await sb.auth.signInWithPassword({email:toEmail(usuario),password:pw});
+      if(error){msg.textContent=/invalid/i.test(error.message)?'Usuario o clave incorrectos.':/many|rate/i.test(error.message)?'Demasiados intentos. Espera un momento.':'No se pudo ingresar: '+error.message;return}
+      tab='dash';
+    }
+  }catch(err){msg.textContent='No se pudo completar: '+(err.message||err)}
+  finally{authBusy=false}
+}
+async function becomeAdmin(){const nombre=$('#baNom').value.trim();if(!nombre){toast('Escribe tu nombre.');return}
+  const usuario=(SESSION.user.email||'').split('@')[0];const r=await sb.rpc('crear_primer_admin',{p_nombre:nombre,p_usuario:usuario});
+  if(r.error){toast('No se pudo: '+r.error.message);return}await loadUsers();render()}
+async function logout(){await sb.auth.signOut();tab='dash';}
+async function changeMyPass(){
+  const v=$('#myPass1').value,v2=$('#myPass2').value;
+  if(v.length<6){toast('La clave debe tener al menos 6 caracteres.');return}if(v!==v2){toast('Las claves no coinciden.');return}
+  const {error}=await sb.auth.updateUser({password:v});toast(error?'No se pudo cambiar la clave: '+error.message:'Tu clave fue cambiada.');if(!error){$('#myPassBox').hidden=true}
+}
+
+/* Administración de usuarios */
+function personOpts(sel){return `<option value="">— Sin vincular —</option>`+RAW.personal.filter(p=>p.estado!=='Cesado').map(p=>[p.id,`${p.nombre}${p.cargo?' — '+p.cargo:''}`]).sort((a,b)=>a[1].localeCompare(b[1])).map(([v,l])=>`<option value="${v}" ${v===sel?'selected':''}>${esc(l)}</option>`).join('')}
+function unitSel(sel,attr){return `<select ${attr}><option value="">— Unidad —</option>${unitOpts.map(([v,l])=>`<option value="${v}" ${v===sel?'selected':''}>${esc(l)}</option>`).join('')}</select>`}
+function roleSel(sel,attr){return `<select ${attr}>${ROLES.map(r=>`<option ${r===sel?'selected':''}>${r}</option>`).join('')}</select>`}
+function viewUsers(){
+  const me=myAcc();
+  let h=`<div class="bar"><div class="left"><h2>Usuarios y claves</h2><span class="note">${USR.length} usuarios</span></div></div>
+  <div class="panel"><h3>Nuevo usuario</h3>
+   <div class="note">Roles: <b>Administrador</b> ${ROLE_HINT['Administrador']}; <b>Responsable de unidad</b> ${ROLE_HINT['Responsable de unidad']}; <b>Usuario</b> ${ROLE_HINT['Usuario']}. Vincula la ficha de Personal para que vea lo que tiene asignado.</div>
+   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;align-items:end">
+    ${fld('nuNom','Nombre','text','placeholder="Ej. Ana Torres"')}${fld('nuUsr','Usuario','text','placeholder="Ej. atorres" autocapitalize="none" spellcheck="false"')}
+    <label class="note" for="nuPas" style="display:flex;flex-direction:column;gap:5px">Clave inicial<input id="nuPas" value="${genPass()}" style="font-family:var(--mono)"></label>
+    <label class="note" for="nuRol" style="display:flex;flex-direction:column;gap:5px">Rol${roleSel('Usuario','id="nuRol"')}</label>
+    <label class="note" for="nuUni" style="display:flex;flex-direction:column;gap:5px">Unidad${unitSel('','id="nuUni"')}</label>
+    <label class="note" for="nuPer" style="display:flex;flex-direction:column;gap:5px">Ficha de personal<select id="nuPer">${personOpts('')}</select></label>
+   </div><div><button class="btn primary" id="nuGo">Crear usuario</button></div></div>`;
+  if(newPassShown)h+=`<div class="alert"><div>Entrega estos datos a <b>${esc(newPassShown.nombre)}</b>. La clave no se volverá a mostrar: <span style="font-family:var(--mono)">Usuario: <b>${esc(newPassShown.usuario)}</b> · Clave: <b>${esc(newPassShown.clave)}</b></span> <button class="link" id="cpCred">Copiar</button></div></div>`;
+  h+=`<div class="panel"><h3>Usuarios registrados</h3><div class="tbl" style="border:0"><table><thead><tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th>Unidad</th><th>Ficha de personal</th><th>Estado</th><th></th></tr></thead><tbody>${USR.slice().sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||'')).map(u=>{const self=me&&u.id===me.id;return `<tr>
+   <td><strong>${esc(u.nombre)}</strong>${self?' <span class="pill info">Tú</span>':''}<div class="note">Desde ${fdate(u.alta)}</div></td><td style="font-family:var(--mono)">${esc(u.usuario)}</td>
+   <td>${self?esc(u.rol):roleSel(u.rol,`data-urol="${u.id}"`)}</td><td>${unitSel(u.unidad,`data-uunit="${u.id}"`)}</td><td><select data-uper="${u.id}">${personOpts(u.persona)}</select></td>
+   <td>${u.activo===false?'<span class="pill bad">Desactivado</span>':'<span class="pill ok">Activo</span>'}</td>
+   <td class="acts">${self?'':`<button class="btn small" data-ureset="${u.id}">Nueva clave</button> <button class="btn small" data-utog="${u.id}">${u.activo===false?'Activar':'Desactivar'}</button> <button class="btn small danger" data-urm="${u.id}">Eliminar</button>`}</td></tr>`}).join('')}</tbody></table></div></div>`;
+  return h;
+}
+function bindUsers(){
+  const go=$('#nuGo');if(go)go.onclick=async()=>{
+    const nombre=$('#nuNom').value.trim(),usuario=userKey($('#nuUsr').value),clave=$('#nuPas').value,rol=$('#nuRol').value,unidad=$('#nuUni').value,persona=$('#nuPer').value;
+    if(!nombre||!usuario){toast('Escribe el nombre y el usuario.');return}
+    if(usuario.length<3){toast('El usuario debe tener al menos 3 caracteres (letras, números, punto o guion).');return}
+    if(clave.length<6){toast('La clave debe tener al menos 6 caracteres.');return}
+    if(USR.some(u=>u.usuario===usuario)){toast('Ese usuario ya existe. Elige otro.');return}
+    if(rol==='Responsable de unidad'&&!unidad){toast('Elige la unidad del responsable.');return}
+    go.disabled=true;
+    try{
+      const tmp=supabase.createClient(PLAN_CONFIG.SUPABASE_URL,PLAN_CONFIG.SUPABASE_ANON_KEY,{auth:{persistSession:false,autoRefreshToken:false,storageKey:'plan-tmp-'+Date.now()}});
+      const {data,error}=await tmp.auth.signUp({email:toEmail(usuario),password:clave});
+      if(error)throw error;if(!data.user)throw new Error('Supabase no devolvió el usuario');
+      const r=await sb.from('perfiles').insert({id:data.user.id,usuario,nombre,rol,unidad,persona,activo:true});if(r.error)throw r.error;
+      newPassShown={nombre,usuario,clave};await loadUsers();toast('Usuario creado.');render();
+    }catch(e){go.disabled=false;toast(/registered|exists/i.test(e.message||'')?'Ese usuario ya existe en Supabase.':'No se pudo crear el usuario: '+(e.message||e))}
+  };
+  const cp=$('#cpCred');if(cp)cp.onclick=()=>{const t=`Planes Gerenciales de la Editorial\n${location.href.split('#')[0]}\nUsuario: ${newPassShown.usuario}\nClave: ${newPassShown.clave}`;navigator.clipboard?.writeText(t).then(()=>toast('Datos copiados.')).catch(()=>toast('No se pudo copiar; anótalos a mano.'))};
+  const upd=async(id,patch,okMsg)=>{const r=await sb.from('perfiles').update(patch).eq('id',id);if(r.error)toast('No se pudo guardar: '+r.error.message);else{toast(okMsg||'Cambios guardados.');loadUsers()}};
+  document.querySelectorAll('[data-urol]').forEach(s=>s.onchange=()=>{const u=USR.find(x=>x.id===s.dataset.urol);if(s.value==='Responsable de unidad'&&!u.unidad)toast('Asigna también la unidad del responsable.');upd(u.id,{rol:s.value})});
+  document.querySelectorAll('[data-uunit]').forEach(s=>s.onchange=()=>upd(s.dataset.uunit,{unidad:s.value}));
+  document.querySelectorAll('[data-uper]').forEach(s=>s.onchange=()=>upd(s.dataset.uper,{persona:s.value}));
+  document.querySelectorAll('[data-utog]').forEach(b=>b.onclick=()=>{const u=USR.find(x=>x.id===b.dataset.utog);upd(u.id,{activo:u.activo===false},u.activo===false?'Usuario activado.':'Usuario desactivado.')});
+  document.querySelectorAll('[data-ureset]').forEach(b=>b.onclick=async()=>{const u=USR.find(x=>x.id===b.dataset.ureset);const clave=genPass();const r=await sb.rpc('admin_cambiar_clave',{p_id:u.id,p_clave:clave});if(r.error){toast('No se pudo cambiar la clave: '+r.error.message);return}newPassShown={nombre:u.nombre,usuario:u.usuario,clave};render();toast('Clave restablecida.')});
+  document.querySelectorAll('[data-urm]').forEach(b=>b.onclick=async()=>{if(!b.dataset.arm){b.dataset.arm=1;b.textContent='Confirmar';return}const r=await sb.rpc('admin_eliminar_usuario',{p_id:b.dataset.urm});if(r.error)toast('No se pudo eliminar: '+r.error.message);else{toast('Usuario eliminado.');loadUsers()}});
+}
+async function loadUsers(){
+  if(!sb)return;
+  try{const h=await sb.rpc('hay_admin');HAY_ADMIN=h.error?null:!!h.data}catch(e){}
+  if(SESSION){const r=await sb.from('perfiles').select('*');if(!r.error)USR=r.data||[];USR_READY=true}else{USR=[];USR_READY=false}
+  render();
+}
+
+/* ===== Navegación ===== */
+const TABS=[['dash','Dashboard'],['org','Unidades'],['cal','Calendario'],...COLS.map(c=>[c,SCH[c].t])];
+let tab='dash',filterUnit='ALL',q='';
+try{const h=location.hash.slice(1);if(TABS.some(t=>t[0]===h))tab=h}catch(e){}
+function tabsList(){return canManage()&&mode==='db'?[...TABS,['users','Usuarios']]:TABS}
+function renderTabs(){
+  $('#tabs').innerHTML=tabsList().map(([k,l])=>`<button role="tab" aria-selected="${k===tab}" data-tab="${k}">${l}${SCH[k]?`<span class="n">${S[k].length}</span>`:''}</button>`).join('');
+}
+document.addEventListener('click',e=>{const id=e.target&&e.target.id;if(id==='logoutBtn')logout();if(id==='myPassBtn'){const b=$('#myPassBox');b.hidden=!b.hidden;if(!b.hidden)$('#myPass1').focus()}if(id==='myPassGo')changeMyPass()});
+$('#tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;tab=b.dataset.tab;q='';render()});
+
+function inFilter(col,r){if(filterUnit==='ALL')return true;const u=unitOf(col,r);return u&&desc(filterUnit).includes(u)}
+function unitFilterSel(id='fu'){return `<select id="${id}" aria-label="Filtrar por unidad"><option value="ALL">Toda la organización</option>${unitOpts.map(([v,l])=>`<option value="${v}" ${v===filterUnit?'selected':''}>${esc(l)}</option>`).join('')}</select>`}
+
+function render(){
+  const ac=access();
+  const st=$('#status');st.classList.toggle('on',mode==='db');
+  $('#statusTxt').textContent=(mode==='db'?(readOnly?'Datos compartidos · solo lectura':'Datos en la nube'):mode==='local'?'Guardado solo en este navegador':'Conectando…')+(mode==='db'&&ME.ready&&scopeLabel()?' · '+scopeLabel():'');
+  const lo=$('#logoutBtn');if(lo)lo.hidden=!(mode==='db'&&myAcc());const mp=$('#myPassBtn');if(mp)mp.hidden=!(mode==='db'&&myAcc());
+  const v=$('#view');
+  if(ac==='pending'){$('#tabs').innerHTML='';v.innerHTML='<div class="panel empty"><strong>Verificando acceso…</strong>Un momento, por favor.</div>';return}
+  if(ac==='none'){$('#tabs').innerHTML='';v.innerHTML=viewLogin();bindView();return}
+  applyScope(ac);consolidate();
+  if(tab==='users'&&!canManage())tab='dash';
+  renderTabs();
+  if(tab==='dash')v.innerHTML=viewDash();
+  else if(tab==='org')v.innerHTML=viewUnits();
+  else if(tab==='cal')v.innerHTML=viewCal();
+  else if(tab==='users')v.innerHTML=viewUsers();
+  else v.innerHTML=viewList(tab);
+  bindView();
+}
+
+/* ===== Vista: listas ===== */
+const LISTCOLS={
+ personal:r=>[['Nombre',`<strong>${esc(r.nombre)}</strong>${exTag(r)}<div class="note">${esc(r.cargo)}</div>`],['Unidad',`<span class="unit-tag">${esc(U[r.unidad]?.n||'—')}</span>`],['Situación',pillFor(r.estado)],['Modalidad',esc(r.tipo||'—')],['Ingreso',fdate(r.fechaIngreso)],['Remuneración',money(r.remuneracion),'num']],
+ proyectos:r=>{const av=proyAvance(r),ej=n(r._bud)?n(r._ej)/n(r._bud)*100:0;return [['Proyecto',`<strong>${esc(r.nombre)}</strong>${exTag(r)}<div class="note">${esc(r.codigo||'')} ${r.codigo?'·':''} ${esc(pname(r.responsable))}</div>`],['Unidad',`<span class="unit-tag">${esc(U[r.unidad]?.n||'—')}</span>`],['Estado',pillFor(r.estado)],['Periodos',periodsHTML(r,true)],['Avance',`${meter(av)}<div class="note">${pct(av)}</div>`],['Presupuesto',money(r._bud),'num'],['Ejecución',`${money(r._ej)}<div class="note">${pct(ej)}</div>`,'num']]},
+ actividades:r=>{const p=byId('proyectos',r.proyecto),av=actAvance(r);return [['Actividad',`<strong>${esc(r.nombre)}</strong>${exTag(r)}<div class="note">${esc(p?.nombre||'Sin proyecto')}${r.linea?' · '+esc(r.linea):''}</div>`],['Responsable',esc(pname(r.responsable))],['Estado',pillFor(r.estado)],['Periodos',periodsHTML(r,true)],['Avance',`${meter(av)}<div class="note">${pct(av)}</div>`],['Presupuesto',money(r.presupuesto),'num'],['Ejecutado',money(r.ejecutado),'num']]},
+ tareas:r=>{const a=byId('actividades',r.actividad);const late=r.vence&&r.vence<today()&&r.estado!=='Hecha';return [['Tarea',`<strong>${esc(r.nombre)}</strong>${exTag(r)}<div class="note">${esc(a?.nombre||'Sin actividad')}</div>`],['Responsable',esc(pname(r.responsable))],['Prioridad',pillFor(r.prioridad)],['Estado',pillFor(r.estado)],['Periodos',`${periodsHTML(r,true)}${late?' <span class="pill bad">Vencida</span>':''}`]]},
+ comisiones:r=>{const t=byId('tareas',r.tarea),av=comAv(r);return [['Persona',`<strong>${esc(pname(r.persona))}</strong>${exTag(r)}<div class="note">${esc(byId('personal',r.persona)?.cargo||'')}</div>`],['Encargo',`${esc(r.encargo)}<div class="note">Tarea: ${esc(t?.nombre||'—')}</div>`],['Estado',pillFor(r.estado)],['Periodos',periodsHTML(r,true)],['Cumplimiento',`${meter(av)}<div class="note">${pct(av)}</div>`]]},
+ metas:r=>{const p=byId('proyectos',r.proyecto),av=metaAvance(r);return [['Indicador',`<strong>${esc(r.indicador)}</strong>${exTag(r)}<div class="note">${esc(p?.nombre||'')}${r.actividad?' · '+esc(byId('actividades',r.actividad)?.nombre||''):''}</div>`],['Tipo',esc(r.tipo||'Numérico')],['Registró',esc(pname(r.gerente))],['Medida',esc(r.medida||'—')],['Base',n(r.base).toLocaleString('es-PE'),'num'],['Meta',n(r.meta).toLocaleString('es-PE'),'num'],['Logrado',n(r.logrado).toLocaleString('es-PE'),'num'],['Cumplimiento',`${meter(av)}<div class="note">${pct(av)}</div>`],['Fecha',fdate(r.fecha)]]},
+ riesgos:r=>{const p=byId('proyectos',r.proyecto),lv=riesgoNivel(r);return [['Riesgo',`<strong>${esc(r.descripcion)}</strong>${exTag(r)}<div class="note">${esc(p?.nombre||'')}</div>`],['Nivel',`<span class="pill ${lv>=6?'bad':lv>=3?'warn':'ok'}">${lv>=6?'Alto':lv>=3?'Moderado':'Bajo'} (${lv})</span>`],['P × I',`${esc(r.probabilidad)} × ${esc(r.impacto)}`],['Mitigación',esc(r.mitigacion||'—')],['Responsable',esc(pname(r.responsable))],['Estado',pillFor(r.estado)]]}
+};
+function viewList(col){
+  const sc=SCH[col];
+  let rows=S[col].filter(r=>inFilter(col,r));
+  if(q){const ql=q.toLowerCase();rows=rows.filter(r=>JSON.stringify(r).toLowerCase().includes(ql))}
+  rows.sort((a,b)=>(b.creado||'').localeCompare(a.creado||''));
+  const needs={actividades:'proyectos',tareas:'actividades',comisiones:'tareas',metas:'proyectos',riesgos:'proyectos'}[col];
+  const blocked=needs&&!S[needs].length;
+  let html=`<div class="bar"><div class="left"><h2>${sc.t}</h2><span class="note">${rows.length} de ${S[col].length} registros</span></div>
+  <div class="right"><input class="search" id="q" type="search" placeholder="Buscar…" value="${esc(q)}" aria-label="Buscar">${unitFilterSel()}
+  <button class="btn" data-export="${col}">Exportar CSV</button>${col==='personal'&&!readOnly?`<button class="btn" data-import aria-pressed="${imp.open}">Importar lista</button>`:''}
+  <button class="btn primary" data-new="${col}" ${readOnly||blocked?'disabled':''}>+ Nuevo ${sc.one}</button></div></div>`;
+  if(col==='personal'&&imp.open)html+=viewImport();
+  if(blocked)html+=`<div class="note">Primero registra al menos un ${SCH[needs].one} para poder crear ${sc.t.toLowerCase()}.</div>`;
+  if(!rows.length){html+=`<div class="panel empty"><strong>Aún no hay ${sc.t.toLowerCase()} ${filterUnit!=='ALL'?'en esta unidad':''}</strong>Usa “+ Nuevo ${sc.one}” para registrar el primero.</div>`;return html}
+  const heads=LISTCOLS[col](rows[0]);
+  html+=`<div class="tbl"><table><thead><tr>${heads.map(h=>`<th class="${h[2]||''}">${h[0]}</th>`).join('')}<th></th></tr></thead><tbody>`;
+  const heads2=heads;rows.forEach(r=>{html+=`<tr>${LISTCOLS[col](r).map(c=>`<td class="${c[2]||''}">${c[1]}</td>`).join('')}<td class="acts"><button class="btn small" data-edit="${col}:${r.id}">${readOnly?'Ver':'Editar'}</button></td></tr>`});
+  html+='</tbody></table></div>';
+  if(col==='personal')html+=personalSummary(rows);
+  return html;
+}
+function personalSummary(rows){
+  const act=rows.filter(r=>r.estado==='Activo'),vac=rows.filter(r=>r.estado==='Vacante'),pro=rows.filter(r=>r.estado==='Proyectado');
+  const planilla=act.reduce((s,r)=>s+n(r.remuneracion),0),proy=[...vac,...pro].reduce((s,r)=>s+n(r.remuneracion),0);
+  return `<div class="kpis"><div class="kpi"><span class="l">Planilla mensual actual</span><span class="v">${kmoney(planilla)}</span><span class="s">${act.length} activos</span></div>
+  <div class="kpi"><span class="l">Costo mensual por cubrir</span><span class="v">${kmoney(proy)}</span><span class="s">${vac.length} vacantes · ${pro.length} proyectados</span></div>
+  <div class="kpi"><span class="l">Planilla proyectada anual</span><span class="v">${kmoney((planilla+proy)*12)}</span><span class="s">sin cargas sociales ni gratificaciones</span></div></div>`;
+}
+
+/* ===== Vista: estructura ===== */
+/* ===== Vista: unidades de gestión ===== */
+let selUnit='GG';
+function chain(id){const out=[];let u=U[id];while(u){out.unshift(u);u=U[u.p]}return out}
+function addBtn(col,key,val,label){return readOnly?'':`<button class="link" data-add="${col}:${key}:${val}">+ ${label}</button>`}
+function editBtn(col,id){return `<button class="link" data-edit="${col}:${id}">${readOnly?'Ver':'Editar'}</button>`}
+function projCard(p){
+  const acts=actsOf(p),ms=S.metas.filter(m=>m.proyecto===p.id),av=proyAvance(p);
+  const nCom=acts.reduce((s,a)=>s+tarsOf(a).reduce((s2,t)=>s2+comsOf(t).length,0),0);
+  const techo=acts.length&&n(p.presupuesto)?`<div>Techo aprobado<b style="color:${p._bud>n(p.presupuesto)?'var(--bad)':'var(--ink)'}">${money(p.presupuesto)}</b></div>`:'';
+  let h=`<div class="proj"><div class="ph"><div class="ttl"><div class="crumb">${esc(p.codigo||'PROYECTO')} · Responsable: ${esc(pname(p.responsable))}</div><strong>${esc(p.nombre)}</strong>${exTag(p)}
+    ${p.objetivo?`<div class="note">${esc(p.objetivo)}</div>`:''}<div style="margin-top:8px">${periodStrip(p)}</div></div>
+    <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">${pillFor(p.estado)}${editBtn('proyectos',p.id)}</div>
+    <div class="nums" style="flex-basis:100%"><div>Avance consolidado<b>${pct(av)}</b></div><div>Presupuesto (suma de actividades)<b>${money(p._bud)}</b></div><div>Ejecutado<b>${money(p._ej)}</b></div>${techo}<div>Actividades<b>${acts.length}</b></div><div>Comisiones<b>${nCom}</b></div><div style="flex:1 1 140px;justify-content:flex-end">${meter(av)}</div></div></div><div class="tree">`;
+  acts.forEach(a=>{const aa=actAvance(a),ts=tarsOf(a);
+    h+=`<div class="node l1"><div class="lbl"><span class="kind">Actividad</span><strong>${esc(a.nombre)}</strong>${exTag(a)}${a.linea?`<span class="pill info">${esc(a.linea)}</span>`:''}<span class="note">${esc(pname(a.responsable))} · ${pshort(a)}</span>${evCount(a)}</div>
+      <div class="side">${pillFor(a.estado)}<span class="mono">${money(a.presupuesto)}</span>${meter(aa)}<span class="mono">${pct(aa)}</span>${editBtn('actividades',a.id)}</div></div>`;
+    ts.forEach(t=>{const ta=tarAv(t),cs=comsOf(t);
+      h+=`<div class="node l2"><div class="lbl"><span class="kind">Tarea</span>${esc(t.nombre)}${exTag(t)}<span class="note">${esc(pname(t.responsable))} · ${pshort(t)}</span>${evCount(t)}</div>
+        <div class="side">${pillFor(t.estado)}${meter(ta)}<span class="mono">${pct(ta)}</span>${editBtn('tareas',t.id)}</div></div>`;
+      cs.forEach(c=>{const ca=comAv(c);
+        h+=`<div class="node l3"><div class="lbl"><span class="kind">Comisión</span><strong>${esc(pname(c.persona))}</strong><span>${esc(c.encargo)}</span><span class="note">${pshort(c)}</span>${evCount(c)}${exTag(c)}</div>
+          <div class="side">${pillFor(c.estado)}${meter(ca)}<span class="mono">${pct(ca)}</span>${editBtn('comisiones',c.id)}</div></div>`});
+      if(!readOnly)h+=`<div class="adder l3">${addBtn('comisiones','tarea',t.id,'Comisión a una persona')}</div>`;
+    });
+    if(!readOnly)h+=`<div class="adder l2">${addBtn('tareas','actividad',a.id,'Tarea')}</div>`;
+  });
+  if(!acts.length)h+=`<div class="node"><span class="note">Este proyecto aún no tiene actividades. Agrega la primera para empezar a consolidar avance y presupuesto.</span></div>`;
+  if(!readOnly)h+=`<div class="adder">${addBtn('actividades','proyecto',p.id,'Actividad')}</div>`;
+  h+=`</div><div class="metas"><div class="bar"><h3 style="color:var(--cyan)">Metas del proyecto</h3>${addBtn('metas','proyecto',p.id,'Meta (registra el gerente)')}</div>`;
+  if(ms.length)ms.forEach(m=>{const ma=metaAvance(m),pc=m.tipo==='Porcentual';
+    h+=`<div class="m"><div style="min-width:0"><strong>${esc(m.indicador)}</strong>${exTag(m)}<div class="note">${pc?'Porcentual':'Numérico'} · ${n(m.logrado).toLocaleString('es-PE')}${pc?'%':''} de ${n(m.meta).toLocaleString('es-PE')}${pc?'%':' '+esc(m.medida||'')} · registró ${esc(pname(m.gerente))} · ${editBtn('metas',m.id)}</div></div>${meter(ma)}<span class="mono" style="text-align:right">${pct(ma)}</span></div>`});
+  else h+=`<div class="note">Sin metas registradas. El gerente debe registrar al menos un indicador numérico o porcentual.</div>`;
+  return h+'</div></div>';
+}
+function viewUnits(){
+  const u=U[selUnit]||U.GG;
+  // árbol de unidades
+  let org=`<div class="panel"><h3>Unidades de gestión</h3><div class="org"><div class="row h"><span>Unidad</span><span class="c">Pers.</span><span class="c">Proy.</span><span class="c">Presupuesto</span></div>`;
+  UNITS.forEach(x=>{const d=desc(x.id);
+    const per=S.personal.filter(r=>r.estado==='Activo'&&d.includes(r.unidad)).length;
+    const pr=S.proyectos.filter(r=>d.includes(r.unidad));
+    org+=`<div class="row click ${x.id===u.id?'sel':''}" data-unit="${x.id}" role="button" tabindex="0"><span class="nm lvl${Math.min(2,depth(x.id))}"><span class="t" title="Siglas para el código de proyectos">${unitPrefix(x.id)}</span>${depth(x.id)<2?'<strong>'+esc(x.n)+'</strong>':esc(x.n)}</span><span class="c">${per}</span><span class="c">${pr.length}</span><span class="c">${kmoney(pr.reduce((s,r)=>s+n(r._bud),0))}</span></div>`});
+  org+=`</div><div class="note">Las cifras incluyen las dependencias de cada unidad. Toca una unidad para ver sus proyectos.</div></div>`;
+  // detalle
+  const own=S.proyectos.filter(p=>p.unidad===u.id);
+  const pers=S.personal.filter(p=>p.unidad===u.id);
+  const bud=own.reduce((s,p)=>s+n(p._bud),0),ej=own.reduce((s,p)=>s+n(p._ej),0);
+  const ms=S.metas.filter(m=>own.some(p=>p.id===m.proyecto));
+  const coms=S.comisiones.filter(c=>unitOf('comisiones',c)===u.id);
+  let h=`<div class="bar"><div class="uhead"><span class="crumb">${chain(u.id).map(x=>esc(x.n)).join(' › ')}</span><h2>${esc(u.n)}</h2></div>
+    <div class="right"><select id="su" aria-label="Elegir unidad">${unitOpts.map(([v,l])=>`<option value="${v}" ${v===u.id?'selected':''}>${esc(l)}</option>`).join('')}</select>${readOnly?'':`<button class="btn primary" data-add="proyectos:unidad:${u.id}">+ Nuevo proyecto</button>`}</div></div>
+  <div class="kpis"><div class="kpi"><span class="l">Proyectos de la unidad</span><span class="v">${own.length}</span><span class="s">${own.filter(p=>p.estado==='En curso').length} en curso</span></div>
+   <div class="kpi"><span class="l">Avance consolidado</span><span class="v">${pct(avg(own.map(proyAvance)))}</span><span class="s">promedio de proyectos</span></div>
+   <div class="kpi"><span class="l">Presupuesto consolidado</span><span class="v">${kmoney(bud)}</span><span class="s">ejecutado ${kmoney(ej)}${bud?' · '+pct(ej/bud*100):''}</span></div>
+   <div class="kpi"><span class="l">Cumplimiento de metas</span><span class="v">${pct(avg(ms.map(m=>Math.min(100,metaAvance(m)))))}</span><span class="s">${ms.length} indicadores</span></div>
+   <div class="kpi"><span class="l">Personal de la unidad</span><span class="v">${pers.filter(p=>p.estado==='Activo').length}</span><span class="s">${coms.length} comisiones asignadas</span></div></div>`;
+  h+=own.length?own.map(projCard).join(''):`<div class="panel empty"><strong>${esc(u.n)} aún no tiene proyectos</strong>Registra un proyecto y, dentro de él, sus actividades, tareas, comisiones y metas.</div>`;
+  const subs=kids(u.id);
+  if(subs.length){h+=`<div class="panel"><h3>Dependencias</h3><div class="org">${subs.map(x=>{const pr=S.proyectos.filter(p=>desc(x.id).includes(p.unidad));return `<div class="row click" data-unit="${x.id}" role="button" tabindex="0"><span class="nm"><span class="t" title="Siglas para el código de proyectos">${unitPrefix(x.id)}</span>${esc(x.n)}</span><span class="c"></span><span class="c">${pr.length}</span><span class="c">${kmoney(pr.reduce((s,p)=>s+n(p._bud),0))}</span></div>`}).join('')}</div></div>`}
+  return `<div class="grid3" style="grid-template-columns:minmax(0,1fr)">${h}</div>`+org;
+}
+
+/* ===== Vista: calendario ===== */
+const CAL_TYPES=[['proyectos','Proyecto','var(--cyan)'],['actividades','Actividad','var(--ok)'],['tareas','Tarea','var(--yellow)'],['comisiones','Comisión','var(--magenta)']];
+let calMonth=today().slice(0,7),calOn={proyectos:true,actividades:true,tareas:true,comisiones:true},calDay=null;
+function calEvents(){
+  const out=[];
+  CAL_TYPES.forEach(([col,lab,color])=>{if(!calOn[col])return;
+    S[col].filter(r=>inFilter(col,r)).forEach(r=>{
+      const name=col==='comisiones'?`${pname(r.persona)}: ${r.encargo||''}`:col==='proyectos'?`${r.codigo?r.codigo+' · ':''}${r.nombre||''}`:(r.nombre||'');
+      const ctx=col==='actividades'?byId('proyectos',r.proyecto)?.nombre:col==='tareas'?byId('actividades',r.actividad)?.nombre:col==='comisiones'?byId('tareas',r.tarea)?.nombre:U[r.unidad]?.n;
+      periodsOf(r).forEach(p=>{const ini=p.ini||p.fin,fin=p.fin||p.ini;if(ini)out.push({col,lab,color,id:r.id,name,ctx:ctx||'',desc:p.desc||'',ini,fin,estado:r.estado||''})});
+    })});
+  return out.sort((a,b)=>a.ini.localeCompare(b.ini)||CAL_TYPES.findIndex(t=>t[0]===a.col)-CAL_TYPES.findIndex(t=>t[0]===b.col));
+}
+const ymd=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+function viewCal(){
+  const [Y,M]=calMonth.split('-').map(Number);const first=new Date(Y,M-1,1),last=new Date(Y,M,0);
+  const start=new Date(first);start.setDate(1-((first.getDay()+6)%7));
+  const end=new Date(last);end.setDate(last.getDate()+(7-((last.getDay()+6)%7)-1));
+  const ev=calEvents();const mFrom=ymd(first),mTo=ymd(last);
+  const inMonth=ev.filter(e=>e.ini<=mTo&&e.fin>=mFrom);
+  const title=first.toLocaleDateString('es-PE',{month:'long',year:'numeric'});
+  const t=today();
+  let h=`<div class="bar"><div class="left"><h2 style="text-transform:capitalize">${esc(title)}</h2><span class="note">${inMonth.length} ${inMonth.length===1?'periodo':'periodos'} en el mes</span></div>
+   <div class="right"><button class="btn small" data-cal="-1" aria-label="Mes anterior">‹ Anterior</button><button class="btn small" data-cal="0">Hoy</button><button class="btn small" data-cal="1" aria-label="Mes siguiente">Siguiente ›</button>
+   <input type="month" id="calPick" value="${calMonth}" aria-label="Elegir mes">${unitFilterSel()}</div></div>
+   <div class="legend" style="gap:8px">${CAL_TYPES.map(([c,l,col])=>`<label style="display:inline-flex;gap:6px;align-items:center;cursor:pointer;padding:4px 10px;border:1px solid var(--rule);border-radius:999px;${calOn[c]?'':'opacity:.45'}"><input type="checkbox" data-calt="${c}" ${calOn[c]?'checked':''} style="accent-color:${col}"><i style="background:${col}"></i>${l}s</label>`).join('')}</div>`;
+  h+=`<div class="tbl" style="overflow-x:auto"><div style="display:grid;grid-template-columns:repeat(7,minmax(96px,1fr));min-width:680px">`;
+  ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].forEach(d=>h+=`<div style="padding:6px 8px;font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);background:var(--paper);border-bottom:1px solid var(--rule)">${d}</div>`);
+  for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1)){
+    const k=ymd(d),out=d.getMonth()!==M-1,isT=k===t,sel=k===calDay;
+    const es=ev.filter(e=>e.ini<=k&&e.fin>=k);
+    const shown=es.slice(0,3);
+    h+=`<div style="min-height:104px;padding:6px;border-right:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2);display:flex;flex-direction:column;gap:3px;min-width:0;${out?'background:var(--paper);opacity:.6;':''}${sel?'box-shadow:inset 0 0 0 2px var(--cyan);':''}">
+      <button class="link" data-calday="${k}" style="align-self:flex-start;font-family:var(--mono);font-size:.78rem;${isT?'background:var(--magenta);color:var(--sheet);border-radius:999px;padding:1px 7px;':'color:var(--ink-2)'}" aria-label="Ver el ${fdate(k)}">${d.getDate()}</button>
+      ${shown.map(e=>{const st=e.ini===k||d.getDay()===1,en=e.fin===k;return `<button data-edit="${e.col}:${e.id}" title="${esc(e.lab+': '+e.name+(e.desc?' ('+e.desc+')':'')+' · '+fdate(e.ini)+' → '+fdate(e.fin))}" style="all:unset;cursor:pointer;display:block;font-size:.72rem;line-height:1.3;padding:1px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:color-mix(in srgb,${e.color} 22%,transparent);border-left:3px solid ${e.color};border-radius:${st?'3px':'0'} ${en?'3px 3px':'0 0'} ${st?'3px':'0'};color:var(--ink)">${st?esc(e.name):'&nbsp;'}</button>`}).join('')}
+      ${es.length>3?`<button class="link" data-calday="${k}" style="font-size:.72rem">+${es.length-3} más</button>`:''}
+    </div>`;
+  }
+  h+=`</div></div>`;
+  // Agenda
+  const list=calDay?ev.filter(e=>e.ini<=calDay&&e.fin>=calDay):inMonth;
+  h+=`<div class="panel"><div class="bar"><h3>${calDay?'Agenda del '+fdate(calDay):'Agenda del mes'}</h3>${calDay?'<button class="link" id="calAll">Ver todo el mes</button>':''}</div>`;
+  if(!list.length)h+=`<div class="empty">No hay periodos ${calDay?'ese día':'en este mes'} con los filtros elegidos. Registra fechas en los Periodos de ejecución de cada proyecto, actividad, tarea o comisión.</div>`;
+  else h+=`<div class="tbl" style="border:0"><table><thead><tr><th>Tipo</th><th>Nombre</th><th>Pertenece a</th><th>Desde</th><th>Hasta</th><th>Estado</th></tr></thead><tbody>${list.map(e=>{const late=e.fin<t&&!['Cerrado','Completada','Hecha','Cumplida'].includes(e.estado);return `<tr><td><span class="pill" style="background:color-mix(in srgb,${e.color} 20%,transparent);color:var(--ink)">${e.lab}</span></td><td><button class="link" data-edit="${e.col}:${e.id}" style="color:var(--ink);text-align:left">${esc(e.name)}</button>${e.desc?`<div class="note">${esc(e.desc)}</div>`:''}</td><td class="note">${esc(e.ctx)}</td><td>${fdate(e.ini)}</td><td>${fdate(e.fin)}${late?' <span class="pill bad">Vencido</span>':''}</td><td>${pillFor(e.estado)}</td></tr>`}).join('')}</tbody></table></div>`;
+  return h+`</div>`;
+}
+function bindCal(){
+  document.querySelectorAll('[data-cal]').forEach(b=>b.onclick=()=>{const v=+b.dataset.cal;if(!v){calMonth=today().slice(0,7);calDay=null}else{const [y,m]=calMonth.split('-').map(Number);const d=new Date(y,m-1+v,1);calMonth=ymd(d).slice(0,7);calDay=null}render()});
+  const pk=$('#calPick');if(pk)pk.onchange=e=>{if(e.target.value){calMonth=e.target.value;calDay=null;render()}};
+  document.querySelectorAll('[data-calt]').forEach(c=>c.onchange=()=>{calOn[c.dataset.calt]=c.checked;render()});
+  document.querySelectorAll('[data-calday]').forEach(b=>b.onclick=()=>{calDay=calDay===b.dataset.calday?null:b.dataset.calday;render()});
+  const ca=$('#calAll');if(ca)ca.onclick=()=>{calDay=null;render()};
+}
+
+/* ===== Vista: dashboard ===== */
+function hbars(items,max){ // items: [{label,a,b}] a=asignado b=ejecutado
+  const W=640,rowH=34,L=180,R=80,H=items.length*rowH+24;max=max||Math.max(1,...items.map(i=>Math.max(i.a,i.b)));
+  const x=v=>L+(W-L-R)*v/max;
+  let s=`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Presupuesto por gerencia">`;
+  [0,.25,.5,.75,1].forEach(f=>{const xx=x(max*f);s+=`<line x1="${xx}" x2="${xx}" y1="0" y2="${H-20}" stroke="var(--rule-2)"/><text x="${xx}" y="${H-6}" text-anchor="middle">${kmoney(max*f).replace('S/ ','')}</text>`});
+  items.forEach((it,i)=>{const y=i*rowH+4;
+    s+=`<text x="${L-10}" y="${y+16}" text-anchor="end" style="font-family:var(--body);font-size:12px;fill:var(--ink)">${esc(it.label)}</text>
+    <rect x="${L}" y="${y+2}" width="${Math.max(0,x(it.a)-L)}" height="12" rx="2" fill="var(--cyan)" opacity=".35"/>
+    <rect x="${L}" y="${y+16}" width="${Math.max(0,x(it.b)-L)}" height="8" rx="2" fill="${it.b>it.a?'var(--bad)':'var(--cyan)'}"/>
+    <text x="${x(Math.max(it.a,it.b))+6}" y="${y+16}">${it.a?pct(it.b/it.a*100):'—'}</text>`});
+  return s+'</svg>';
+}
+function projection(pers){
+  const months=[];const d0=new Date();d0.setDate(1);
+  for(let i=0;i<12;i++){const d=new Date(d0.getFullYear(),d0.getMonth()+i,1);months.push(d)}
+  const end=d=>new Date(d.getFullYear(),d.getMonth()+1,0).toISOString().slice(0,10);
+  const act=pers.filter(r=>r.estado==='Activo').length;
+  const data=months.map(m=>{const e=end(m);const add=pers.filter(r=>(r.estado==='Proyectado'||r.estado==='Vacante')&&(r.fechaIngreso?r.fechaIngreso<=e:false)).length;return {m,v:act+add,c:pers.filter(r=>r.estado==='Activo'||((r.estado==='Proyectado'||r.estado==='Vacante')&&r.fechaIngreso&&r.fechaIngreso<=e)).reduce((s,r)=>s+n(r.remuneracion),0)}});
+  const W=640,H=200,L=36,R=16,T=14,B=28,max=Math.max(4,...data.map(d=>d.v))*1.15,min=0;
+  const x=i=>L+(W-L-R)*i/(data.length-1),y=v=>T+(H-T-B)*(1-(v-min)/(max-min));
+  let s=`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Proyección de personal a 12 meses">`;
+  const step=Math.max(1,Math.ceil(max/4));for(let v=0;v<=max;v+=step){s+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--rule-2)"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end">${v}</text>`}
+  const pts=data.map((d,i)=>`${x(i)},${y(d.v)}`).join(' ');
+  s+=`<polygon points="${x(0)},${y(0)} ${pts} ${x(data.length-1)},${y(0)}" fill="var(--cyan)" opacity=".12"/><polyline points="${pts}" fill="none" stroke="var(--cyan)" stroke-width="2.5" stroke-linejoin="round"/>`;
+  data.forEach((d,i)=>{s+=`<text x="${x(i)}" y="${H-8}" text-anchor="middle">${d.m.toLocaleDateString('es-PE',{month:'short'}).replace('.','')}</text>`;if(i===0||i===data.length-1)s+=`<circle cx="${x(i)}" cy="${y(d.v)}" r="4" fill="var(--cyan)"/><text x="${x(i)}" y="${y(d.v)-10}" text-anchor="middle" style="fill:var(--ink);font-weight:500">${d.v}</text>`});
+  return {svg:s+'</svg>',last:data[data.length-1],first:data[0]};
+}
+function stackBar(parts){const tot=parts.reduce((s,p)=>s+p.v,0)||1;return `<div style="display:flex;height:14px;border-radius:4px;overflow:hidden;background:var(--rule-2)">${parts.map(p=>p.v?`<div title="${esc(p.l)}: ${p.v}" style="width:${p.v/tot*100}%;background:${p.c}"></div>`:'').join('')}</div>`}
+
+function viewDash(){
+  const F=c=>S[c].filter(r=>inFilter(c,r));
+  const pers=F('personal'),proy=F('proyectos'),acts=F('actividades'),tars=F('tareas'),mets=F('metas'),rsk=F('riesgos');
+  const total=Object.values(S).reduce((s,a)=>s+a.length,0);
+  const hasEx=COLS.some(c=>S[c].some(r=>r.ejemplo));
+  let h=`<div class="bar"><div class="left"><h2>${access()==='all'?'Dashboard gerencial':'Mi tablero'}</h2>${unitFilterSel()}</div><div class="right">${hasEx&&!readOnly&&access()==='all'?'<button class="btn small" id="clearEx">Quitar datos de ejemplo</button>':''}</div></div>`;
+  if(hasEx)h+=`<div class="note">Los registros marcados <span class="ex">EJEMPLO</span> muestran cómo se ve el tablero con datos. Reemplázalos por los de tu editorial o quítalos con el botón.</div>`;
+  if(!total){return h+`<div class="panel empty"><strong>Aún no hay registros</strong>Empieza por la pestaña Personal y luego registra Proyectos, Actividades, Tareas y Metas. Este tablero se llenará solo.</div>`}
+  const act=pers.filter(r=>r.estado==='Activo').length,vac=pers.filter(r=>r.estado==='Vacante').length,pro=pers.filter(r=>r.estado==='Proyectado').length;
+  const bud=proy.reduce((s,r)=>s+n(r._bud),0),ej=proy.reduce((s,r)=>s+n(r._ej),0);
+  const avg=proy.length?proy.reduce((s,p)=>s+proyAvance(p),0)/proy.length:0;
+  const metAvg=mets.length?mets.reduce((s,m)=>s+Math.min(100,metaAvance(m)),0)/mets.length:0;
+  const late=tars.filter(t=>t.vence&&t.vence<today()&&t.estado!=='Hecha');
+  const open=tars.filter(t=>t.estado!=='Hecha').length;
+  h+=`<div class="kpis">
+   <div class="kpi"><span class="l">Personal activo</span><span class="v">${act}</span><span class="s">${vac} vacantes · ${pro} proyectados</span></div>
+   <div class="kpi"><span class="l">Proyectos</span><span class="v">${proy.length}</span><span class="s">${proy.filter(p=>p.estado==='En curso').length} en curso · ${proy.filter(p=>p.estado==='En riesgo').length} en riesgo</span></div>
+   <div class="kpi"><span class="l">Avance promedio</span><span class="v">${pct(avg)}</span><span class="s">${acts.length} actividades</span></div>
+   <div class="kpi"><span class="l">Presupuesto ejecutado</span><span class="v">${bud?pct(ej/bud*100):'—'}</span><span class="s">${kmoney(ej)} de ${kmoney(bud)}</span></div>
+   <div class="kpi"><span class="l">Cumplimiento de metas</span><span class="v">${pct(metAvg)}</span><span class="s">${mets.length} indicadores</span></div>
+   <div class="kpi"><span class="l">Tareas abiertas</span><span class="v">${open}</span><span class="s" style="${late.length?'color:var(--bad)':''}">${late.length} vencidas</span></div></div>`;
+
+  // Alertas
+  const alerts=[];
+  proy.filter(p=>n(p._bud)&&n(p._ej)>n(p._bud)).forEach(p=>alerts.push(['bad',`<b>${esc(p.nombre)}</b> superó su presupuesto (${money(p._ej)} de ${money(p._bud)}).`]));
+  proy.filter(p=>p.fin&&p.fin<today()&&p.estado!=='Cerrado').forEach(p=>alerts.push(['bad',`<b>${esc(p.nombre)}</b> pasó su fecha de cierre (${fdate(p.fin)}) y sigue ${esc(p.estado||'abierto').toLowerCase()}.`]));
+  rsk.filter(r=>r.estado!=='Cerrado'&&r.estado!=='Mitigado'&&riesgoNivel(r)>=6).forEach(r=>alerts.push(['bad',`Riesgo alto en <b>${esc(byId('proyectos',r.proyecto)?.nombre||'')}</b>: ${esc(r.descripcion)}`]));
+  if(late.length)alerts.push(['warn',`<b>${late.length} tareas vencidas</b>: ${late.slice(0,3).map(t=>esc(t.nombre)).join(', ')}${late.length>3?'…':''}`]);
+  pers.filter(r=>r.estado==='Vacante'&&r.fechaIngreso&&r.fechaIngreso<today()).forEach(r=>alerts.push(['warn',`Vacante sin cubrir: <b>${esc(r.cargo||r.nombre)}</b> en ${esc(U[r.unidad]?.n||'')}, prevista para ${fdate(r.fechaIngreso)}.`]));
+  if(alerts.length)h+=`<div class="panel"><h3>Requiere atención</h3><div class="alerts">${alerts.slice(0,8).map(a=>`<div class="alert ${a[0]}">${a[1]}</div>`).join('')}</div></div>`;
+
+  // Presupuesto por gerencia
+  const scope=filterUnit==='ALL'?UNITS.filter(u=>u.t==='Gerencia'||u.p==='GG'):[U[filterUnit],...kids(filterUnit)];
+  const items=scope.map(u=>{const d=(filterUnit==='ALL'&&u.id==='GG')?['GG']:(u.id===filterUnit?[u.id]:desc(u.id));const pr=proy.filter(p=>d.includes(p.unidad));return {label:u.n.replace('Gerencia ','G. ').replace('Coordinación ','Coord. ').replace('Jefatura ','Jef. '),a:pr.reduce((s,p)=>s+n(p._bud),0),b:pr.reduce((s,p)=>s+n(p._ej),0)}}).filter(i=>i.a||i.b);
+  const P=projection(pers);
+  h+=`<div class="grid2"><div class="panel"><div class="bar"><h3>Presupuesto por unidad</h3><div class="legend"><span><i style="background:var(--cyan);opacity:.35"></i>Asignado</span><span><i style="background:var(--cyan)"></i>Ejecutado</span></div></div>${items.length?`<div style="overflow-x:auto">${hbars(items)}</div>`:'<div class="empty">Sin presupuesto registrado en proyectos.</div>'}</div>
+  <div class="panel"><div class="bar"><h3>Proyección de personal · 12 meses</h3><span class="note">${P.first.v} → ${P.last.v} personas</span></div>${P.svg}<div class="note">Planilla mensual estimada al final del periodo: <strong style="font-family:var(--mono)">${money(P.last.c)}</strong> (actual ${money(P.first.c)}). Considera vacantes y proyectados según su fecha de ingreso.</div></div></div>`;
+
+  // Personal por gerencia + tareas por estado
+  const gers=UNITS.filter(u=>u.p==='GG'||u.id==='GG');
+  const prow=gers.map(g=>{const d=g.id==='GG'?['GG']:desc(g.id);const ps=pers.filter(r=>d.includes(r.unidad));return {g,a:ps.filter(r=>r.estado==='Activo').length,v:ps.filter(r=>r.estado==='Vacante').length,p:ps.filter(r=>r.estado==='Proyectado').length}}).filter(r=>r.a+r.v+r.p);
+  const tst=EST_TAR.map(e=>({l:e,v:tars.filter(t=>t.estado===e).length}));
+  const tcol={Pendiente:'var(--rule)','En proceso':'var(--cyan)',Bloqueada:'var(--bad)',Hecha:'var(--ok)'};
+  h+=`<div class="grid3"><div class="panel"><div class="bar"><h3>Dotación por unidad</h3><div class="legend"><span><i style="background:var(--ink)"></i>Activo</span><span><i style="background:var(--yellow)"></i>Vacante</span><span><i style="background:var(--magenta)"></i>Proyectado</span></div></div>
+   ${prow.length?`<div style="display:flex;flex-direction:column;gap:10px">${prow.map(r=>`<div style="display:grid;grid-template-columns:minmax(0,190px) minmax(0,1fr) 34px;gap:10px;align-items:center"><span class="note" style="color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.g.n)}</span>${stackBar([{l:'Activo',v:r.a,c:'var(--ink)'},{l:'Vacante',v:r.v,c:'var(--yellow)'},{l:'Proyectado',v:r.p,c:'var(--magenta)'}])}<span style="font-family:var(--mono);text-align:right">${r.a+r.v+r.p}</span></div>`).join('')}</div>`:'<div class="empty">Sin personal registrado.</div>'}</div>
+   <div class="panel"><h3>Tareas por estado</h3>${stackBar(tst.map(t=>({l:t.l,v:t.v,c:tcol[t.l]})))}<div style="display:flex;flex-direction:column;gap:6px">${tst.map(t=>`<div style="display:flex;justify-content:space-between;font-size:.86rem"><span class="legend"><span><i style="background:${tcol[t.l]}"></i>${t.l}</span></span><span style="font-family:var(--mono)">${t.v}</span></div>`).join('')}</div></div></div>`;
+
+  // Tabla de proyectos
+  if(proy.length){h+=`<div class="panel"><h3>Cartera de proyectos</h3><div class="tbl" style="border:0"><table><thead><tr><th>Proyecto</th><th>Unidad</th><th>Estado</th><th>Avance</th><th class="num">Presupuesto</th><th class="num">Ejecutado</th><th>Metas</th><th>Riesgos</th></tr></thead><tbody>`;
+   proy.slice().sort((a,b)=>(a.fin||'9').localeCompare(b.fin||'9')).forEach(p=>{const av=proyAvance(p),ms=S.metas.filter(m=>m.proyecto===p.id),ma=ms.length?ms.reduce((s,m)=>s+Math.min(100,metaAvance(m)),0)/ms.length:null,rs=S.riesgos.filter(r=>r.proyecto===p.id&&r.estado!=='Cerrado');
+    h+=`<tr><td><strong>${esc(p.nombre)}</strong>${exTag(p)}<div class="note">Cierre ${fdate(p.fin)}</div></td><td class="unit-tag">${esc(U[p.unidad]?.n||'')}</td><td>${pillFor(p.estado)}</td><td>${meter(av)}<div class="note">${pct(av)}</div></td><td class="num">${money(p._bud)}</td><td class="num">${money(p._ej)}</td><td>${ma===null?'—':`${meter(ma)}<div class="note">${pct(ma)} · ${ms.length}</div>`}</td><td>${rs.length?`<span class="pill ${rs.some(r=>riesgoNivel(r)>=6)?'bad':'warn'}">${rs.length} abiertos</span>`:'—'}</td></tr>`});
+   h+='</tbody></table></div></div>'}
+
+  // Metas
+  if(mets.length){h+=`<div class="panel"><h3>Metas e indicadores</h3><div class="tbl" style="border:0"><table><thead><tr><th>Indicador</th><th>Proyecto</th><th class="num">Base</th><th class="num">Meta</th><th class="num">Logrado</th><th>Cumplimiento</th></tr></thead><tbody>${mets.map(m=>{const av=metaAvance(m);return `<tr><td><strong>${esc(m.indicador)}</strong><div class="note">${esc(m.medida||'')}</div></td><td>${esc(byId('proyectos',m.proyecto)?.nombre||'')}</td><td class="num">${n(m.base).toLocaleString('es-PE')}</td><td class="num">${n(m.meta).toLocaleString('es-PE')}</td><td class="num">${n(m.logrado).toLocaleString('es-PE')}</td><td>${meter(av)}<div class="note">${pct(av)}</div></td></tr>`}).join('')}</tbody></table></div></div>`}
+  return h;
+}
+
+/* ===== Periodos de ejecución del proyecto ===== */
+function periodsOf(p){const ps=Array.isArray(p.periodos)&&p.periodos.length?p.periodos:(p.inicio||p.fin||p.vence?[{ini:p.inicio||p.vence||'',fin:p.fin||p.vence||''}]:[]);return ps.filter(x=>x.ini||x.fin).slice().sort((a,b)=>(a.ini||'').localeCompare(b.ini||''))}
+const sdate=d=>d?new Date(d+'T12:00:00').toLocaleDateString('es-PE',{day:'2-digit',month:'short'}).replace('.',''):'…';
+function pshort(r){const ps=periodsOf(r);return ps.length?ps.map(x=>x.ini===x.fin?sdate(x.fin):`${sdate(x.ini)}–${sdate(x.fin)}`).join(' · '):'sin fechas'}
+function periodState(p){const t=today(),ps=periodsOf(p);if(!ps.length)return null;
+  const cur=ps.find(x=>(x.ini||'')<=t&&t<=(x.fin||'9999'));if(cur)return {c:'info',l:'En periodo activo'+(cur.desc?': '+cur.desc:'')};
+  const nx=ps.find(x=>(x.ini||'')>t);if(nx)return {c:'',l:'Próximo periodo: '+fdate(nx.ini)};return {c:'ok',l:'Periodos concluidos'}}
+function periodsHTML(p,short){const ps=periodsOf(p);if(!ps.length)return '—';
+  const yr=d=>d?d.slice(0,4):'';
+  return ps.map(x=>`<div style="white-space:nowrap">${sdate(x.ini)}${yr(x.ini)!==yr(x.fin)?' '+yr(x.ini):''} → ${sdate(x.fin)} ${yr(x.fin)}${!short&&x.desc?` <span class="note">${esc(x.desc)}</span>`:''}</div>`).join('')}
+function periodStrip(p){
+  const ps=periodsOf(p).filter(x=>x.ini&&x.fin);if(!ps.length)return '<span class="note">Sin periodos definidos</span>';
+  const y0=+ps[0].ini.slice(0,4),y1=Math.max(...ps.map(x=>+x.fin.slice(0,4)));const a=Date.UTC(y0,0,1),b=Date.UTC(y1+1,0,1);
+  const pos=d=>Math.max(0,Math.min(100,(Date.parse(d+'T00:00:00Z')-a)/(b-a)*100));
+  const M='EFMAMJJASOND';let ticks='';
+  for(let y=y0;y<=y1;y++)for(let m=0;m<12;m++){const x=(Date.UTC(y,m,1)-a)/(b-a)*100;const lab=m===0&&y1>y0?"'"+String(y).slice(2):M[m];ticks+=`<span style="position:absolute;left:${x}%;top:15px;font-family:var(--mono);font-size:9px;color:var(--ink-2)">${lab}</span><i style="position:absolute;left:${x}%;top:0;height:12px;border-left:1px solid var(--rule)"></i>`}
+  const t=today(),tx=(t>=`${y0}-01-01`&&t<`${y1+1}-01-01`)?`<i title="Hoy" style="position:absolute;left:${pos(t)}%;top:-3px;height:18px;border-left:2px solid var(--magenta)"></i>`:'';
+  const st=periodState(p);
+  return `<div style="display:flex;flex-direction:column;gap:6px;max-width:560px"><div style="position:relative;height:28px"><div style="position:absolute;left:0;right:0;top:0;height:12px;background:var(--rule-2);border-radius:3px"></div>${ticks}${ps.map(x=>`<b title="${esc((x.desc?x.desc+': ':'')+fdate(x.ini)+' → '+fdate(x.fin))}" style="position:absolute;top:0;height:12px;left:${pos(x.ini)}%;width:${Math.max(.8,pos(x.fin)-pos(x.ini))}%;background:var(--cyan);border-radius:3px"></b>`).join('')}${tx}</div>
+   <div class="note" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">${st?`<span class="pill ${st.c}">${esc(st.l)}</span>`:''}${ps.length} ${ps.length===1?'periodo':'periodos'}: ${ps.map(x=>`${sdate(x.ini)}–${sdate(x.fin)}${x.desc?' ('+esc(x.desc)+')':''}`).join(' · ')}</div></div>`;
+}
+function renderPeriods(){
+  const box=$('#periodsBox');if(!box)return;const ps=editing.r.periodos;
+  box.innerHTML=ps.map((x,i)=>`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;align-items:end;padding:8px;border:1px solid var(--rule-2);border-radius:6px">
+    <label for="pi_${i}" style="font-weight:400">Inicio ${i+1}<input type="date" id="pi_${i}" data-pi="${i}" value="${esc(x.ini||'')}" ${readOnly?'disabled':''}></label>
+    <label for="pf_${i}" style="font-weight:400">Fin ${i+1}<input type="date" id="pf_${i}" data-pf="${i}" value="${esc(x.fin||'')}" ${readOnly?'disabled':''}></label>
+    <label for="pd_${i}" style="font-weight:400">Descripción (opcional)<input id="pd_${i}" data-pd="${i}" value="${esc(x.desc||'')}" placeholder="Ej. campaña escolar" ${readOnly?'disabled':''}></label>
+    ${readOnly||ps.length<2?'':`<button type="button" class="link" data-pdel="${i}" style="color:var(--bad);justify-self:start;padding-bottom:10px">Quitar periodo</button>`}</div>`).join('')+(readOnly?'':'<div><button type="button" class="btn small" id="pAdd">+ Agregar periodo</button></div>');
+  box.querySelectorAll('[data-pi]').forEach(e=>e.oninput=()=>ps[+e.dataset.pi].ini=e.value);
+  box.querySelectorAll('[data-pf]').forEach(e=>e.oninput=()=>ps[+e.dataset.pf].fin=e.value);
+  box.querySelectorAll('[data-pd]').forEach(e=>e.oninput=()=>ps[+e.dataset.pd].desc=e.value);
+  box.querySelectorAll('[data-pdel]').forEach(b=>b.onclick=()=>{ps.splice(+b.dataset.pdel,1);renderPeriods()});
+  const add=$('#pAdd');if(add)add.onclick=()=>{ps.push({ini:'',fin:'',desc:''});renderPeriods();const el=$('#pi_'+(ps.length-1));if(el)el.focus()};
+}
+
+/* ===== Evidencias (archivos) ===== */
+const EV_COLS=['actividades','tareas','comisiones'];
+const EXT_TYPE={pdf:'application/pdf',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',gif:'image/gif',csv:'text/csv',txt:'text/plain',md:'text/markdown',json:'application/json',mp4:'video/mp4',webm:'video/webm'};
+const fsize=b=>b>=1048576?(b/1048576).toFixed(1)+' MB':Math.max(1,Math.round(b/1024))+' KB';
+function evCount(r){const n2=(r.evidencias||[]).length;return n2?`<span class="mono">${n2} ${n2===1?'evidencia':'evidencias'}</span>`:''}
+function evBlock(){
+  return `<div class="full" style="grid-column:1/-1;display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--rule);padding-top:12px">
+   <span style="font-size:.8rem;font-weight:500;color:var(--ink-2)">Evidencias de cumplimiento (archivos)</span>
+   <div id="evList" style="display:flex;flex-direction:column;gap:6px"></div>
+   ${readOnly?'':assets?`<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><label class="btn small" for="evFile">Subir archivo…</label><input id="evFile" type="file" multiple hidden accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.csv,.txt,.md,.json,.mp4,.webm"><span class="note" id="evMsg">PDF, imagen, CSV o TXT · máx. 20 MB. Word o Excel: guárdalos como PDF.</span></div>`:'<span class="note">Para subir archivos necesitas acceso de colaborador o editor en esta página.</span>'}
+  </div>`;
+}
+function renderEv(){
+  const l=$('#evList');if(!l)return;const ev=editing.r.evidencias||[];
+  l.innerHTML=ev.length?ev.map((e,i)=>`<div style="display:flex;gap:10px;align-items:center;justify-content:space-between;font-size:.85rem;padding:6px 10px;border:1px solid var(--rule-2);border-radius:6px"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.nombre)} <span class="note">· ${fsize(e.tam||0)} · ${fdate(e.fecha)}</span></span><span style="display:flex;gap:10px;flex-shrink:0"><a class="link" href="#" data-evopen="${esc(e.id)}">Abrir</a>${readOnly?'':`<button type="button" class="link" data-evdel="${i}" style="color:var(--bad)">Quitar</button>`}</span></div>`).join(''):'<span class="note">Aún no hay archivos.</span>';
+  l.querySelectorAll('[data-evdel]').forEach(b=>b.onclick=()=>{editing.r.evidencias=ev.filter((_,j)=>j!==+b.dataset.evdel);renderEv()});
+}
+async function uploadEv(files){
+  const msg=$('#evMsg');const save=$('#dlgSave');save.disabled=true;
+  for(const f of files){
+    const ext=(f.name.split('.').pop()||'').toLowerCase();const type=EXT_TYPE[ext];
+    if(!type){toast(`“${f.name}”: formato no admitido. Sube PDF, imagen, CSV o TXT (Word y Excel: guárdalos como PDF).`);continue}
+    if(f.size>20*1048576){toast(`“${f.name}” pesa más de 20 MB. Comprímelo o divídelo.`);continue}
+    if(msg)msg.textContent=`Subiendo ${f.name}…`;
+    try{const r=await assets.upload(f,{type});editing.r.evidencias=[...(editing.r.evidencias||[]),{id:r.id,nombre:f.name,tipo:r.contentType,tam:r.sizeBytes,fecha:today()}];renderEv()}
+    catch(e){toast(e?.code==='too_large'?`“${f.name}” es demasiado grande.`:e?.code==='quota_exceeded'?'Se llenó el espacio de archivos de esta página.':e?.code==='unsupported_type'?`“${f.name}”: formato no admitido.`:`No se pudo subir “${f.name}”. Inténtalo de nuevo.`)}
+  }
+  if(msg)msg.textContent='Archivos listos. Pulsa Guardar para registrarlos.';save.disabled=false;
+}
+
+
+/* ===== Catálogo de actividades principales por gerencia ===== */
+const CATALOGO={
+ GV:[
+  ['1. Planificación comercial',['Elaborar el plan comercial anual, trimestral y mensual','Establecer metas de ventas por producto, servicio, vendedor y zona','Definir estrategias de precios, promociones y descuentos','Identificar oportunidades de mercado y nuevos segmentos de clientes','Elaborar proyecciones de ventas y presupuestos comerciales']],
+  ['2. Gestión de clientes',['Captar nuevos clientes y desarrollar una cartera comercial','Segmentar clientes según necesidades, compras y rentabilidad','Mantener actualizada la base de datos comercial','Gestionar visitas, llamadas, reuniones y seguimiento de prospectos','Implementar estrategias de fidelización y recuperación de clientes']],
+  ['3. Dirección de ventas',['Asignar cuotas y objetivos individuales al equipo de ventas','Supervisar las actividades y el cumplimiento de los vendedores','Revisar cotizaciones, propuestas y negociaciones comerciales','Coordinar el cierre de ventas y la atención de pedidos','Capacitar al equipo en técnicas de venta y negociación']],
+  ['4. Control de resultados comerciales',['Comparar las ventas reales con las metas presupuestadas','Analizar las ventas por producto, cliente, canal y vendedor','Medir la conversión de prospectos en clientes','Controlar el ticket promedio, margen comercial y rentabilidad','Identificar desviaciones y establecer acciones correctivas']],
+  ['5. Control económico y financiero de ventas',['Supervisar los márgenes de ganancia por producto o servicio','Controlar descuentos, comisiones y gastos comerciales','Coordinar con Finanzas o Contabilidad el seguimiento de cuentas por cobrar','Evaluar la rentabilidad de las promociones','Prevenir ventas con márgenes insuficientes o condiciones no autorizadas']],
+  ['6. Investigación y desarrollo comercial',['Analizar competidores, precios y tendencias del mercado','Recopilar información sobre las necesidades de los clientes','Evaluar nuevos productos, servicios y canales de venta','Medir la efectividad de campañas comerciales','Proponer mejoras para aumentar la participación de mercado']]
+ ],
+ GP:[["1. Planificación y programación de la producción", ["Elaborar el plan anual, mensual y semanal de producción editorial", "Programar la producción de libros, revistas, folletos y otros materiales impresos", "Establecer fechas de inicio y término por cada etapa productiva", "Determinar los recursos humanos, materiales, equipos y servicios necesarios", "Priorizar los pedidos según fechas de entrega, tiraje y compromisos comerciales", "Coordinar la programación con las áreas comercial, editorial y logística"]], ["2. Gestión del proceso editorial", ["Coordinar la recepción y revisión técnica de originales", "Supervisar diagramación, diseño gráfico y corrección de textos", "Controlar la aprobación de las pruebas de impresión", "Verificar formatos, paginación, tipografías, imágenes y códigos de identificación", "Asegurar que los archivos aprobados correspondan a la versión autorizada", "Controlar el cumplimiento del flujo de aprobación editorial antes de enviar a preprensa"]], ["3. Gestión de preprensa", ["Supervisar la preparación y validación de archivos PDF para impresión", "Verificar imposición, sangrados, resolución, perfiles de color y tipografías", "Controlar la elaboración y aprobación de planchas de impresión", "Optimizar la distribución de páginas según los formatos de papel disponibles", "Verificar pruebas de color y correspondencia con las especificaciones aprobadas", "Reducir errores técnicos que ocasionen reimpresiones o desperdicio de materiales"]], ["4. Gestión de impresión", ["Programar los trabajos de impresión offset o digital", "Asignar máquinas, operadores, turnos y órdenes de producción", "Controlar el consumo de papel, tinta, planchas y otros insumos", "Supervisar el registro, la densidad y la consistencia del color", "Controlar el tiraje aprobado y las cantidades producidas", "Registrar mermas, desperdicios, paradas de máquina y causas de reproceso"]], ["5. Gestión de acabados y encuadernación", ["Programar plegado, alzado, cosido, encolado, laminado, guillotinado y encuadernación, según corresponda", "Verificar medidas finales, escuadra, lomo, pegado y resistencia del producto", "Controlar la correcta secuencia de los cuadernillos y las páginas", "Supervisar la calidad de las tapas y los acabados especiales", "Coordinar la cantidad terminada por orden de producción", "Gestionar el retrabajo de productos que no cumplan las especificaciones"]], ["6. Gestión de materiales e inventarios de producción", ["Calcular los requerimientos de papel según formato, paginación y tiraje", "Verificar disponibilidad de papel, cartulinas, tintas, adhesivos y materiales auxiliares", "Coordinar solicitudes de compra y reposición con Logística", "Controlar entregas, devoluciones y consumos de materiales por orden de producción", "Supervisar el almacenamiento y la conservación de materias primas", "Evaluar alternativas de materiales que reduzcan costos sin comprometer la calidad"]], ["7. Gestión de calidad editorial e industrial", ["Establecer criterios de calidad para cada producto", "Inspeccionar muestras durante la impresión y el acabado", "Detectar defectos de impresión, compaginación, corte y encuadernación", "Registrar productos defectuosos y determinar sus causas", "Implementar acciones correctivas y preventivas", "Autorizar la liberación de lotes terminados conforme al procedimiento interno"]], ["8. Gestión de costos y productividad", ["Elaborar presupuestos y costos estándar por título y orden de producción", "Comparar costos presupuestados con costos reales", "Controlar materiales, mano de obra, servicios externos y costos indirectos", "Medir la productividad de las máquinas y del personal", "Analizar mermas, tiempos improductivos, averías y reprocesos", "Proponer mejoras para reducir el costo unitario de cada libro"]], ["9. Gestión de producto terminado y despacho", ["Verificar cantidades, presentación y embalaje de los libros terminados", "Coordinar el ingreso al almacén de productos terminados", "Conciliar cantidades producidas con las cantidades aprobadas y despachadas", "Coordinar entregas con Comercial y Logística", "Controlar productos pendientes, pedidos urgentes y entregas parciales", "Mantener la trazabilidad de cada orden de producción hasta su entrega"]]],
+ GFC:[["1. Gestión contable", ["Organizar, supervisar y controlar el registro de las operaciones económicas de la editorial", "Revisar los comprobantes de compras, ventas, gastos y servicios", "Supervisar la elaboración de los libros y registros contables obligatorios", "Preparar y analizar los estados financieros: situación financiera, resultados y flujos de efectivo", "Verificar la conciliación de cuentas contables y bancarias", "Controlar la correcta clasificación de activos, pasivos, patrimonio, ingresos y gastos", "Coordinar el cierre contable mensual, trimestral y anual"]], ["2. Planificación y gestión financiera", ["Elaborar el presupuesto anual de ingresos, costos, gastos e inversiones", "Preparar proyecciones mensuales de ingresos y egresos", "Evaluar las necesidades de financiamiento y capital de trabajo", "Supervisar la liquidez y disponibilidad de fondos", "Programar los pagos a proveedores, trabajadores, entidades financieras y organismos públicos", "Evaluar escenarios financieros para nuevas publicaciones, campañas editoriales y proyectos de expansión", "Proponer medidas para mejorar la rentabilidad y la sostenibilidad financiera"]], ["3. Gestión tributaria", ["Determinar y supervisar el cumplimiento de las obligaciones tributarias de la empresa", "Revisar las declaraciones mensuales y anuales de impuestos", "Controlar el IGV, el Impuesto a la Renta, las retenciones y otras obligaciones aplicables", "Verificar la emisión y recepción de comprobantes electrónicos", "Supervisar la consistencia entre ventas, compras, libros contables y declaraciones", "Controlar las fechas de vencimiento y el pago oportuno de tributos", "Gestionar la documentación de sustento para atender requerimientos de SUNAT"]], ["4. Gestión y control de costos editoriales", ["Determinar el costo de producción por título, edición, tiraje y formato", "Controlar los costos de papel, tintas, diseño, corrección, preprensa, impresión, posprensa, fletes e indirectos", "Comparar los costos presupuestados con los costos reales", "Analizar las mermas, desperdicios, reprocesos y desmedros", "Calcular el costo unitario de los libros producidos", "Evaluar la rentabilidad de cada publicación y de los servicios de impresión", "Proporcionar información de costos para definir precios de venta y márgenes comerciales"]], ["5. Gestión de cuentas por cobrar y por pagar", ["Supervisar la facturación de libros, publicaciones y servicios editoriales", "Controlar las cuentas por cobrar a librerías, distribuidores, instituciones educativas y otros clientes", "Gestionar el seguimiento de facturas vencidas y compromisos de pago", "Revisar las facturas de proveedores y verificar su conformidad", "Programar pagos de acuerdo con la disponibilidad de caja y las condiciones contractuales", "Conciliar saldos con clientes y proveedores", "Informar sobre riesgos de morosidad y necesidades de liquidez"]], ["6. Control financiero de inventarios y activos", ["Supervisar la valorización contable del papel, tintas, materiales auxiliares y libros terminados", "Conciliar los saldos contables con los inventarios físicos", "Revisar el costo de las existencias y su correcta asignación a la producción", "Evaluar libros de baja rotación, deteriorados, obsoletos o invendibles", "Coordinar el tratamiento contable de mermas, desmedros y bajas debidamente sustentadas", "Controlar los activos fijos: máquinas de impresión, equipos informáticos, mobiliario y vehículos", "Supervisar la depreciación y la documentación de altas, bajas y transferencias de activos"]], ["7. Análisis financiero y rentabilidad", ["Analizar los márgenes brutos y operativos de la editorial", "Evaluar la rentabilidad por título, colección, canal de venta y cliente", "Medir la liquidez, el endeudamiento y la eficiencia en el uso de recursos", "Identificar desviaciones presupuestarias y sus causas", "Analizar el punto de equilibrio de las publicaciones", "Evaluar la recuperación de la inversión en nuevas ediciones y reimpresiones", "Preparar informes financieros para la Gerencia General"]], ["8. Gestión de control interno y riesgos financieros", ["Establecer procedimientos para autorizar ingresos, gastos, compras y pagos", "Verificar la documentación que sustenta cada operación financiera", "Separar, cuando la estructura lo permita, las funciones de solicitud, aprobación, pago y registro", "Supervisar las conciliaciones bancarias y el control de caja", "Identificar riesgos de fraude, pagos duplicados, errores contables y gastos no autorizados", "Controlar el acceso a la información financiera y respaldar la documentación", "Coordinar auditorías internas y externas, así como el seguimiento de observaciones"]], ["9. Gestión de obligaciones laborales y planillas", ["Supervisar el cálculo y registro de remuneraciones, beneficios sociales y vacaciones", "Revisar las planillas y las declaraciones laborales que correspondan", "Controlar los pagos y aportes relacionados con EsSalud, sistemas pensionarios y otros conceptos aplicables", "Coordinar con Recursos Humanos la información de contratos, asistencia y novedades laborales", "Verificar la provisión contable de obligaciones laborales", "Controlar las fechas de pago y la documentación de sustento"]], ["10. Información gerencial y toma de decisiones", ["Elaborar el informe financiero mensual para la Gerencia General", "Presentar resultados reales frente al presupuesto", "Informar sobre liquidez, endeudamiento, rentabilidad y obligaciones pendientes", "Recomendar medidas para optimizar gastos y mejorar el flujo de caja", "Evaluar financieramente las propuestas de Comercial y Producción", "Proporcionar información para decidir tirajes, reimpresiones, inversiones y lanzamiento de publicaciones"]]],
+ GG:[["1. Dirección y planificación estratégica", ["Formular y aprobar la misión, visión, objetivos y estrategias institucionales", "Elaborar y actualizar el plan estratégico y el plan operativo anual", "Establecer metas de crecimiento, ventas, producción, rentabilidad y participación de mercado", "Definir las prioridades de inversión y desarrollo editorial", "Alinear los objetivos de las gerencias con la estrategia empresarial", "Evaluar oportunidades de expansión, diversificación y nuevos mercados"]], ["2. Dirección y coordinación de las gerencias", ["Dirigir y supervisar la Gerencia Comercial, Producción y Contable-Financiera", "Establecer responsabilidades, niveles de autoridad y mecanismos de coordinación", "Convocar reuniones de seguimiento gerencial", "Resolver conflictos y problemas que involucren a varias áreas", "Aprobar planes de trabajo y prioridades operativas", "Asegurar el cumplimiento de los compromisos establecidos por cada gerencia"]], ["3. Gestión económica y financiera", ["Revisar y aprobar el presupuesto anual de la editorial", "Supervisar los resultados financieros y el flujo de caja", "Evaluar la rentabilidad de las líneas editoriales y los servicios de impresión", "Autorizar inversiones, gastos y compromisos conforme a las facultades establecidas", "Supervisar la gestión de costos y el uso eficiente de los recursos", "Tomar decisiones sobre financiamiento, liquidez y sostenibilidad económica", "Evaluar las desviaciones presupuestarias y disponer medidas correctivas"]], ["4. Supervisión de la producción editorial", ["Aprobar los planes generales de producción y las prioridades de publicación", "Supervisar el cumplimiento de plazos, costos y estándares de calidad", "Evaluar la capacidad productiva y el uso de equipos e instalaciones", "Resolver contingencias que comprometan las fechas de entrega", "Evaluar propuestas de impresión interna o tercerizada", "Supervisar la gestión de inventarios y el aprovechamiento de los materiales", "Revisar los resultados de producción y las acciones de mejora"]], ["5. Dirección comercial y desarrollo de mercados", ["Aprobar los planes comerciales y las metas de ventas", "Supervisar la captación de clientes y el desarrollo de canales de distribución", "Evaluar estrategias de precios, promociones y posicionamiento de publicaciones", "Revisar el desempeño de ventas por título, colección, canal y cliente", "Evaluar acuerdos comerciales con librerías, distribuidores e instituciones", "Impulsar el desarrollo de nuevos productos y oportunidades de negocio", "Supervisar la satisfacción de clientes y las estrategias de fidelización"]], ["6. Gestión administrativa, legal y cumplimiento", ["Supervisar el cumplimiento de las obligaciones legales, tributarias, laborales y contractuales", "Aprobar políticas, procedimientos y reglamentos internos", "Supervisar el cumplimiento de contratos con autores, ilustradores, proveedores y distribuidores", "Verificar que se respeten los derechos de autor, licencias y permisos de publicación", "Supervisar la gestión documental y la custodia de contratos relevantes", "Coordinar con asesores legales, contables y otros especialistas cuando corresponda", "Evaluar riesgos legales y establecer medidas preventivas"]], ["7. Gestión del talento humano y liderazgo", ["Aprobar la estructura organizacional y las necesidades de personal", "Definir funciones, responsabilidades y niveles de autoridad", "Evaluar el desempeño de los responsables de área", "Promover la capacitación y el desarrollo de competencias", "Supervisar el clima laboral, la productividad y el cumplimiento de políticas internas", "Fomentar una cultura de responsabilidad, ética, innovación y trabajo en equipo", "Gestionar la sucesión y continuidad de puestos críticos"]], ["8. Gestión de riesgos y control interno", ["Identificar los riesgos estratégicos, operativos, financieros y comerciales", "Establecer mecanismos de control sobre ingresos, gastos, inventarios y activos", "Supervisar la aplicación de políticas de autorización y aprobación", "Evaluar riesgos de fraude, pérdidas, errores, incumplimientos y retrasos", "Revisar los resultados de auditorías y el cumplimiento de recomendaciones", "Disponer acciones correctivas y preventivas", "Asegurar la continuidad operativa ante contingencias"]], ["9. Evaluación de resultados y mejora continua", ["Revisar los informes de gestión de todas las gerencias", "Comparar los resultados reales con las metas y el presupuesto", "Evaluar la rentabilidad global y el desempeño de cada línea de negocio", "Analizar desviaciones y determinar sus causas", "Aprobar planes de mejora con responsables y fechas de cumplimiento", "Evaluar la eficacia de las medidas correctivas", "Informar los resultados a los propietarios, accionistas o directorio, según corresponda"]], ["10. Innovación y desarrollo empresarial", ["Evaluar nuevas líneas de libros, colecciones y servicios editoriales", "Analizar oportunidades de digitalización, libros electrónicos y nuevos canales de comercialización", "Evaluar inversiones en tecnología, equipos y sistemas de gestión", "Promover mejoras en los procesos administrativos, comerciales y productivos", "Evaluar alianzas estratégicas con autores, instituciones y distribuidores", "Supervisar proyectos de expansión y medir sus resultados"]]],
+ CCOM:[["Comunicaciones y Publicidad", [["Aprobar el plan anual de comunicaciones, publicidad y posicionamiento institucional", "Plan anual aprobado"], ["Supervisar las campañas publicitarias de libros, revistas, materiales educativos y publicaciones espirituales", "Planes y reportes de campañas"], ["Controlar el cumplimiento del calendario de publicaciones en redes sociales, web y otros medios", "Calendario editorial y reportes de publicación"], ["Revisar la calidad, veracidad y coherencia de los mensajes con la identidad y los valores adventistas", "Piezas aprobadas y registro de revisión"], ["Supervisar el presupuesto publicitario y la eficiencia de la inversión en campañas", "Presupuesto ejecutado e informe de resultados"], ["Evaluar el alcance, la interacción y los resultados comerciales de las campañas", "Indicadores de alcance, consultas y conversiones"], ["Coordinar la comunicación institucional con las gerencias y áreas editoriales", "Actas y planes de coordinación"], ["Supervisar el uso de la marca, logotipos, fotografías, derechos de autor y materiales promocionales", "Registro de autorizaciones y manual de identidad"], ["Gestionar la comunicación de crisis, reclamos públicos y situaciones que afecten la reputación institucional", "Protocolo de crisis e informe de incidencias"], ["Presentar el informe mensual de comunicaciones y publicidad a la Gerencia General", "Informe mensual de gestión"]]]],
+ CSO:[["SOMA — Salud Ocupacional y Medio Ambiente", [["Aprobar y supervisar el plan anual de seguridad, salud ocupacional y medio ambiente", "Plan anual y seguimiento de actividades"], ["Verificar la identificación de peligros, evaluación de riesgos y aplicación de controles en oficinas, almacenes e imprenta", "Matriz IPERC actualizada"], ["Supervisar el cumplimiento de las normas de seguridad y salud en el trabajo aplicables", "Inspecciones e informes de cumplimiento"], ["Controlar la capacitación del personal en prevención de riesgos, emergencias y uso de equipos de protección", "Registros de capacitación"], ["Supervisar las inspecciones de instalaciones, máquinas, instalaciones eléctricas y equipos de emergencia", "Listas de inspección y registros de mantenimiento"], ["Controlar la investigación de accidentes, incidentes y condiciones inseguras", "Informes de investigación y acciones correctivas"], ["Supervisar la preparación y respuesta ante emergencias, incendios y evacuaciones", "Plan de emergencia y simulacros"], ["Controlar la segregación y disposición de residuos, incluidos los residuos de papel, tintas y otros insumos de impresión", "Registros de manejo de residuos y disposición"], ["Promover el uso eficiente de papel, agua, energía y otros recursos", "Reportes de consumo y medidas de reducción"], ["Evaluar los indicadores de seguridad y gestión ambiental, e informar a la Gerencia General", "Informe mensual o trimestral de resultados"]]]],
+ CAP:[["Capellanía Espiritual Adventista", [["Aprobar el plan anual de actividades espirituales y de acompañamiento pastoral", "Plan anual de capellanía"], ["Coordinar devocionales, semanas de oración, cultos especiales y otras actividades espirituales institucionales", "Calendario y reportes de actividades"], ["Promover principios bíblicos y valores cristianos coherentes con la identidad adventista de la editorial", "Materiales y programas aprobados"], ["Facilitar espacios voluntarios de oración, reflexión, orientación y acompañamiento espiritual", "Registro agregado de actividades, sin información pastoral confidencial"], ["Organizar actividades de solidaridad, servicio comunitario y apoyo a trabajadores que lo necesiten", "Informes de actividades solidarias"], ["Coordinar con las áreas de Recursos Humanos y Comunicaciones las iniciativas de bienestar integral, respetando la confidencialidad", "Actas de coordinación y planes de trabajo"], ["Promover un ambiente laboral de respeto, compañerismo, integridad, servicio y reconciliación", "Actividades realizadas y evaluación del clima laboral"], ["Administrar responsablemente el presupuesto y los recursos destinados a las actividades de capellanía", "Presupuesto, comprobantes e informe de gastos"], ["Evaluar la participación voluntaria y la percepción general de utilidad de las actividades espirituales", "Encuestas voluntarias y resultados agregados"], ["Presentar a la Gerencia General el informe de actividades, logros y propuestas de mejora", "Informe trimestral o anual"]]]]
+};
+const INDICADORES={"CCOM": ["Cumplimiento del plan de comunicación", "Campañas ejecutadas", "Alcance de publicaciones", "Interacción", "Consultas comerciales generadas", "Conversiones atribuibles a campañas", "Desviación presupuestaria"], "CSO": ["Cumplimiento del plan anual", "Inspecciones ejecutadas", "Capacitaciones realizadas", "Accidentes e incidentes registrados", "Acciones correctivas cerradas", "Cumplimiento de controles críticos", "Gestión de residuos"]};
+const itx=i=>Array.isArray(i)?i[0]:i, iev=i=>Array.isArray(i)?i[1]:'';
+function catalogFor(pid){const p=byId('proyectos',pid);return p?CATALOGO[gerenciaOf(p.unidad)]||null:null}
+function lineaOf(item,cat){for(const [g,its] of (cat||[]))if(its.some(i=>itx(i)===item))return g;return ''}
+function evidOf(item,cat){for(const [,its] of (cat||[])){const f=its.find(i=>itx(i)===item);if(f)return iev(f)}return ''}
+function updateCatalog(){
+  const w=$('#catWrap');if(!w)return;const cat=catalogFor($('#f_proyecto')?.value);w.hidden=!cat;
+  const sel=$('#f_catalogo');const cur=editing?.r?.catalogo||'';
+  sel.innerHTML='<option value="">— Actividad libre (escribir abajo) —</option>'+(cat||[]).map(([g,its])=>`<optgroup label="${esc(g)}">${its.map(i=>`<option value="${esc(itx(i))}" ${itx(i)===cur?'selected':''}>${esc(itx(i))}</option>`).join('')}</optgroup>`).join('');
+  sel.disabled=readOnly;
+}
+
+/* ===== Formulario ===== */
+let editing=null;
+function field([k,l,type,req,opts],r){
+  const v=r[k]??'';const id='f_'+k;const rq=req?'required':'';const ro=readOnly?'disabled':'';
+  let inp;
+  if(type==='catalog')return `<label class="full" for="f_catalogo" id="catWrap" hidden>${esc(l)}<select id="f_catalogo" name="catalogo"></select><span class="note" style="font-weight:400">Elige del catálogo para completar el nombre; puedes ajustarlo después.</span></label>`;
+  if(type==='periods')return `<div class="full" style="grid-column:1/-1;display:flex;flex-direction:column;gap:8px"><span style="font-size:.8rem;font-weight:500;color:var(--ink-2)">${esc(l)} — puede ejecutarse en varios intervalos del año</span><div id="periodsBox" style="display:flex;flex-direction:column;gap:8px"></div></div>`;
+  if(type==='code')return `<label for="f_codigo">${esc(l)}<input id="f_codigo" value="${esc(v)}" readonly tabindex="-1" style="font-family:var(--mono);background:var(--paper)"></label>`;
+  if(type==='text')inp=`<input id="${id}" name="${k}" value="${esc(v)}" ${rq} ${ro}>`;
+  else if(type==='num')inp=`<input id="${id}" name="${k}" type="number" step="any" inputmode="decimal" value="${esc(v)}" ${rq} ${ro}>`;
+  else if(type==='date')inp=`<input id="${id}" name="${k}" type="date" value="${esc(v)}" ${rq} ${ro}>`;
+  else if(type==='area')inp=`<textarea id="${id}" name="${k}" ${rq} ${ro}>${esc(v)}</textarea>`;
+  else{let o=[];
+    if(type==='sel')o=opts.map(x=>[x,x]);
+    else if(type==='unit')o=unitOpts;
+    else if(type==='gerente'||type==='lider'){const rx=type==='gerente'?/gerent/i:/gerent|jef[ea]|coordinador|capell/i;o=RAW.personal.filter(p=>p.estado==='Activo'&&rx.test(p.cargo||'')).map(p=>[p.id,`${p.nombre} — ${p.cargo}`]).sort((a,b)=>a[1].localeCompare(b[1]));if(v&&!o.some(x=>x[0]===v))o.unshift([v,pname(v)+' (cargo no habilitado)'])}
+    else if(type==='person')o=RAW.personal.filter(p=>p.estado!=='Cesado').map(p=>[p.id,`${p.nombre}${p.cargo?' — '+p.cargo:''}`]).sort((a,b)=>a[1].localeCompare(b[1]));
+    else if(type.startsWith('ref:')){const c=type.slice(4);o=S[c].map(x=>[x.id,c==='actividades'?`${x.nombre} (${byId('proyectos',x.proyecto)?.nombre||'—'})`:c==='tareas'?`${x.nombre} (${byId('actividades',x.actividad)?.nombre||'—'})`:x.nombre])}
+    inp=`<select id="${id}" name="${k}" ${rq} ${ro}><option value="">${req?'Seleccionar…':'—'}</option>${o.map(([a,b])=>`<option value="${esc(a)}" ${a===v?'selected':''}>${esc(b)}</option>`).join('')}</select>`}
+  const full=type==='area';
+  return `<label class="${full?'full':''}" for="${id}">${esc(l)}${req?' *':''}${inp}</label>`;
+}
+function openForm(col,id,defs){
+  const r=id?{...byId(col,id)}:{...(defs||{})};
+  if(!id){if(col==='personal')r.estado='Activo';else if(col==='proyectos')r.estado='Por iniciar';else if(col==='actividades')r.estado='Pendiente';else if(col==='tareas')r.estado='Pendiente';else if(col==='riesgos')r.estado='Abierto';else if(col==='comisiones')r.estado='Asignada';else if(col==='metas'){r.tipo=r.tipo||'Numérico'}
+    if((col==='personal'||col==='proyectos')&&!r.unidad&&filterUnit!=='ALL')r.unidad=filterUnit}
+  editing={col,id,r};
+  $('#dlgTitle').textContent=(id?(readOnly?'Ver ':'Editar '):'Nuevo ')+SCH[col].one;
+  $('#dlgBody').innerHTML=SCH[col].fields.map(f=>field(f,r)).join('');
+  if(SCH[col].fields.some(f=>f[2]==='periods')){editing.r.periodos=periodsOf(r).map(x=>({...x}));if(!editing.r.periodos.length)editing.r.periodos=[{ini:'',fin:'',desc:''}];renderPeriods()}
+  if(col==='proyectos'){const fu2=$('#f_unidad'),fc2=$('#f_codigo');const upd=()=>{const u=fu2.value;fc2.value=!u?'Elige la unidad':(id&&r.unidad===u&&r.codigo&&r.codigo.startsWith(unitPrefix(u)+'-'))?r.codigo:nextCode(u,id)};upd();fu2.addEventListener('change',upd)}
+  if(col==='metas'){const fi=$('#f_indicador');const upd=()=>{const p=byId('proyectos',$('#f_proyecto')?.value);const list=p?INDICADORES[gerenciaOf(p.unidad)]||INDICADORES[p.unidad]:null;let dl=$('#indList');if(!dl){dl=document.createElement('datalist');dl.id='indList';document.body.appendChild(dl)}dl.innerHTML=(list||[]).map(x=>`<option value="${esc(x)}">`).join('');fi&&fi.setAttribute('list','indList')};upd();$('#f_proyecto')?.addEventListener('change',upd)}
+  if(col==='actividades'){updateCatalog();const fp=$('#f_proyecto');if(fp)fp.addEventListener('change',updateCatalog);const fc=$('#f_catalogo');if(fc)fc.addEventListener('change',e=>{if(!e.target.value)return;$('#f_nombre').value=e.target.value;const ev=evidOf(e.target.value,catalogFor($('#f_proyecto')?.value));const fe=$('#f_entregable');if(ev&&fe&&!fe.value)fe.value=ev})}
+  const d=$('#dlgDel');d.hidden=!id||readOnly;d.textContent='Eliminar';d.dataset.arm='';
+  $('#dlgSave').hidden=readOnly;
+  if(EV_COLS.includes(col)){editing.r.evidencias=[...(r.evidencias||[])];$('#dlgBody').insertAdjacentHTML('beforeend',evBlock());renderEv();const ef=$('#evFile');if(ef)ef.onchange=e=>{const fs=[...e.target.files];e.target.value='';if(fs.length)uploadEv(fs)}}
+  $('#dlg').showModal();
+}
+$('#dlgCancel').onclick=()=>$('#dlg').close();
+$('#dlgDel').onclick=async e=>{const b=e.currentTarget;
+  if(!b.dataset.arm){b.dataset.arm='1';b.textContent='Confirmar eliminación';return}
+  const {col,id}=editing;$('#dlg').close();
+  try{await del(col,id);toast(`Se eliminó el ${SCH[col].one}.`)}catch(err){dbErr(err)}};
+$('#frm').addEventListener('submit',async e=>{
+  e.preventDefault();if(readOnly)return;
+  const {col,id,r}=editing;const fd=new FormData(e.target);const o={...r};
+  for(const f of SCH[col].fields){let v=fd.get(f[0]);if(v===null)continue;v=String(v).trim();if(f[2]==='num')v=v===''?'':+v;o[f[0]]=v}
+  const miss=SCH[col].fields.filter(f=>f[3]&&(o[f[0]]===''||o[f[0]]===undefined));
+  if(miss.length){toast('Completa: '+miss.map(f=>f[1]).join(', '));return}
+  if(col==='actividades'&&o.avance!==''&&(o.avance<0||o.avance>100)){toast('El avance debe estar entre 0 y 100.');return}
+  if(col==='metas'&&o.tipo==='Porcentual'&&(n(o.meta)>100||n(o.meta)<0)){toast('En un indicador porcentual la meta debe estar entre 0 y 100.');return}
+  if(col==='metas'&&o.tipo==='Porcentual'&&!o.medida)o.medida='%';
+  if(col==='comisiones'&&o.cumplimiento!==''&&(o.cumplimiento<0||o.cumplimiento>100)){toast('El cumplimiento debe estar entre 0 y 100.');return}
+  delete o._bud;delete o._ej;
+  if(col==='actividades'){const cat=catalogFor(o.proyecto);if(!cat)o.catalogo='';o.linea=o.catalogo?lineaOf(o.catalogo,cat):''}
+  if(SCH[col].fields.some(f=>f[2]==='periods')){const ps=(o.periodos||[]).map(x=>({ini:x.ini||'',fin:x.fin||'',desc:(x.desc||'').trim()})).filter(x=>x.ini||x.fin);
+    const bad=ps.find(x=>!x.ini||!x.fin||x.fin<x.ini);if(bad){toast(!bad.ini||!bad.fin?'Completa inicio y fin en cada periodo (o quita el periodo vacío).':'En un periodo la fecha de fin es anterior al inicio.');return}
+    ps.sort((a,b)=>a.ini.localeCompare(b.ini));o.periodos=ps;o.inicio=ps[0]?.ini||'';o.fin=ps.length?ps.reduce((m,x)=>x.fin>m?x.fin:m,''):'';if(col==='tareas'||col==='comisiones')o.vence=o.fin}
+  if(o.inicio&&o.fin&&o.fin<o.inicio){toast('La fecha de fin no puede ser anterior al inicio.');return}
+  if(col==='proyectos'){const keep=id&&r.unidad===o.unidad&&r.codigo&&String(r.codigo).startsWith(unitPrefix(o.unidad)+'-');o.codigo=keep?r.codigo:nextCode(o.unidad,id)}
+  if(!id){o.id=uid();o.creado=new Date().toISOString();o.creadoPor=actorId()}
+  o.actualizado=new Date().toISOString();
+  $('#dlg').close();
+  try{await put(col,o);toast(id?'Cambios guardados.':`Se registró el ${SCH[col].one}.`)}catch(err){dbErr(err)}
+});
+
+/* ===== Exportar ===== */
+async function exportCSV(col){
+  const f=SCH[col].fields;const rows=S[col].filter(r=>inFilter(col,r));
+  const conv=(fd,v)=>fd[2]==='unit'?U[v]?.n||v:fd[2]==='person'?pname(v):fd[2].startsWith('ref:')?(byId(fd[2].slice(4),v)?.nombre||''):v;
+  const csv=[f.map(x=>x[1]).join(';'),...rows.map(r=>f.map(fd=>`"${String(conv(fd,r[fd[0]]??'')).replace(/"/g,'""')}"`).join(';'))].join('\r\n');
+  if(!downloads){toast('La descarga no está disponible en esta vista.');return}
+  try{await downloads.save({filename:`${col}-${today()}.csv`,data:'﻿'+csv,mimeType:'text/csv'})}catch(e){if(e?.code==='unavailable')toast('La descarga no está disponible en esta vista.')}
+}
+
+/* ===== Importar personal ===== */
+const imp={open:false,rows:[],file:'',paste:'',defUnit:'',skipDup:true,busy:false,done:0,msg:''};
+const IMP_COLS=[ // campo, etiqueta en plantilla, alias aceptados
+ ['nombre','Nombre completo',['nombre','nombres','nombre completo','apellidos y nombres','colaborador','trabajador']],
+ ['cargo','Cargo',['cargo','puesto','cargo / puesto']],
+ ['unidad','Unidad',['unidad','area','área','gerencia','jefatura','coordinacion','coordinación','dependencia']],
+ ['estado','Situación',['situacion','situación','estado']],
+ ['tipo','Modalidad',['modalidad','tipo','contrato','tipo de contrato']],
+ ['fechaIngreso','Fecha de ingreso',['fecha de ingreso','fecha ingreso','ingreso','fecha']],
+ ['remuneracion','Remuneración mensual',['remuneracion','remuneración','sueldo','remuneracion mensual','remuneración mensual','haber']],
+ ['dni','Documento',['dni','documento','codigo','código','doc']],
+ ['contacto','Contacto',['contacto','telefono','teléfono','celular','correo','email']],
+ ['obs','Observaciones',['observaciones','obs','nota','notas']]
+];
+const norm=s=>String(s??'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
+function matchUnit(v){
+  const t=norm(v);if(!t)return '';
+  const up=String(v).trim().toUpperCase();if(U[up])return up;
+  let u=UNITS.find(x=>norm(x.n)===t);if(u)return u.id;
+  const strip=s=>norm(s).replace(/^(gerencia|jefatura|coordinacion|coord\.?|jef\.?|g\.)\s*(de|del)?\s*/,'');
+  u=UNITS.find(x=>strip(x.n)===strip(v));if(u)return u.id;
+  const hits=UNITS.filter(x=>norm(x.n).includes(t)||t.includes(strip(x.n)));
+  return hits.length===1?hits[0].id:'';
+}
+function matchOpt(v,opts,def){const t=norm(v);if(!t)return def;return opts.find(o=>norm(o)===t)||opts.find(o=>norm(o).startsWith(t)||t.startsWith(norm(o)))||def}
+function toDate(v){
+  if(v==null||v==='')return '';
+  if(v instanceof Date&&!isNaN(v))return new Date(v.getTime()-v.getTimezoneOffset()*6e4).toISOString().slice(0,10);
+  if(typeof v==='number'&&v>20000&&v<80000){const d=new Date(Math.round((v-25569)*864e5));return d.toISOString().slice(0,10)}
+  const s=String(v).trim();let m;
+  if(m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/))return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+  if(m=s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/)){const y=m[3].length===2?'20'+m[3]:m[3];return `${y}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`}
+  return '';
+}
+function toNum(v){if(typeof v==='number')return v;const s=String(v??'').replace(/s\/\.?|\s/gi,'');if(!s)return '';let t;if(/^-?\d{1,3}([.,]\d{3})+$/.test(s))t=s.replace(/[.,]/g,'');else if(s.includes(',')&&s.includes('.'))t=s.lastIndexOf(',')>s.lastIndexOf('.')?s.replace(/\./g,'').replace(',','.'):s.replace(/,/g,'');else t=s.replace(',','.');const x=parseFloat(t);return isNaN(x)?'':x}
+function parseGrid(grid){
+  grid=grid.filter(r=>r&&r.some(c=>String(c??'').trim()!==''));
+  if(grid.length<2)return {err:'El archivo debe tener una fila de encabezados y al menos una fila de datos.'};
+  const head=grid[0].map(norm);
+  const idx={};IMP_COLS.forEach(([k,,al])=>{const i=head.findIndex(h=>al.map(norm).includes(h));if(i>=0)idx[k]=i});
+  if(idx.nombre===undefined&&idx.cargo===undefined)return {err:'No se encontró la columna "Nombre completo" ni "Cargo". Revisa los encabezados o usa la plantilla.'};
+  const existing=new Set(RAW.personal.map(p=>norm(p.nombre)+'|'+norm(p.cargo)));
+  const rows=grid.slice(1).map((r,i)=>{const g=k=>idx[k]===undefined?'':r[idx[k]];
+    const o={nombre:String(g('nombre')??'').trim(),cargo:String(g('cargo')??'').trim(),unidadTxt:String(g('unidad')??'').trim(),
+      estado:matchOpt(g('estado'),['Activo','Vacante','Proyectado','Cesado'],'Activo'),
+      tipo:matchOpt(g('tipo'),['Planilla','Locación de servicios','Practicante','Temporal'],''),
+      fechaIngreso:toDate(g('fechaIngreso')),remuneracion:toNum(g('remuneracion')),
+      dni:String(g('dni')??'').trim(),contacto:String(g('contacto')??'').trim(),obs:String(g('obs')??'').trim(),fila:i+2};
+    if(!o.nombre&&o.cargo&&o.estado!=='Activo')o.nombre=o.cargo;
+    o.unidad=matchUnit(o.unidadTxt);
+    o.dup=existing.has(norm(o.nombre)+'|'+norm(o.cargo));
+    o.err=!o.nombre?'Falta el nombre':'';
+    return o});
+  return {rows};
+}
+function loadXLSX(){return new Promise((res,rej)=>{if(window.XLSX)return res(window.XLSX);const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';s.onload=()=>res(window.XLSX);s.onerror=()=>rej(new Error('xlsx'));document.head.appendChild(s)})}
+async function readFile(f){
+  imp.file=f.name;imp.msg='';
+  try{
+    let grid;
+    if(/\.(xlsx|xls|ods)$/i.test(f.name)){const X=await loadXLSX();const wb=X.read(await f.arrayBuffer(),{type:'array',cellDates:true});const ws=wb.Sheets[wb.SheetNames[0]];grid=X.utils.sheet_to_json(ws,{header:1,raw:true,defval:''})}
+    else{let t=await f.text();t=t.replace(/^﻿/,'');grid=splitText(t)}
+    const r=parseGrid(grid);if(r.err){imp.rows=[];imp.msg=r.err}else imp.rows=r.rows;
+  }catch(e){imp.rows=[];imp.msg='No se pudo leer el archivo. Guárdalo como .xlsx o .csv e inténtalo de nuevo.'}
+  render();
+}
+function splitText(t){
+  const lines=t.split(/\r?\n/);const first=lines[0]||'';
+  const sep=first.includes('\t')?'\t':(first.split(';').length>first.split(',').length?';':',');
+  return lines.map(l=>{const out=[];let cur='',q=false;for(let i=0;i<l.length;i++){const c=l[i];if(q){if(c==='"'&&l[i+1]==='"'){cur+='"';i++}else if(c==='"')q=false;else cur+=c}else if(c==='"')q=true;else if(c===sep){out.push(cur);cur=''}else cur+=c}out.push(cur);return out});
+}
+function impReady(){return imp.rows.filter(r=>!r.err&&(r.unidad||imp.defUnit)&&!(imp.skipDup&&r.dup))}
+function viewImport(){
+  const ok=impReady();
+  const noUnit=imp.rows.filter(r=>!r.err&&!r.unidad).length;
+  let h=`<div class="panel"><div class="bar"><h3>Importar lista de personal</h3><button class="link" id="impClose">Cerrar</button></div>
+  <div class="note">Sube un Excel (.xlsx) o CSV, o pega las filas copiadas desde Excel. La primera fila debe tener los encabezados: <strong>${IMP_COLS.map(c=>c[1]).join(', ')}</strong>. Solo el nombre es obligatorio; la unidad puede escribirse con su nombre (por ejemplo “Jefatura de Prensa” o “Prensa”).</div>
+  <div class="bar" style="justify-content:flex-start"><label class="btn" for="impFile" style="display:inline-block">Elegir archivo…</label><input id="impFile" type="file" accept=".xlsx,.xls,.ods,.csv,.txt" hidden>
+  <button class="btn" id="impTpl">Descargar plantilla</button>${imp.file?`<span class="note">${esc(imp.file)}</span>`:''}</div>
+  <label class="note" for="impPaste" style="display:flex;flex-direction:column;gap:6px">O pega aquí las celdas copiadas de Excel (con encabezados)<textarea id="impPaste" rows="4" placeholder="Nombre completo&#9;Cargo&#9;Unidad&#9;Situación&#9;Fecha de ingreso&#9;Remuneración mensual">${esc(imp.paste)}</textarea></label>
+  <div><button class="btn" id="impParse">Revisar filas pegadas</button></div>`;
+  if(imp.msg)h+=`<div class="alert bad">${esc(imp.msg)}</div>`;
+  if(imp.rows.length){
+    h+=`<div class="bar"><div class="left"><span class="note"><strong>${imp.rows.length}</strong> filas leídas · <strong>${ok.length}</strong> listas para importar${noUnit?` · ${noUnit} sin unidad reconocida`:''}${imp.rows.some(r=>r.dup)?` · ${imp.rows.filter(r=>r.dup).length} ya registradas`:''}</span></div>
+    <div class="right">${noUnit?`<select id="impDef" aria-label="Unidad para filas sin unidad"><option value="">Filas sin unidad: no importar</option>${unitOpts.map(([v,l])=>`<option value="${v}" ${v===imp.defUnit?'selected':''}>Asignar a: ${esc(l)}</option>`).join('')}</select>`:''}
+    <label class="note" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="impDup" ${imp.skipDup?'checked':''}>Omitir los ya registrados</label></div></div>
+    <div class="tbl" style="max-height:340px;overflow:auto"><table><thead><tr><th>Fila</th><th>Nombre</th><th>Cargo</th><th>Unidad</th><th>Situación</th><th>Ingreso</th><th class="num">Remuneración</th><th>Revisión</th></tr></thead><tbody>
+    ${imp.rows.map(r=>{const st=r.err?`<span class="pill bad">${esc(r.err)}</span>`:r.dup&&imp.skipDup?'<span class="pill">Ya existe · se omite</span>':!r.unidad&&!imp.defUnit?'<span class="pill warn">Unidad no reconocida</span>':!r.unidad?'<span class="pill info">Unidad asignada</span>':'<span class="pill ok">Lista</span>';
+      return `<tr><td class="num">${r.fila}</td><td>${esc(r.nombre)}</td><td>${esc(r.cargo)}</td><td>${r.unidad?esc(U[r.unidad].n):`<span style="color:var(--warn)">${esc(r.unidadTxt||'(vacío)')}</span>`}</td><td>${esc(r.estado)}</td><td>${fdate(r.fechaIngreso)}</td><td class="num">${r.remuneracion===''?'—':money(r.remuneracion)}</td><td>${st}</td></tr>`}).join('')}
+    </tbody></table></div>
+    <div class="bar"><span class="note">${imp.busy?`Importando… ${imp.done} de ${ok.length}`:'Revisa las filas antes de confirmar.'}</span><button class="btn primary" id="impGo" ${!ok.length||imp.busy?'disabled':''}>Importar ${ok.length} ${ok.length===1?'persona':'personas'}</button></div>`;
+  }
+  return h+'</div>';
+}
+async function runImport(){
+  const ok=impReady();if(!ok.length)return;imp.busy=true;imp.done=0;render();
+  const base=Date.now();
+  try{
+    for(const [i,r] of ok.entries()){
+      const o={id:uid(),creado:new Date(base+i).toISOString(),actualizado:new Date().toISOString(),importado:true,
+        nombre:r.nombre,cargo:r.cargo,unidad:r.unidad||imp.defUnit,estado:r.estado,tipo:r.tipo,fechaIngreso:r.fechaIngreso,remuneracion:r.remuneracion,dni:r.dni,contacto:r.contacto,obs:r.obs};
+      await put('personal',o);imp.done=i+1;
+      if(i%5===4){const s=$('#impGo');if(s)s.previousElementSibling.textContent=`Importando… ${imp.done} de ${ok.length}`}
+    }
+    toast(`Se importaron ${ok.length} personas.`);Object.assign(imp,{open:false,rows:[],file:'',paste:'',busy:false});
+  }catch(e){imp.busy=false;dbErr(e);toast(`Se importaron ${imp.done} de ${ok.length}. Revisa el resto e inténtalo de nuevo.`);
+    const done=new Set(ok.slice(0,imp.done));imp.rows=imp.rows.filter(r=>!done.has(r))}
+  render();
+}
+async function downloadTemplate(){
+  const csv=[IMP_COLS.map(c=>c[1]).join(';'),'María Pérez;Jefa de Prensa;Jefatura de Prensa;Activo;Planilla;15/03/2021;5200;12345678;999 888 777;','Diseñador gráfico;Diseñador gráfico;Jefatura de Diseño;Vacante;Planilla;01/12/2026;3800;;;Plaza por cubrir'].join('\r\n');
+  if(!downloads){toast('La descarga no está disponible en esta vista. Usa estos encabezados: '+IMP_COLS.map(c=>c[1]).join(', '));return}
+  try{await downloads.save({filename:'plantilla-personal.csv',data:'﻿'+csv,mimeType:'text/csv'})}catch(e){}
+}
+function bindImport(){
+  const b=document.querySelector('[data-import]');if(b)b.onclick=()=>{imp.open=!imp.open;render()};
+  const c=$('#impClose');if(c)c.onclick=()=>{imp.open=false;render()};
+  const f=$('#impFile');if(f)f.onchange=e=>{const x=e.target.files[0];if(x)readFile(x)};
+  const t=$('#impTpl');if(t)t.onclick=downloadTemplate;
+  const pa=$('#impPaste');if(pa)pa.oninput=e=>{imp.paste=e.target.value};
+  const pr=$('#impParse');if(pr)pr.onclick=()=>{if(!imp.paste.trim()){toast('Pega primero las filas copiadas de Excel.');return}imp.file='';const r=parseGrid(splitText(imp.paste.trim()));if(r.err){imp.rows=[];imp.msg=r.err}else{imp.rows=r.rows;imp.msg=''}render()};
+  const d=$('#impDef');if(d)d.onchange=e=>{imp.defUnit=e.target.value;render()};
+  const du=$('#impDup');if(du)du.onchange=e=>{imp.skipDup=e.target.checked;render()};
+  const g=$('#impGo');if(g)g.onclick=runImport;
+}
+
+/* ===== Eventos de la vista ===== */
+function bindView(){
+  if(tab==='users'&&canManage())bindUsers();
+  if(tab==='cal')bindCal();
+  const lf=$('#loginF');if(lf){lf.onsubmit=doLogin;const lu=$('#lgUser');if(lu&&!lu.value)lu.focus()}
+  const ba=$('#baGo');if(ba)ba.onclick=becomeAdmin;
+  const l2=$('#lgOut2');if(l2)l2.onclick=logout;
+  const fu=$('#fu');if(fu)fu.onchange=e=>{filterUnit=e.target.value;render()};
+  const qi=$('#q');if(qi){qi.oninput=e=>{q=e.target.value;const pos=e.target.selectionStart;render();const n2=$('#q');n2.focus();try{n2.setSelectionRange(pos,pos)}catch(_){}}}
+  document.querySelectorAll('[data-new]').forEach(b=>b.onclick=()=>openForm(b.dataset.new));
+  document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>{const [c,i]=b.dataset.edit.split(':');openForm(c,i)});
+  document.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>{const [c,k,v]=b.dataset.add.split(':');openForm(c,null,k?{[k]:v}:{})});
+  document.querySelectorAll('[data-unit]').forEach(b=>b.onclick=()=>{selUnit=b.dataset.unit;render();window.scrollTo({top:0})});
+  const su=$('#su');if(su)su.onchange=e=>{selUnit=e.target.value;render()};
+  document.querySelectorAll('[data-export]').forEach(b=>b.onclick=()=>exportCSV(b.dataset.export));
+  bindImport();
+  const ce=$('#clearEx');if(ce)ce.onclick=async()=>{
+    if(!ce.dataset.arm){ce.dataset.arm='1';ce.textContent='Confirmar: quitar ejemplos';return}
+    ce.disabled=true;try{for(const c of COLS)for(const r of S[c].filter(x=>x.ejemplo))await del(c,r.id);toast('Se quitaron los datos de ejemplo.')}catch(e){dbErr(e)}};
+}
+
+/* ===== Conexión con Supabase (datos, archivos, descargas) ===== */
+function makeDb(){
+  const subs={};const cache={};
+  async function fetchCol(c){let all=[],from=0;for(;;){const r=await sb.from('registros').select('id,data').eq('col',c).range(from,from+999);if(r.error)throw r.error;all=all.concat(r.data);if(r.data.length<1000)break;from+=1000}cache[c]=new Map(all.map(x=>[x.id,x.data]));emit(c)}
+  function emit(c){const docs=[...(cache[c]||new Map()).entries()].map(([id,data])=>({id,exists:true,data:()=>data}));(subs[c]||[]).forEach(fn=>fn({docs,size:docs.length,empty:!docs.length}))}
+  function applyLocal(c,id,data){if(!cache[c])cache[c]=new Map();if(data)cache[c].set(id,data);else cache[c].delete(id);emit(c)}
+  const doc=(c,id)=>({
+    async set(obj){const r=await sb.from('registros').upsert({col:c,id,data:obj,updated_at:new Date().toISOString()});if(r.error)throw {code:'invalid_argument',message:r.error.message};applyLocal(c,id,obj)},
+    async update(patch){const cur=(cache[c]&&cache[c].get(id))||{};return this.set({...cur,...patch})},
+    async delete(){const r=await sb.from('registros').delete().eq('col',c).eq('id',id);if(r.error)throw {code:'invalid_argument',message:r.error.message};applyLocal(c,id,null)}
+  });
+  let channel=null;
+  function startRealtime(){
+    if(channel)return;
+    channel=sb.channel('registros-cambios').on('postgres_changes',{event:'*',schema:'public',table:'registros'},p=>{
+      const row=p.new&&p.new.col?p.new:p.old;if(!row||!row.col)return;
+      if(p.eventType==='DELETE'){if(row.id)applyLocal(row.col,row.id,null);else fetchCol(row.col).catch(()=>{})}
+      else applyLocal(row.col,row.id,row.data);
+    }).subscribe();
+    setInterval(()=>{if(SESSION)Object.keys(subs).forEach(c=>fetchCol(c).catch(()=>{}))},60000);
+  }
+  return {
+    collection:c=>({doc:id=>doc(c,id),onSnapshot(fn,err){(subs[c]=subs[c]||[]).push(fn);fetchCol(c).catch(e=>err&&err({code:'unavailable',message:e.message}));startRealtime();return ()=>{subs[c]=subs[c].filter(f=>f!==fn)}}}),
+    doc:path=>{const [c,id]=path.split('/');return doc(c,id)},
+    reloadAll(){Object.keys(subs).forEach(c=>fetchCol(c).catch(()=>{}))},
+    clear(){Object.keys(cache).forEach(c=>{cache[c]=new Map();emit(c)})}
+  };
+}
+const webDownloads={async save({filename,data,mimeType}){const blob=data instanceof Blob?data:new Blob([data],{type:mimeType||'application/octet-stream'});const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);return {status:'saved'}}};
+const webAssets={async upload(file,{type}={}){const safe=(file.name||'archivo').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Za-z0-9._-]+/g,'_');const path=`${new Date().getFullYear()}/${uid()}-${safe}`;
+  const r=await sb.storage.from('evidencias').upload(path,file,{contentType:type||file.type||'application/octet-stream',upsert:false});if(r.error)throw {code:/size|large/i.test(r.error.message)?'too_large':'upstream_error',message:r.error.message};return {id:path,url:'',sizeBytes:file.size,contentType:type||file.type}}};
+async function openEvidence(path){const w=window.open('','_blank');const r=await sb.storage.from('evidencias').createSignedUrl(path,600);if(r.error||!r.data){if(w)w.close();toast('No se pudo abrir el archivo.');return}if(w)w.location=r.data.signedUrl;else location.href=r.data.signedUrl}
+document.addEventListener('click',e=>{const a=e.target.closest&&e.target.closest('[data-evopen]');if(a){e.preventDefault();openEvidence(a.dataset.evopen)}});
+
+/* ===== Arranque ===== */
+render();
+(async()=>{
+  if(!CONFIG_OK){ME.ready=true;render();return}
+  db=makeDb();downloads=webDownloads;assets=webAssets;mode='db';
+  const s=await sb.auth.getSession();SESSION=s.data.session;ME.ready=true;
+  let started=false;
+  const startData=()=>{if(started){db.reloadAll();return}started=true;COLS.forEach(c=>db.collection(c).onSnapshot(snap=>{RAW[c]=snap.docs.map(d=>({...d.data(),id:d.id}));render()},()=>toast('No se pudieron cargar los datos. Revisa tu conexión.')))};
+  sb.auth.onAuthStateChange((ev,sess)=>{const had=!!SESSION;SESSION=sess;if(sess){loadUsers().then(startData)}else{USR=[];USR_READY=false;if(had){COLS.forEach(c=>RAW[c]=[]);db.clear()}loadUsers()}});
+  sb.channel('perfiles-cambios').on('postgres_changes',{event:'*',schema:'public',table:'perfiles'},()=>{if(SESSION)loadUsers()}).subscribe();
+  await loadUsers();if(SESSION)startData();
+})();
+
+</script>
+
+</body>
+</html>
