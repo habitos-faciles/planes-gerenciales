@@ -1220,9 +1220,10 @@ function viewVentas(){
 
   const rowsAll=[...M.canales,'Todos'];
   const yrsC=M.years.filter(x=>M.acum(x,'Todos',c)!=null),[yp,yl]=yrsC.slice(-2);
-  h+=`<div class="panel"><h2 style="font-size:1.05rem">Cuadro acumulado enero–${mesL} por canal</h2><div class="note">Soles. La variación compara los dos últimos años con datos en ese periodo.</div>
-   <div class="tbl vt"><table><thead><tr><th>Canal</th>${M.years.map(x=>`<th class="num">${x}</th>`).join('')}<th class="num">${yl&&yp?`Var. ${yl}/${yp}`:'Variación'}</th><th class="num">${yl?`Part. ${yl}`:'Part.'}</th></tr></thead><tbody>${rowsAll.map(k=>{const v=yl&&yp?vVar(M.acum(yl,k,c),M.acum(yp,k,c)):null;
-    return `<tr class="${k==='Todos'?'vtot':''}"><td>${esc(vLabel(k))}</td>${M.years.map(x=>`<td class="num">${vN(M.acum(x,k,c))}</td>`).join('')}<td class="num ${vCls(v)}">${vP(v)}</td><td class="num">${vP1(yl&&M.acum(yl,k,c)!=null&&M.acum(yl,'Todos',c)?M.acum(yl,k,c)/M.acum(yl,'Todos',c):null)}</td></tr>`}).join('')}</tbody></table></div></div>`;
+  const yv=M.years.filter((x,i)=>i>0&&rowsAll.some(k=>vVar(M.acum(x,k,c),M.acum(M.years[i-1],k,c))!=null));
+  h+=`<div class="panel"><h2 style="font-size:1.05rem">Cuadro acumulado enero–${mesL} por canal</h2><div class="note">Soles. Junto a cada año, su variación frente al año anterior en el mismo periodo.</div>
+   <div class="tbl vt"><table><thead><tr><th>Canal</th>${M.years.map(x=>`<th class="num">${x}</th>${yv.includes(x)?`<th class="num">Var. ${String(x).slice(2)}/${String(x-1).slice(2)}</th>`:''}`).join('')}<th class="num">${yl?`Part. ${yl}`:'Part.'}</th></tr></thead><tbody>${rowsAll.map(k=>
+    `<tr class="${k==='Todos'?'vtot':''}"><td>${esc(vLabel(k))}</td>${M.years.map((x,i)=>{const a=M.acum(x,k,c);let td=`<td class="num">${vN(a)}</td>`;if(yv.includes(x)){const v=vVar(a,M.acum(M.years[i-1],k,c));td+=`<td class="num ${vCls(v)}">${vP(v)}</td>`}return td}).join('')}<td class="num">${vP1(yl&&M.acum(yl,k,c)!=null&&M.acum(yl,'Todos',c)?M.acum(yl,k,c)/M.acum(yl,'Todos',c):null)}</td></tr>`).join('')}</tbody></table></div></div>`;
 
   const comp=M.years.filter(x=>M.maxMes[x]===12),cl=comp[comp.length-1],cp=comp.includes(cl-1)?cl-1:comp[comp.length-2];
   const base=comp.includes(2022)?2022:comp[0],totCl=cl?M.anual(cl,'Todos'):null;
