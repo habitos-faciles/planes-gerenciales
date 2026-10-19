@@ -1459,6 +1459,12 @@ function vBridge(el,M,c){
 const sN=v=>v==null?'N/D':Math.round(v).toLocaleString('es-PE');
 const sP=v=>v==null||!isFinite(v)?'N/D':(v>0?'+':'')+(v*100).toLocaleString('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2})+'%';
 const sD=v=>(v>0?'+':'')+sN(v);
+function sGuia(n){const s=String(n).toLowerCase();
+  if(s.includes('bolsillo')&&s.includes('joven'))return 'Geb Joven Ed. Bolsillo';if(s.includes('letra grande'))return 'Geb Maestro Letra Grande';
+  if(s.includes('bolsillo'))return 'Geb Maestro Ed. Bolsillo';if(s.includes('anillado'))return 'Geb Maestro Anillado';if(s.includes('maestro'))return 'Geb Maestro';
+  if(s.includes('alumno'))return 'Geb Alumno (Adultos)';if(s.includes('joven'))return 'Geb Joven';if(s.includes('juvenil'))return 'Geb Juveniles';
+  if(s.includes('intermediario'))return 'Geb Intermediarios';if(s.includes('primario'))return 'Geb Primarios';if(s.includes('infante'))return 'Geb Infantes';
+  if(s.includes('principiante'))return 'Geb Principiantes';if(s.includes('beb'))return 'Geb Bebés';return String(n)}
 function viewSusc(){
   if(!SUSC.length)return canManage()?`<h3 style="margin-top:6px">COMPARATIVO SUSCRIPCIONES</h3><div class="panel empty"><strong>Aún no hay informe de suscripciones</strong>Súbelo desde “Cargar o actualizar datos”.</div>`:'';
   const s=SUSC.slice().sort((a,b)=>String(b.periodo).localeCompare(String(a.periodo)))[0];
@@ -1477,6 +1483,14 @@ function viewSusc(){
   h+=`<div class="panel"><h2 style="font-size:1.05rem">Evolución por misión o asociación</h2><div class="note">Unidades. La variación compara ${esc(y1)} sin Inglés con ${esc(y0)}.</div>
    <div class="tbl vt"><table><thead><tr><th>Misión / Asociación</th><th class="num">${esc(y0)}</th><th class="num">${esc(y1)} sin Inglés</th><th class="num">Diferencia</th><th class="num">%</th><th class="num">GEB Inglés ${esc(y1)}</th><th class="num">${esc(y1)} con Inglés</th></tr></thead><tbody>${regs.map(rg=>{const ms=s.misiones.filter(m=>m.region===rg);
     return `<tr><td colspan="7" style="font-weight:600;color:var(--ink-2);background:var(--paper)">${esc(rg)}</td></tr>`+ms.map(m=>fila(m.mision,+m.anio_2026,+m.sin_ingles_2027,+m.ingles_2027)).join('')+fila('Total '+rg,sum(ms,'anio_2026'),sum(ms,'sin_ingles_2027'),sum(ms,'ingles_2027'),1)}).join('')}</tbody></table></div></div>`;
+  const gm=new Map(),gord=[];
+  s.productos.forEach(p=>{const g=sGuia(p.producto),rg=/norte/i.test(p.region)?'n':'s';if(!gm.has(g)){gm.set(g,{g});gord.push(g)}const x=gm.get(g);
+    x[rg+'a']=(x[rg+'a']||0)+ +p.anio_2026;x[rg+'b']=(x[rg+'b']||0)+ +p.sin_ingles_2027;x.ta=(x.ta||0)+ +p.anio_2026;x.tb=(x.tb||0)+ +p.sin_ingles_2027});
+  const gf=gord.map(g=>gm.get(g)),gt={g:'Total guías'};['na','nb','sa','sb','ta','tb'].forEach(k=>gt[k]=gf.reduce((a,x)=>a+(x[k]||0),0));
+  const gfila=(x,tot)=>`<tr class="${tot?'vtot':''}"><td>${esc(x.g)}</td>${['na','nb','sa','sb','ta','tb'].map(k=>`<td class="num">${x[k]==null?'—':sN(x[k])}</td>`).join('')}<td class="num ${vCls(x.tb-x.ta)}">${sD(x.tb-x.ta)}</td><td class="num ${vCls(x.ta?x.tb/x.ta-1:null)}">${sP(x.ta?x.tb/x.ta-1:null)}</td><td class="num">${vP1(gt.tb?x.tb/gt.tb:null)}</td></tr>`;
+  const a0=String(y0).slice(-2),a1=String(y1).slice(-2);
+  h+=`<div class="panel"><h2 style="font-size:1.05rem">Comparativo por guía de estudio</h2><div class="note">Unidades pedidas por SEHS Norte y Sur, sin Inglés, con los nombres de cada guía unificados entre regiones. GEB Inglés no se desglosa por guía y las instituciones UPS no traen ${esc(y0)} por producto, así que no están incluidos.</div>
+   <div class="tbl vt"><table><thead><tr><th>Guía de estudio</th><th class="num">Norte ${esc(y0)}</th><th class="num">Norte ${esc(y1)}</th><th class="num">Sur ${esc(y0)}</th><th class="num">Sur ${esc(y1)}</th><th class="num">Total ${esc(y0)}</th><th class="num">Total ${esc(y1)}</th><th class="num">Diferencia ${a1}/${a0}</th><th class="num">Var. ${a1}/${a0}</th><th class="num">Part. ${esc(y1)}</th></tr></thead><tbody>${gf.map(x=>gfila(x)).join('')}${gfila(gt,1)}</tbody></table></div></div>`;
   const pregs=[...new Set(s.productos.map(p=>p.region))];
   h+=`<div class="grid2">${pregs.map(rg=>{const rows=s.productos.filter(p=>p.region===rg).map(p=>({n:p.producto,a:+p.anio_2026,b:+p.sin_ingles_2027}));
     return `<div class="panel"><h2 style="font-size:1.05rem">Variación por producto · ${esc(rg)}</h2><div class="note">Unidades de ${esc(y1)} sin Inglés menos ${esc(y0)}. Verde: productos que suben; rojo: productos que bajan.</div><div class="vchart" style="min-height:120px" data-sdiv="${esc(JSON.stringify(rows))}"></div></div>`}).join('')}</div>`;
