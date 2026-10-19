@@ -1523,16 +1523,32 @@ function viewProd(){
   if(!PROD.length)return canManage()?`<h3 style="margin-top:6px">INFORME DE PRODUCCIÓN</h3><div class="panel empty"><strong>Aún no hay informe de producción</strong>Súbelo desde “Cargar o actualizar datos”.</div>`:'';
   const P=PROD.slice().sort((a,b)=>String(b.actualizado||'').localeCompare(String(a.actualizado||'')))[0];
   const ms=P.mes.slice().sort((a,b)=>a.orden-b.orden),sum=k=>ms.reduce((a,m)=>a+(+m[k]||0),0);
+  const C=Array.isArray(P.comparativo)?P.comparativo:[],cy=[...new Set(C.map(r=>+r.anio))].sort(),nm=ms.length;
+  const cper=y=>{const rs=C.filter(r=>+r.anio===y&&+r.orden<=nm);return rs.length?rs.reduce((a,r)=>a+ +r.trabajos,0):null};
+  const cfull=y=>{const rs=C.filter(r=>+r.anio===y);return rs.length===12?rs.reduce((a,r)=>a+ +r.trabajos,0):null};
+  const ylast=cy[cy.length-1],yprev=cy[cy.length-2],vprev=ylast&&yprev?vVar(cper(ylast),cper(yprev)):null;
+  const cmpTxt=yprev?` · <span class="${vCls(vprev)}">${vP(vprev)}</span> vs ${V_MES[0]}–${V_MES[nm-1]} ${yprev} (${sN(cper(yprev))})`:'';
   const tr=sum('trabajos'),mx=ms.reduce((m,r)=>+r.trabajos>+m.trabajos?r:m,ms[0]),mn=ms.reduce((m,r)=>+r.trabajos<+m.trabajos?r:m,ms[0]);
   let h=`<h3 style="margin-top:6px">INFORME DE PRODUCCIÓN</h3>
    <p class="vlead">Trabajos entregados por la imprenta y cuánto se debería facturar según la producción, ${esc(String(P.periodo).toLowerCase())}. Fuente: ${esc(P.fuente||'Producción')}. Montos en soles.</p>
    <div class="kpis">
-    <div class="kpi"><span class="l">Trabajos entregados</span><span class="v">${sN(tr)}</span><span class="s">Promedio mensual: ${(tr/ms.length).toLocaleString('es-PE',{maximumFractionDigits:1})}</span></div>
+    <div class="kpi"><span class="l">Trabajos entregados</span><span class="v">${sN(tr)}</span><span class="s">Promedio mensual: ${(tr/ms.length).toLocaleString('es-PE',{maximumFractionDigits:1})}${cmpTxt}</span></div>
     <div class="kpi"><span class="l">Mes con más trabajos</span><span class="v">${sN(+mx.trabajos)} en ${esc(mx.mes.toLowerCase())}</span><span class="s">Mínimo: ${sN(+mn.trabajos)} en ${esc(mn.mes.toLowerCase())}</span></div>
     <div class="kpi"><span class="l">Facturación según producción</span><span class="v">${vM(sum('monto_principal'))}</span><span class="s">Monto principal</span></div>
     <div class="kpi"><span class="l">RRPP</span><span class="v">${vS(sum('rrpp'))}</span><span class="s">Reposición: ${vS(sum('reposicion'))}</span></div></div>
    <div class="grid2"><div class="panel"><h2 style="font-size:1.05rem">Trabajos entregados por mes</h2><div class="vchart" id="vpTrab"></div></div>
     <div class="panel"><h2 style="font-size:1.05rem">Facturación según producción por mes</h2><div class="legend"><span><i style="background:var(--cyan)"></i>Monto principal</span><span><i style="background:#b9bec8"></i>RRPP</span></div><div class="vchart" id="vpFact"></div></div></div>`;
+  if(cy.length){
+    const ylg=[...cy].reverse().map(y=>`<span style="${y===ylast?'font-weight:600;color:var(--ink)':''}"><i style="background:${vYearCol(y,cy)}"></i>${y}</span>`).join('');
+    h+=`<div class="grid2"><div class="panel"><h2 style="font-size:1.05rem">Trabajos por mes, ${cy[0]}–${ylast}</h2><div class="note">Cada línea es un año; ${ylast} va resaltado.</div><div class="legend">${ylg}</div><div class="vchart" id="vpComp"></div></div>
+     <div class="panel"><h2 style="font-size:1.05rem">Trabajos ${V_MESL[0]}–${V_MESL[nm-1]} por año</h2><div class="note">Mismo periodo cada año.</div><div class="vchart" id="vpCompBar"></div></div></div>`;
+    const per=`${V_MES[0]}–${V_MES[nm-1]}`;
+    h+=`<div class="panel"><h2 style="font-size:1.05rem">Comparativo de trabajos ${cy[0]}–${ylast}</h2><div class="note">Cantidad de trabajos por mes. En el Excel, el "TOTAL" de los años anteriores suma solo de enero a octubre; aquí se muestran ${V_MESL[0]}–${V_MESL[nm-1]}, para comparar con ${ylast}, y el año completo.</div>
+     <div class="tbl vt"><table><thead><tr><th>Mes</th>${cy.map((y,i)=>`<th class="num">${y}</th>${i?`<th class="num">Var. ${String(y).slice(2)}/${String(cy[i-1]).slice(2)}</th>`:''}`).join('')}</tr></thead><tbody>${V_MES.map((m,j)=>`<tr><td>${m}</td>${cy.map((y,i)=>{const r=C.find(x=>+x.anio===y&&+x.orden===j+1),a=r?+r.trabajos:null;let td=`<td class="num">${a==null?'—':sN(a)}</td>`;if(i){const rp=C.find(x=>+x.anio===cy[i-1]&&+x.orden===j+1),v=a!=null&&rp?vVar(a,+rp.trabajos):null;td+=`<td class="num ${vCls(v)}">${vP(v)}</td>`}return td}).join('')}</tr>`).join('')}
+     ${[[`${per}`,cper],['Año completo',cfull]].map(([lbl,f],k)=>`<tr class="vtot"><td>${lbl}</td>${cy.map((y,i)=>{const a=f(y);let td=`<td class="num">${a==null?'—':sN(a)}</td>`;if(i){const v=vVar(a,f(cy[i-1]));td+=`<td class="num ${vCls(v)}">${vP(v)}</td>`}return td}).join('')}</tr>`).join('')}</tbody></table></div></div>`;
+  }
+  if(Array.isArray(P.clientes_mes)&&P.clientes_mes.length){const cl=[...new Set(P.clientes_mes.map(r=>r.cliente))],mm=[...new Set(P.clientes_mes.map(r=>r.mes))];
+    h+=`<div class="panel"><h2 style="font-size:1.05rem">Trabajos por mes de ${cl.join(', ')}</h2><div class="note">Cuadros auxiliares del Excel, de enero a octubre. Solo el de UPeU indica el año (2025).</div><div class="tbl vt"><table><thead><tr><th>Mes</th>${cl.map(c=>`<th class="num">${esc(c)}${c==='UPeU'?' (2025)':''}</th>`).join('')}</tr></thead><tbody>${mm.map(m=>`<tr><td>${esc(m)}</td>${cl.map(c=>{const r=P.clientes_mes.find(x=>x.cliente===c&&x.mes===m);return `<td class="num">${r?sN(+r.trabajos):'—'}</td>`}).join('')}</tr>`).join('')}<tr class="vtot"><td>Total</td>${cl.map(c=>`<td class="num">${sN(P.clientes_mes.filter(r=>r.cliente===c).reduce((a,r)=>a+ +r.trabajos,0))}</td>`).join('')}</tr></tbody></table></div></div>`}
   const campos=[...new Set(P.facturacion_campo.map(r=>r.campo))],fv=(m,c)=>{const r=P.facturacion_campo.find(x=>x.mes===m&&x.campo===c);return r?+r.monto:0};
   const fila=(lbl,vals,sc,mp,tot)=>`<tr class="${tot?'vtot':''}"><td>${esc(lbl)}</td>${vals.map(v=>`<td class="num">${vN(v)}</td>`).join('')}<td class="num">${vN(sc)}</td><td class="num">${vN(mp)}</td><td class="num">${vN(mp-sc)}</td></tr>`;
   const tv=campos.map(c=>ms.reduce((a,m)=>a+fv(m.mes,c),0));
@@ -1542,7 +1558,7 @@ function viewProd(){
     return `<div class="panel"><h2 style="font-size:1.05rem">${title}</h2><div class="note">${note}</div><div class="vbars">${rs.map((r,i)=>`<div class="vbar"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.nombre)}</span><div class="t"><b style="width:${r.trabajos/mx2*100}%;background:${i<3?'var(--cyan)':'var(--ink-2)'};opacity:${i<3?1:.45}"></b></div><span class="val">${sN(+r.trabajos)} · ${vP1(r.trabajos/t)}</span></div>`).join('')}</div></div>`};
   h+=`<div class="grid2">${bars('Campo','Trabajos por campo','Cantidad de trabajos y su peso en el total.')}${bars('Cliente agrupado','Trabajos por cliente','Clientes agrupados como en el Excel; UPS aparece en dos filas.')}${bars('Departamento','Trabajos por departamento','Cantidad de trabajos y su peso en el total.')}${bars('Evento','Trabajos por evento','Cantidad de trabajos y su peso en el total.')}</div>${bars('Clasificación','Trabajos por clasificación','Tipo de pieza impresa.')}`;
   if(Array.isArray(P.rrpp)&&P.rrpp.length){const nf=v=>v==null?'—':(+v).toLocaleString('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2});
-    h+=`<div class="panel"><h2 style="font-size:1.05rem">Detalle de RRPP</h2><div class="note">Trabajos registrados como RRPP, en soles.</div><div class="tbl vt"><table><thead><tr><th>N°</th><th>Mes</th><th>Job</th><th>Descripción</th><th>Cliente</th><th class="num">Cantidad</th><th class="num">P. V. (S/)</th><th class="num">Total (S/)</th></tr></thead><tbody>${P.rrpp.map(r=>`<tr><td>${esc(r.n)}</td><td>${esc(r.mes)}</td><td style="font-family:var(--mono)">${esc(r.job)}</td><td>${esc(r.descripcion)}</td><td>${esc(r.cliente||'—')}</td><td class="num">${sN(+r.cantidad)}</td><td class="num">${nf(r.precio)}</td><td class="num">${nf(r.total)}</td></tr>`).join('')}<tr class="vtot"><td>Total</td><td></td><td></td><td></td><td></td><td></td><td></td><td class="num">${nf(P.rrpp.reduce((a,r)=>a+ +r.total,0))}</td></tr></tbody></table></div></div>`}
+    h+=`<div class="panel"><h2 style="font-size:1.05rem">Detalle de RRPP</h2><div class="note">Trabajos registrados como RRPP, en soles.${Math.abs(P.rrpp.reduce((a,r)=>a+ +r.total,0)-sum('rrpp'))>1?` Este detalle no coincide con el RRPP mensual del Excel (diferencia de ${vS(P.rrpp.reduce((a,r)=>a+ +r.total,0)-sum('rrpp'))}).`:''}</div><div class="tbl vt"><table><thead><tr><th>N°</th><th>Mes</th><th>Job</th><th>Descripción</th><th>Cliente</th><th class="num">Cantidad</th><th class="num">P. V. (S/)</th><th class="num">Total (S/)</th></tr></thead><tbody>${P.rrpp.map(r=>`<tr><td>${esc(r.n)}</td><td>${esc(r.mes)}</td><td style="font-family:var(--mono)">${esc(r.job)}</td><td>${esc(r.descripcion)}</td><td>${esc(r.cliente||'—')}</td><td class="num">${sN(+r.cantidad)}</td><td class="num">${nf(r.precio)}</td><td class="num">${nf(r.total)}</td></tr>`).join('')}<tr class="vtot"><td>Total</td><td></td><td></td><td></td><td></td><td></td><td></td><td class="num">${nf(P.rrpp.reduce((a,r)=>a+ +r.total,0))}</td></tr></tbody></table></div></div>`}
   return h;
 }
 
@@ -1577,7 +1593,11 @@ function bindVentas(){
   const P0=PROD.slice().sort((a,b)=>String(b.actualizado||'').localeCompare(String(a.actualizado||'')))[0];
   if(P0&&g('vpTrab')){const ms=P0.mes.slice().sort((a,b)=>a.orden-b.orden);
     vStack(g('vpTrab'),ms.map(m=>({x:m.mes,vals:{Trabajos:+m.trabajos}})),['Trabajos'],['var(--cyan)'],r=>r.x,v=>sN(v)+' trabajos');
-    vStack(g('vpFact'),ms.map(m=>({x:m.mes,vals:{'Monto principal':+m.monto_principal,RRPP:+m.rrpp}})),['Monto principal','RRPP'],['var(--cyan)','#b9bec8'],r=>r.x)}
+    vStack(g('vpFact'),ms.map(m=>({x:m.mes,vals:{'Monto principal':+m.monto_principal,RRPP:+m.rrpp}})),['Monto principal','RRPP'],['var(--cyan)','#b9bec8'],r=>r.x);
+    const C=Array.isArray(P0.comparativo)?P0.comparativo:[],cy=[...new Set(C.map(r=>+r.anio))].sort(),nm=ms.length;
+    if(cy.length&&g('vpComp')){
+      vLines(g('vpComp'),[...cy].reverse().map(y=>({n:String(y),c:vYearCol(y,cy),strong:y===cy[cy.length-1],vals:V_MES.map((_,j)=>{const r=C.find(x=>+x.anio===y&&+x.orden===j+1);return r?+r.trabajos:null})})),null,V_MES,v=>sN(v)+' trabajos',v=>sN(v));
+      vStack(g('vpCompBar'),cy.map(y=>({x:String(y),vals:{Trabajos:C.filter(r=>+r.anio===y&&+r.orden<=nm).reduce((a,r)=>a+ +r.trabajos,0)}})),['Trabajos'],['var(--cyan)'],r=>`${V_MES[0]}–${V_MES[nm-1]} ${r.x}`,v=>sN(v)+' trabajos')}}
   if(g('viSave'))g('viSave').onclick=async()=>{const p=vImp.parsed;if(!p||vImp.busy)return;vImp.busy=true;render();
     try{await vSave(p.docs,p.years);toast('Datos de ventas guardados.');vImp.parsed=null;vImp.text='';vf.anio=null}
     catch(e){toast('No se pudo guardar: '+(e.message||e))}finally{vImp.busy=false;render()}};
