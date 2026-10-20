@@ -258,12 +258,12 @@ const SCH={
   ['fechaIngreso','Fecha de ingreso (real o proyectada)','date'],['remuneracion','Remuneración mensual (S/)','num'],
   ['dni','Documento / código interno','text'],['contacto','Teléfono o correo','text'],['obs','Observaciones (perfil requerido, motivo de la plaza)','area']]},
  proyectos:{t:'Proyectos/Iniciativas/Mejoras',one:'proyecto, iniciativa o mejora',fields:[
-  ['codigo','Código (automático)','code'],['nombre','Nombre del proyecto','text',1],['unidad','Unidad responsable','unit',1],
+  ['codigo','Código (automático)','code'],['nombre','Nombre del proyecto','text',1],['unidad','Unidad responsable','unit',1],['catalogo','Actividad de gerencia vinculada (catálogo)','catalog'],
   ['responsable','Responsable (gerente, jefe o coordinador)','lider'],['objetivo','Objetivo estratégico','area'],
   ['periodos','Periodos de ejecución','periods'],['prioridad','Prioridad','sel',0,PRIO],['estado','Estado','sel',1,EST_PROY],
   ['presupuesto','Techo presupuestal aprobado (S/)','num'],['fuente','Fuente / partida presupuestal','text']]},
  actividades:{t:'Actividades',one:'actividad',fields:[
-  ['proyecto','Proyecto','ref:proyectos',1],['catalogo','Actividad principal de la gerencia','catalog'],['nombre','Actividad','text',1],['responsable','Responsable','person'],
+  ['proyecto','Proyecto','ref:proyectos',1],['catalogo','Actividad principal del catálogo','catalog'],['nombre','Actividad','text',1],['responsable','Responsable','person'],
   ['periodos','Periodos de ejecución','periods'],['estado','Estado','sel',1,EST_ACT],['avance','Avance manual (%) — solo si no tiene tareas','num'],
   ['presupuesto','Presupuesto (S/)','num'],['ejecutado','Ejecutado (S/)','num'],['entregable','Entregable / evidencia de cumplimiento','text']]},
  tareas:{t:'Tareas',one:'tarea',fields:[
@@ -522,7 +522,7 @@ async function loadUsers(){
 }
 
 /* ===== Navegación ===== */
-const TABS=[['dash','Dashboard'],['ventas','Reportes'],['org','Unidades'],['cal','Calendario'],...COLS.map(c=>[c,SCH[c].t])];
+const TABS=[['dash','Dashboard'],['ventas','Reportes'],['org','Unidades'],['cal','Calendario'],['req','Requerimientos'],...COLS.map(c=>[c,SCH[c].t])];
 let tab='dash',filterUnit='ALL',q='';
 try{const h=location.hash.slice(1);if(TABS.some(t=>t[0]===h))tab=h}catch(e){}
 function tabsList(){return canManage()&&mode==='db'?[...TABS,['users','Usuarios']]:TABS}
@@ -550,6 +550,7 @@ function render(){
   else if(tab==='org')v.innerHTML=viewUnits();
   else if(tab==='cal')v.innerHTML=viewCal();
   else if(tab==='ventas')v.innerHTML=viewVentas();
+  else if(tab==='req')v.innerHTML=viewReqs();
   else if(tab==='users')v.innerHTML=viewUsers();
   else v.innerHTML=viewList(tab);
   bindView();
@@ -565,6 +566,7 @@ const LISTCOLS={
  metas:r=>{const p=byId('proyectos',r.proyecto),av=metaAvance(r);return [['Indicador',`<strong>${esc(r.indicador)}</strong>${exTag(r)}<div class="note">${esc(p?.nombre||'')}${r.actividad?' · '+esc(byId('actividades',r.actividad)?.nombre||''):''}</div>`],['Tipo',esc(r.tipo||'Numérico')],['Registró',esc(pname(r.gerente))],['Medida',esc(r.medida||'—')],['Base',n(r.base).toLocaleString('es-PE'),'num'],['Meta',n(r.meta).toLocaleString('es-PE'),'num'],['Logrado',n(r.logrado).toLocaleString('es-PE'),'num'],['Cumplimiento',`${meter(av)}<div class="note">${pct(av)}</div>`],['Fecha',fdate(r.fecha)]]},
  riesgos:r=>{const p=byId('proyectos',r.proyecto),lv=riesgoNivel(r);return [['Riesgo',`<strong>${esc(r.descripcion)}</strong>${exTag(r)}<div class="note">${esc(p?.nombre||'')}</div>`],['Nivel',`<span class="pill ${lv>=6?'bad':lv>=3?'warn':'ok'}">${lv>=6?'Alto':lv>=3?'Moderado':'Bajo'} (${lv})</span>`],['P × I',`${esc(r.probabilidad)} × ${esc(r.impacto)}`],['Mitigación',esc(r.mitigacion||'—')],['Responsable',esc(pname(r.responsable))],['Estado',pillFor(r.estado)]]}
 };
+['proyectos','actividades','tareas','comisiones'].forEach(c=>{const f=LISTCOLS[c];LISTCOLS[c]=r=>{const cols=f(r);const t=reqConsol(c,r);cols.splice(cols.length-(c==='proyectos'||c==='actividades'?0:0),0,['Requerimientos',t?money(t):'—','num']);return cols}});
 function viewList(col){
   const sc=SCH[col];
   let rows=S[col].filter(r=>inFilter(col,r));
@@ -604,18 +606,18 @@ function projCard(p){
   const acts=actsOf(p),ms=S.metas.filter(m=>m.proyecto===p.id),av=proyAvance(p);
   const nCom=acts.reduce((s,a)=>s+tarsOf(a).reduce((s2,t)=>s2+comsOf(t).length,0),0);
   const techo=acts.length&&n(p.presupuesto)?`<div>Techo aprobado<b style="color:${p._bud>n(p.presupuesto)?'var(--bad)':'var(--ink)'}">${money(p.presupuesto)}</b></div>`:'';
-  let h=`<div class="proj"><div class="ph"><div class="ttl"><div class="crumb">${esc(p.codigo||'PROYECTO')} · Responsable: ${esc(pname(p.responsable))}</div><strong>${esc(p.nombre)}</strong>${exTag(p)}
+  let h=`<div class="proj"><div class="ph"><div class="ttl"><div class="crumb">${esc(p.codigo||'PROYECTO')} · Responsable: ${esc(pname(p.responsable))}</div><strong>${esc(p.nombre)}</strong>${exTag(p)}${p.catalogo?`<div class="note" style="margin-top:4px"><span class="pill info">${esc(CAT_NAMES[p.catalogoGer]||'')}${p.linea?' · '+esc(p.linea):''}</span> ${esc(p.catalogo)}</div>`:''}
     ${p.objetivo?`<div class="note">${esc(p.objetivo)}</div>`:''}<div style="margin-top:8px">${periodStrip(p)}</div></div>
     <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">${pillFor(p.estado)}${editBtn('proyectos',p.id)}</div>
-    <div class="nums" style="flex-basis:100%"><div>Avance consolidado<b>${pct(av)}</b></div><div>Presupuesto (suma de actividades)<b>${money(p._bud)}</b></div><div>Ejecutado<b>${money(p._ej)}</b></div>${techo}<div>Actividades<b>${acts.length}</b></div><div>Comisiones<b>${nCom}</b></div><div style="flex:1 1 140px;justify-content:flex-end">${meter(av)}</div></div></div><div class="tree">`;
+    <div class="nums" style="flex-basis:100%"><div>Avance consolidado<b>${pct(av)}</b></div><div>Presupuesto (suma de actividades)<b>${money(p._bud)}</b></div><div>Ejecutado<b>${money(p._ej)}</b></div>${techo}<div>Requerimientos<b>${money(reqConsol('proyectos',p))}</b></div><div>Actividades<b>${acts.length}</b></div><div>Comisiones<b>${nCom}</b></div><div style="flex:1 1 140px;justify-content:flex-end">${meter(av)}</div></div></div><div class="tree">`;
   acts.forEach(a=>{const aa=actAvance(a),ts=tarsOf(a);
-    h+=`<div class="node l1"><div class="lbl"><span class="kind">Actividad</span><strong>${esc(a.nombre)}</strong>${exTag(a)}${a.linea?`<span class="pill info">${esc(a.linea)}</span>`:''}<span class="note">${esc(pname(a.responsable))} · ${pshort(a)}</span>${evCount(a)}</div>
+    h+=`<div class="node l1"><div class="lbl"><span class="kind">Actividad</span><strong>${esc(a.nombre)}</strong>${exTag(a)}${a.linea?`<span class="pill info">${esc(a.linea)}</span>`:''}<span class="note">${esc(pname(a.responsable))} · ${pshort(a)}</span>${evCount(a)}${reqCount('actividades',a)}</div>
       <div class="side">${pillFor(a.estado)}<span class="mono">${money(a.presupuesto)}</span>${meter(aa)}<span class="mono">${pct(aa)}</span>${editBtn('actividades',a.id)}</div></div>`;
     ts.forEach(t=>{const ta=tarAv(t),cs=comsOf(t);
-      h+=`<div class="node l2"><div class="lbl"><span class="kind">Tarea</span>${esc(t.nombre)}${exTag(t)}<span class="note">${esc(pname(t.responsable))} · ${pshort(t)}</span>${evCount(t)}</div>
+      h+=`<div class="node l2"><div class="lbl"><span class="kind">Tarea</span>${esc(t.nombre)}${exTag(t)}<span class="note">${esc(pname(t.responsable))} · ${pshort(t)}</span>${evCount(t)}${reqCount('tareas',t)}</div>
         <div class="side">${pillFor(t.estado)}${meter(ta)}<span class="mono">${pct(ta)}</span>${editBtn('tareas',t.id)}</div></div>`;
       cs.forEach(c=>{const ca=comAv(c);
-        h+=`<div class="node l3"><div class="lbl"><span class="kind">Comisión</span><strong>${esc(pname(c.persona))}</strong><span>${esc(c.encargo)}</span><span class="note">${pshort(c)}</span>${evCount(c)}${exTag(c)}</div>
+        h+=`<div class="node l3"><div class="lbl"><span class="kind">Comisión</span><strong>${esc(pname(c.persona))}</strong><span>${esc(c.encargo)}</span><span class="note">${pshort(c)}</span>${evCount(c)}${reqCount('comisiones',c)}${exTag(c)}</div>
           <div class="side">${pillFor(c.estado)}${meter(ca)}<span class="mono">${pct(ca)}</span>${editBtn('comisiones',c.id)}</div></div>`});
       if(!readOnly)h+=`<div class="adder l3">${addBtn('comisiones','tarea',t.id,'Comisión a una persona')}</div>`;
     });
@@ -709,6 +711,75 @@ function bindCal(){
   document.querySelectorAll('[data-calt]').forEach(c=>c.onchange=()=>{calOn[c.dataset.calt]=c.checked;render()});
   document.querySelectorAll('[data-calday]').forEach(b=>b.onclick=()=>{calDay=calDay===b.dataset.calday?null:b.dataset.calday;render()});
   const ca=$('#calAll');if(ca)ca.onclick=()=>{calDay=null;render()};
+}
+
+/* ===== Módulo: Requerimientos centralizados ===== */
+let rqF={estado:'todos',tipo:'',q:''};
+const RQ_LAB={proyectos:'Proyecto',actividades:'Actividad',tareas:'Tarea',comisiones:'Comisión'};
+function projOf(col,r){if(col==='proyectos')return r;if(col==='actividades')return byId('proyectos',r.proyecto);if(col==='tareas')return projOf('actividades',byId('actividades',r.actividad)||{});if(col==='comisiones')return projOf('tareas',byId('tareas',r.tarea)||{});return null}
+function allReqItems(){
+  const out=[];
+  REQ_COLS.forEach(col=>S[col].filter(r=>inFilter(col,r)).forEach(r=>(r.requerimientos||[]).forEach((x,i)=>{
+    const p=projOf(col,r);const unit=unitOf(col,r);
+    out.push({col,rec:r,i,x,total:reqItemTotal(x),unit,proj:p,origen:col==='comisiones'?`${pname(r.persona)}: ${r.encargo||''}`:(r.nombre||'')});
+  })));
+  return out;
+}
+function rqState(x){return x.atFin?'atendido':x.atGer?'pendFin':'pendGer'}
+function myUnit(){const a=myAcc&&myAcc();return a?a.unidad:''}
+function canGer(it){if(access()==='all')return true;const u=myUnit();return !!(u&&U[u]&&U[u].t==='Gerencia'&&it.unit&&desc(u).includes(it.unit))}
+function canFin(it){if(access()==='all')return true;return myUnit()==='GFC'}
+function actorName(){const a=myAcc&&myAcc();return a?a.nombre:'Administrador'}
+function viewReqs(){
+  const all=allReqItems();
+  let list=all.filter(it=>(!rqF.tipo||it.x.tipo===rqF.tipo)&&(rqF.estado==='todos'||rqState(it.x)===rqF.estado));
+  if(rqF.q){const q=norm(rqF.q);list=list.filter(it=>norm([it.x.desc,it.origen,it.proj?.nombre,it.proj?.codigo,U[it.unit]?.n].join(' ')).includes(q))}
+  list.sort((a,b)=>(rqState(a.x)>rqState(b.x)?-1:rqState(a.x)<rqState(b.x)?1:0)||(b.total-a.total));
+  const sum=f=>all.filter(f).reduce((s,it)=>s+it.total,0);
+  const tot=sum(()=>true),tG=sum(it=>it.x.atGer),tF=sum(it=>it.x.atFin);
+  let h=`<div class="bar"><div class="left"><h2>Requerimientos</h2><span class="note">${list.length} de ${all.length} ítems</span></div>
+   <div class="right"><input class="search" id="rqQ" type="search" placeholder="Buscar ítem, proyecto…" value="${esc(rqF.q)}" aria-label="Buscar">
+   <select id="rqE" aria-label="Estado"><option value="todos">Todos los estados</option><option value="pendGer" ${rqF.estado==='pendGer'?'selected':''}>Pendiente de gerencia</option><option value="pendFin" ${rqF.estado==='pendFin'?'selected':''}>Pendiente de Finanzas</option><option value="atendido" ${rqF.estado==='atendido'?'selected':''}>Atendido</option></select>
+   <select id="rqT" aria-label="Tipo"><option value="">Todos los tipos</option>${REQ_TIPOS.map(t=>`<option ${t===rqF.tipo?'selected':''}>${t}</option>`).join('')}</select>${unitFilterSel()}
+   <button class="btn" id="rqX">Exportar CSV</button></div></div>
+  <div class="kpis"><div class="kpi"><span class="l">Total requerido</span><span class="v">${kmoney(tot)}</span><span class="s">${all.length} ítems</span></div>
+   <div class="kpi"><span class="l">Atendido por gerencia del área</span><span class="v">${kmoney(tG)}</span><span class="s">${all.filter(it=>it.x.atGer).length} ítems · ${tot?pct(tG/tot*100):'—'}</span></div>
+   <div class="kpi"><span class="l">Atendido por Gerencia Financiera</span><span class="v">${kmoney(tF)}</span><span class="s">${all.filter(it=>it.x.atFin).length} ítems · ${tot?pct(tF/tot*100):'—'}</span></div>
+   <div class="kpi"><span class="l">Pendiente</span><span class="v">${kmoney(tot-tF)}</span><span class="s">${all.filter(it=>!it.x.atFin).length} ítems sin atender</span></div></div>
+  <div class="note">Flujo: primero la <b>gerencia del área</b> marca el ítem como atendido; luego la <b>Gerencia Financiera</b> confirma la atención. Los ítems se registran dentro de cada proyecto, actividad, tarea o comisión.</div>`;
+  if(!list.length)return h+`<div class="panel empty"><strong>No hay requerimientos ${all.length?'con estos filtros':'registrados'}</strong>Agrégalos en la sección “Requerimientos” del formulario de un proyecto, actividad, tarea o comisión.</div>`;
+  const chk=(it,kind)=>{const v=it.x[kind];const can=kind==='atGer'?canGer(it):canFin(it)&&!!it.x.atGer;const dis=readOnly||!can;
+    const tip=kind==='atFin'&&!it.x.atGer?'Primero debe atenderlo la gerencia del área':!can&&!v?'No tienes permiso para marcar este ítem':'';
+    return `<label style="display:flex;gap:6px;align-items:flex-start;cursor:${dis?'default':'pointer'}" title="${esc(tip)}"><input type="checkbox" data-rqchk="${it.col}|${it.rec.id}|${it.i}|${kind}" ${v?'checked':''} ${dis?'disabled':''} style="margin-top:2px;accent-color:var(--ok)"><span class="note" style="line-height:1.3">${v?`${esc(v.nombre||'')}<br>${fdate(v.fecha)}`:'Pendiente'}</span></label>`};
+  h+=`<div class="tbl"><table><thead><tr><th>Ítem</th><th>Tipo</th><th class="num">Cant. × P. unit.</th><th class="num">Total</th><th>Origen</th><th>Proyecto · Unidad</th><th>Gerencia del área</th><th>Gerencia Financiera</th></tr></thead><tbody>${list.map(it=>{const st=rqState(it.x);return `<tr>
+   <td><strong>${esc(it.x.desc||'(sin descripción)')}</strong><div>${st==='atendido'?'<span class="pill ok">Atendido</span>':st==='pendFin'?'<span class="pill warn">Pendiente Finanzas</span>':'<span class="pill">Pendiente gerencia</span>'}</div></td>
+   <td>${esc(it.x.tipo||'—')}</td><td class="num">${n(it.x.cant).toLocaleString('es-PE')} ${esc(it.x.um||'')} × ${money(it.x.pu)}</td><td class="num"><strong>${money(it.total)}</strong></td>
+   <td><span class="pill">${RQ_LAB[it.col]}</span> <button class="link" data-edit="${it.col}:${it.rec.id}" style="color:var(--ink);text-align:left">${esc(it.origen)}</button></td>
+   <td>${esc(it.proj?.codigo||'')} ${esc(it.proj?.nombre||'')}<div class="unit-tag">${esc(U[it.unit]?.n||'')}</div></td>
+   <td>${chk(it,'atGer')}</td><td>${chk(it,'atFin')}</td></tr>`}).join('')}</tbody></table></div>`;
+  return h;
+}
+async function toggleReq(col,id,i,kind,on){
+  const rec=byId(col,id);if(!rec||!rec.requerimientos||!rec.requerimientos[i])return;
+  const o={...rec,requerimientos:rec.requerimientos.map(x=>({...x}))};delete o._bud;delete o._ej;
+  const it=o.requerimientos[i];
+  if(on)it[kind]={por:actorId(),nombre:actorName(),fecha:today()};else{delete it[kind];if(kind==='atGer')delete it.atFin}
+  o.actualizado=new Date().toISOString();
+  try{await put(col,o);toast(on?(kind==='atGer'?'Marcado como atendido por la gerencia del área.':'Atención confirmada por Gerencia Financiera.'):'Marca retirada.')}catch(e){dbErr(e);render()}
+}
+async function exportReqs(){
+  const rows=allReqItems();const q=v=>`"${String(v??'').replace(/"/g,'""')}"`;
+  const csv=['Ítem;Tipo;Cantidad;Unidad;Precio unitario;Total;Origen;Registro;Proyecto;Código;Unidad de gestión;Atendido gerencia;Fecha gerencia;Atendido Finanzas;Fecha Finanzas',
+    ...rows.map(it=>[it.x.desc,it.x.tipo,it.x.cant,it.x.um,it.x.pu,it.total,RQ_LAB[it.col],it.origen,it.proj?.nombre,it.proj?.codigo,U[it.unit]?.n,it.x.atGer?.nombre||'',it.x.atGer?.fecha||'',it.x.atFin?.nombre||'',it.x.atFin?.fecha||''].map(q).join(';'))].join('\r\n');
+  if(!downloads){toast('La descarga no está disponible en esta vista.');return}
+  try{await downloads.save({filename:`requerimientos-${today()}.csv`,data:'﻿'+csv,mimeType:'text/csv'})}catch(e){}
+}
+function bindReqs(){
+  const qi=$('#rqQ');if(qi)qi.oninput=e=>{rqF.q=e.target.value;const pos=e.target.selectionStart;render();const n2=$('#rqQ');n2.focus();try{n2.setSelectionRange(pos,pos)}catch(_){}};
+  const se=$('#rqE');if(se)se.onchange=e=>{rqF.estado=e.target.value;render()};
+  const st=$('#rqT');if(st)st.onchange=e=>{rqF.tipo=e.target.value;render()};
+  const x=$('#rqX');if(x)x.onclick=exportReqs;
+  document.querySelectorAll('[data-rqchk]').forEach(c=>c.onchange=()=>{const [col,id,i,kind]=c.dataset.rqchk.split('|');c.disabled=true;toggleReq(col,id,+i,kind,c.checked)});
 }
 
 /* ===== Vista: dashboard ===== */
@@ -834,6 +905,39 @@ function renderPeriods(){
   const add=$('#pAdd');if(add)add.onclick=()=>{ps.push({ini:'',fin:'',desc:''});renderPeriods();const el=$('#pi_'+(ps.length-1));if(el)el.focus()};
 }
 
+/* ===== Requerimientos (ítems con importes) ===== */
+const REQ_COLS=['proyectos','actividades','tareas','comisiones'];
+const REQ_TIPOS=['Bien / material','Servicio','Personal','Equipo','Viáticos','Otro'];
+const reqItemTotal=x=>n(x.cant)*n(x.pu);
+const reqTotal=r=>(r&&r.requerimientos||[]).reduce((s,x)=>s+reqItemTotal(x),0);
+function reqConsol(col,r){
+  let t=reqTotal(r);
+  if(col==='proyectos')S.actividades.filter(a=>a.proyecto===r.id).forEach(a=>t+=reqConsol('actividades',a));
+  else if(col==='actividades')S.tareas.filter(x=>x.actividad===r.id).forEach(x=>t+=reqConsol('tareas',x));
+  else if(col==='tareas')S.comisiones.filter(x=>x.tarea===r.id).forEach(x=>t+=reqTotal(x));
+  return t;
+}
+function reqCount(col,r){const own=(r.requerimientos||[]).length,tot=reqConsol(col,r);return tot||own?`<span class="mono" title="Requerimientos (incluye los niveles inferiores)">Req. ${money(tot)}</span>`:''}
+function reqBlock(){
+  return `<div class="full" style="grid-column:1/-1;display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--rule);padding-top:12px">
+   <div class="bar"><span style="font-size:.8rem;font-weight:500;color:var(--ink-2)">Requerimientos (ítems e importes)</span><span class="note" id="reqTot"></span></div>
+   <div class="tbl" style="border:1px solid var(--rule-2)"><table id="reqTbl" style="font-size:.82rem"><thead><tr><th style="min-width:180px">Descripción</th><th>Tipo</th><th class="num">Cant.</th><th>Unidad</th><th class="num">P. unit. (S/)</th><th class="num">Total</th><th></th></tr></thead><tbody id="reqBody"></tbody></table></div>
+   ${readOnly?'':'<div><button type="button" class="btn small" id="reqAdd">+ Agregar ítem</button></div>'}</div>`;
+}
+function renderReq(){
+  const b=$('#reqBody');if(!b)return;const rs=editing.r.requerimientos;
+  const inp=(i,k,v,t,extra)=>`<input data-rq="${i}" data-rk="${k}" ${t?`type="${t}"`:''} value="${esc(v??'')}" ${readOnly?'disabled':''} ${extra||''} style="width:100%;min-width:0;padding:5px 6px">`;
+  b.innerHTML=rs.length?rs.map((x,i)=>`<tr><td>${inp(i,'desc',x.desc,'','placeholder="Ej. Papel bond 75 g"')}</td>
+    <td><select data-rq="${i}" data-rk="tipo" ${readOnly?'disabled':''} style="padding:5px 6px">${REQ_TIPOS.map(t=>`<option ${t===(x.tipo||REQ_TIPOS[0])?'selected':''}>${t}</option>`).join('')}</select></td>
+    <td style="width:80px">${inp(i,'cant',x.cant,'number','step="any" min="0"')}</td><td style="width:90px">${inp(i,'um',x.um,'','placeholder="und"')}</td>
+    <td style="width:110px">${inp(i,'pu',x.pu,'number','step="any" min="0"')}</td><td class="num" data-rt="${i}">${money(reqItemTotal(x))}</td>${''}
+    <td>${x.atFin?'<span class="pill ok" title="Atendido por Gerencia Financiera">Atendido</span>':x.atGer?'<span class="pill warn" title="Atendido por la gerencia del área">Gerencia ✓</span>':''}${readOnly||x.atGer?'':`<button type="button" class="link" data-rqdel="${i}" style="color:var(--bad)">Quitar</button>`}</td></tr>`).join(''):`<tr><td colspan="7" class="note">Sin ítems. ${readOnly?'':'Usa “+ Agregar ítem”.'}</td></tr>`;
+  const upTot=()=>{$('#reqTot').innerHTML=`${rs.length} ${rs.length===1?'ítem':'ítems'} · Total <strong style="font-family:var(--mono)">${money(rs.reduce((s,x)=>s+reqItemTotal(x),0))}</strong>`};upTot();
+  b.querySelectorAll('[data-rq]').forEach(e=>e.oninput=e.onchange=()=>{const i=+e.dataset.rq,k=e.dataset.rk;rs[i][k]=(k==='cant'||k==='pu')?(e.value===''?'':+e.value):e.value;const td=b.querySelector(`[data-rt="${i}"]`);if(td)td.textContent=money(reqItemTotal(rs[i]));upTot()});
+  b.querySelectorAll('[data-rqdel]').forEach(x=>x.onclick=()=>{rs.splice(+x.dataset.rqdel,1);renderReq()});
+  const add=$('#reqAdd');if(add)add.onclick=()=>{rs.push({desc:'',tipo:REQ_TIPOS[0],cant:1,um:'und',pu:''});renderReq();const el=b.querySelector(`[data-rq="${rs.length-1}"][data-rk="desc"]`);if(el)el.focus()};
+}
+
 /* ===== Evidencias (archivos) ===== */
 const EV_COLS=['actividades','tareas','comisiones'];
 const EXT_TYPE={pdf:'application/pdf',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',gif:'image/gif',csv:'text/csv',txt:'text/plain',md:'text/markdown',json:'application/json',mp4:'video/mp4',webm:'video/webm'};
@@ -884,14 +988,20 @@ const CATALOGO={
 };
 const INDICADORES={"CCOM": ["Cumplimiento del plan de comunicación", "Campañas ejecutadas", "Alcance de publicaciones", "Interacción", "Consultas comerciales generadas", "Conversiones atribuibles a campañas", "Desviación presupuestaria"], "CSO": ["Cumplimiento del plan anual", "Inspecciones ejecutadas", "Capacitaciones realizadas", "Accidentes e incidentes registrados", "Acciones correctivas cerradas", "Cumplimiento de controles críticos", "Gestión de residuos"]};
 const itx=i=>Array.isArray(i)?i[0]:i, iev=i=>Array.isArray(i)?i[1]:'';
-function catalogFor(pid){const p=byId('proyectos',pid);return p?CATALOGO[gerenciaOf(p.unidad)]||null:null}
+const CAT_NAMES={GG:'Gerencia General',GFC:'Gerencia Financiera Contable',GV:'Gerencia de Ventas (Comercial)',GP:'Gerencia de Producción',CCOM:'Comunicaciones y Publicidad',CSO:'SOMA',CAP:'Capellanía'};
+function defaultCatKey(unit){if(!unit)return '';if(CATALOGO[unit])return unit;const g=gerenciaOf(unit);return CATALOGO[g]?g:''}
+function catalogFor(pid,key){if(key&&CATALOGO[key])return CATALOGO[key];const p=byId('proyectos',pid);return p?CATALOGO[defaultCatKey(p.unidad)]||null:null}
 function lineaOf(item,cat){for(const [g,its] of (cat||[]))if(its.some(i=>itx(i)===item))return g;return ''}
 function evidOf(item,cat){for(const [,its] of (cat||[])){const f=its.find(i=>itx(i)===item);if(f)return iev(f)}return ''}
 function updateCatalog(){
-  const w=$('#catWrap');if(!w)return;const cat=catalogFor($('#f_proyecto')?.value);w.hidden=!cat;
+  const w=$('#catWrap');if(!w)return;
+  const gs=$('#f_catger');const col=editing?.col;
+  const unit=col==='proyectos'?$('#f_unidad')?.value:byId('proyectos',$('#f_proyecto')?.value)?.unidad;
+  if(gs&&!gs.dataset.touched){gs.value=editing?.r?.catalogoGer||defaultCatKey(unit)||''}
+  const key=gs?gs.value:'';const cat=key?CATALOGO[key]:null;
   const sel=$('#f_catalogo');const cur=editing?.r?.catalogo||'';
-  sel.innerHTML='<option value="">— Actividad libre (escribir abajo) —</option>'+(cat||[]).map(([g,its])=>`<optgroup label="${esc(g)}">${its.map(i=>`<option value="${esc(itx(i))}" ${itx(i)===cur?'selected':''}>${esc(itx(i))}</option>`).join('')}</optgroup>`).join('');
-  sel.disabled=readOnly;
+  sel.innerHTML='<option value="">'+(col==='proyectos'?'— Ninguna —':'— Actividad libre (escribir el nombre abajo) —')+'</option>'+(cat||[]).map(([g,its])=>`<optgroup label="${esc(g)}">${its.map(i=>`<option value="${esc(itx(i))}" ${itx(i)===cur?'selected':''}>${esc(itx(i))}</option>`).join('')}</optgroup>`).join('');
+  sel.disabled=readOnly||!cat;if(gs)gs.disabled=readOnly;
 }
 
 /* ===== Formulario ===== */
@@ -899,7 +1009,7 @@ let editing=null;
 function field([k,l,type,req,opts],r){
   const v=r[k]??'';const id='f_'+k;const rq=req?'required':'';const ro=readOnly?'disabled':'';
   let inp;
-  if(type==='catalog')return `<label class="full" for="f_catalogo" id="catWrap" hidden>${esc(l)}<select id="f_catalogo" name="catalogo"></select><span class="note" style="font-weight:400">Elige del catálogo para completar el nombre; puedes ajustarlo después.</span></label>`;
+  if(type==='catalog')return `<div class="full" id="catWrap" style="grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:10px"><label for="f_catger">Catálogo de<select id="f_catger" name="catalogoGer"><option value="">— Elegir gerencia —</option>${Object.keys(CATALOGO).map(k=>`<option value="${k}">${esc(CAT_NAMES[k]||k)}</option>`).join('')}</select></label><label for="f_catalogo">${esc(l)}<select id="f_catalogo" name="catalogo"></select><span class="note" style="font-weight:400">Elige del catálogo para completar el nombre; puedes ajustarlo después.</span></label></div>`;
   if(type==='periods')return `<div class="full" style="grid-column:1/-1;display:flex;flex-direction:column;gap:8px"><span style="font-size:.8rem;font-weight:500;color:var(--ink-2)">${esc(l)} — puede ejecutarse en varios intervalos del año</span><div id="periodsBox" style="display:flex;flex-direction:column;gap:8px"></div></div>`;
   if(type==='code')return `<label for="f_codigo">${esc(l)}<input id="f_codigo" value="${esc(v)}" readonly tabindex="-1" style="font-family:var(--mono);background:var(--paper)"></label>`;
   if(type==='text')inp=`<input id="${id}" name="${k}" value="${esc(v)}" ${rq} ${ro}>`;
@@ -926,9 +1036,11 @@ function openForm(col,id,defs){
   if(SCH[col].fields.some(f=>f[2]==='periods')){editing.r.periodos=periodsOf(r).map(x=>({...x}));if(!editing.r.periodos.length)editing.r.periodos=[{ini:'',fin:'',desc:''}];renderPeriods()}
   if(col==='proyectos'){const fu2=$('#f_unidad'),fc2=$('#f_codigo');const upd=()=>{const u=fu2.value;fc2.value=!u?'Elige la unidad':(id&&r.unidad===u&&r.codigo&&r.codigo.startsWith(unitPrefix(u)+'-'))?r.codigo:nextCode(u,id)};upd();fu2.addEventListener('change',upd)}
   if(col==='metas'){const fi=$('#f_indicador');const upd=()=>{const p=byId('proyectos',$('#f_proyecto')?.value);const list=p?INDICADORES[gerenciaOf(p.unidad)]||INDICADORES[p.unidad]:null;let dl=$('#indList');if(!dl){dl=document.createElement('datalist');dl.id='indList';document.body.appendChild(dl)}dl.innerHTML=(list||[]).map(x=>`<option value="${esc(x)}">`).join('');fi&&fi.setAttribute('list','indList')};upd();$('#f_proyecto')?.addEventListener('change',upd)}
-  if(col==='actividades'){updateCatalog();const fp=$('#f_proyecto');if(fp)fp.addEventListener('change',updateCatalog);const fc=$('#f_catalogo');if(fc)fc.addEventListener('change',e=>{if(!e.target.value)return;$('#f_nombre').value=e.target.value;const ev=evidOf(e.target.value,catalogFor($('#f_proyecto')?.value));const fe=$('#f_entregable');if(ev&&fe&&!fe.value)fe.value=ev})}
+  if(col==='actividades'||col==='proyectos'){updateCatalog();const gsel=$('#f_catger');if(gsel)gsel.addEventListener('change',()=>{gsel.dataset.touched='1';updateCatalog()});const fp=$(col==='proyectos'?'#f_unidad':'#f_proyecto');if(fp)fp.addEventListener('change',updateCatalog)}
+  if(col==='actividades'){const fc=$('#f_catalogo');if(fc)fc.addEventListener('change',e=>{if(!e.target.value)return;$('#f_nombre').value=e.target.value;const ev=evidOf(e.target.value,catalogFor($('#f_proyecto')?.value));const fe=$('#f_entregable');if(ev&&fe&&!fe.value)fe.value=ev})}
   const d=$('#dlgDel');d.hidden=!id||readOnly;d.textContent='Eliminar';d.dataset.arm='';
   $('#dlgSave').hidden=readOnly;
+  if(REQ_COLS.includes(col)){editing.r.requerimientos=(r.requerimientos||[]).map(x=>({...x}));$('#dlgBody').insertAdjacentHTML('beforeend',reqBlock());renderReq()}
   if(EV_COLS.includes(col)){editing.r.evidencias=[...(r.evidencias||[])];$('#dlgBody').insertAdjacentHTML('beforeend',evBlock());renderEv();const ef=$('#evFile');if(ef)ef.onchange=e=>{const fs=[...e.target.files];e.target.value='';if(fs.length)uploadEv(fs)}}
   $('#dlg').showModal();readOnly=ro0;$('#dlgSave').hidden=readOnly||lockP;$('#dlgDel').hidden=!id||readOnly||lockP;
 }
@@ -948,7 +1060,8 @@ $('#frm').addEventListener('submit',async e=>{
   if(col==='metas'&&o.tipo==='Porcentual'&&!o.medida)o.medida='%';
   if(col==='comisiones'&&o.cumplimiento!==''&&(o.cumplimiento<0||o.cumplimiento>100)){toast('El cumplimiento debe estar entre 0 y 100.');return}
   delete o._bud;delete o._ej;
-  if(col==='actividades'){const cat=catalogFor(o.proyecto);if(!cat)o.catalogo='';o.linea=o.catalogo?lineaOf(o.catalogo,cat):''}
+  if(REQ_COLS.includes(col)){o.requerimientos=(o.requerimientos||[]).filter(x=>(x.desc||'').trim()||n(x.pu)).map(x=>({desc:(x.desc||'').trim(),tipo:x.tipo||'',cant:x.cant===''?'':n(x.cant),um:(x.um||'').trim(),pu:x.pu===''?'':n(x.pu),...(x.atGer?{atGer:x.atGer}:{}),...(x.atFin?{atFin:x.atFin}:{})}))}
+  if(col==='actividades'||col==='proyectos'){const cat=o.catalogoGer?CATALOGO[o.catalogoGer]:null;if(!cat){o.catalogo='';o.catalogoGer=''}o.linea=o.catalogo?lineaOf(o.catalogo,cat):''}
   if(SCH[col].fields.some(f=>f[2]==='periods')){const ps=(o.periodos||[]).map(x=>({ini:x.ini||'',fin:x.fin||'',desc:(x.desc||'').trim()})).filter(x=>x.ini||x.fin);
     const bad=ps.find(x=>!x.ini||!x.fin||x.fin<x.ini);if(bad){toast(!bad.ini||!bad.fin?'Completa inicio y fin en cada periodo (o quita el periodo vacío).':'En un periodo la fecha de fin es anterior al inicio.');return}
     ps.sort((a,b)=>a.ini.localeCompare(b.ini));o.periodos=ps;o.inicio=ps[0]?.ini||'';o.fin=ps.length?ps.reduce((m,x)=>x.fin>m?x.fin:m,''):'';if(col==='tareas'||col==='comisiones')o.vence=o.fin}
@@ -1747,6 +1860,7 @@ function bindView(){
   if(tab==='users'&&canManage())bindUsers();
   if(tab==='cal')bindCal();
   if(tab==='ventas')bindVentas();
+  if(tab==='req')bindReqs();
   const lf=$('#loginF');if(lf){lf.onsubmit=doLogin;const lu=$('#lgUser');if(lu&&!lu.value)lu.focus()}
   const ba=$('#baGo');if(ba)ba.onclick=becomeAdmin;
   const l2=$('#lgOut2');if(l2)l2.onclick=logout;
