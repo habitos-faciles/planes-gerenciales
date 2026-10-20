@@ -263,6 +263,7 @@ const SCH={
   ['nombre','Nombre completo','text',1],['cargo','Cargo / puesto','text',1],['unidad','Unidad','unit',1],
   ['estado','Situación','sel',1,['Activo','Vacante','Proyectado','Cesado']],
   ['tipo','Modalidad','sel',0,['Planilla','Locación de servicios','Practicante','Temporal']],
+  ['condicion','Condición laboral','sel',0,['Empleado','Contratado']],
   ['fechaIngreso','Fecha de ingreso (real o proyectada)','date'],['remuneracion','Remuneración mensual (S/)','num'],
   ['dni','Documento / código interno','text'],['contacto','Teléfono o correo','text'],['obs','Observaciones (perfil requerido, motivo de la plaza)','area']]},
  proyectos:{t:'Proyectos/Iniciativas/Mejoras',one:'proyecto, iniciativa o mejora',fields:[
@@ -566,7 +567,7 @@ function render(){
 
 /* ===== Vista: listas ===== */
 const LISTCOLS={
- personal:r=>[['Nombre',`<strong>${esc(r.nombre)}</strong>${exTag(r)}<div class="note">${esc(r.cargo)}</div>`],['Unidad',`<span class="unit-tag">${esc(U[r.unidad]?.n||'—')}</span>`],['Situación',pillFor(r.estado)],['Modalidad',esc(r.tipo||'—')],['Ingreso',fdate(r.fechaIngreso)],...(isAdm()?[['Remuneración',money(r.remuneracion),'num'],['Documento',esc(r.dni||'—')],['Contacto',esc(r.contacto||'—')]]:[])],
+ personal:r=>[['Nombre',`<strong>${esc(r.nombre)}</strong>${exTag(r)}<div class="note">${esc(r.cargo)}</div>`],['Unidad',`<span class="unit-tag">${esc(U[r.unidad]?.n||'—')}</span>`],['Situación',pillFor(r.estado)],['Modalidad',esc(r.tipo||'—')],['Condición',esc(r.condicion||'—')],['Ingreso',fdate(r.fechaIngreso)],...(isAdm()?[['Remuneración',money(r.remuneracion),'num'],['Documento',esc(r.dni||'—')],['Contacto',esc(r.contacto||'—')]]:[])],
  proyectos:r=>{const av=proyAvance(r),ej=n(r._bud)?n(r._ej)/n(r._bud)*100:0;return [['Proyecto',`<strong>${esc(r.nombre)}</strong>${exTag(r)}<div class="note">${esc(r.codigo||'')} ${r.codigo?'·':''} ${esc(pname(r.responsable))}</div>`],['Unidad',`<span class="unit-tag">${esc(U[r.unidad]?.n||'—')}</span>`],['Estado',pillFor(r.estado)],['Periodos',periodsHTML(r,true)],['Avance',`${meter(av)}<div class="note">${pct(av)}</div>`],['Presupuesto',money(r._bud),'num'],['Ejecución',`${money(r._ej)}<div class="note">${pct(ej)}</div>`,'num']]},
  actividades:r=>{const p=byId('proyectos',r.proyecto),av=actAvance(r);return [['Actividad',`<strong>${esc(r.nombre)}</strong>${exTag(r)}<div class="note">${esc(p?.nombre||'Sin proyecto')}${r.linea?' · '+esc(r.linea):''}</div>`],['Responsable',esc(pname(r.responsable))],['Estado',pillFor(r.estado)],['Periodos',periodsHTML(r,true)],['Avance',`${meter(av)}<div class="note">${pct(av)}</div>`],['Presupuesto',money(r.presupuesto),'num'],['Ejecutado',money(r.ejecutado),'num']]},
  tareas:r=>{const a=byId('actividades',r.actividad);const late=r.vence&&r.vence<today()&&r.estado!=='Hecha';return [['Tarea',`<strong>${esc(r.nombre)}</strong>${exTag(r)}<div class="note">${esc(a?.nombre||'Sin actividad')}</div>`],['Responsable',esc(pname(r.responsable))],['Prioridad',pillFor(r.prioridad)],['Estado',pillFor(r.estado)],['Periodos',`${periodsHTML(r,true)}${late?' <span class="pill bad">Vencida</span>':''}`]]},
@@ -867,6 +868,32 @@ function viewDash(){
    ${prow.length?`<div style="display:flex;flex-direction:column;gap:10px">${prow.map(r=>`<div style="display:grid;grid-template-columns:minmax(0,190px) minmax(0,1fr) 34px;gap:10px;align-items:center"><span class="note" style="color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.g.n)}</span>${stackBar([{l:'Activo',v:r.a,c:'var(--ink)'},{l:'Vacante',v:r.v,c:'var(--yellow)'},{l:'Proyectado',v:r.p,c:'var(--magenta)'}])}<span style="font-family:var(--mono);text-align:right">${r.a+r.v+r.p}</span></div>`).join('')}</div>`:'<div class="empty">Sin personal registrado.</div>'}</div>
    <div class="panel"><h3>Tareas por estado</h3>${stackBar(tst.map(t=>({l:t.l,v:t.v,c:tcol[t.l]})))}<div style="display:flex;flex-direction:column;gap:6px">${tst.map(t=>`<div style="display:flex;justify-content:space-between;font-size:.86rem"><span class="legend"><span><i style="background:${tcol[t.l]}"></i>${t.l}</span></span><span style="font-family:var(--mono)">${t.v}</span></div>`).join('')}</div></div></div>`;
 
+  // Estadística del personal por unidad, modalidad y condición laboral
+  {const MOD=['Planilla','Locación de servicios','Practicante','Temporal'],CON=['Empleado','Contratado'];
+   const actv=pers.filter(r=>r.estado==='Activo');
+   const cnt=(rs)=>{const o={tot:rs.length,vac:0,pro:0};MOD.forEach(m=>o['m_'+m]=rs.filter(r=>r.tipo===m).length);o.m_sd=rs.filter(r=>!MOD.includes(r.tipo)).length;CON.forEach(c=>o['c_'+c]=rs.filter(r=>r.condicion===c).length);o.c_sd=rs.filter(r=>!CON.includes(r.condicion)).length;return o};
+   const own=id=>actv.filter(r=>r.unidad===id),ownAll=id=>pers.filter(r=>r.unidad===id);
+   const rowOf=(label,ids,cls,ind)=>{const o=cnt(actv.filter(r=>ids.includes(r.unidad)));const all=pers.filter(r=>ids.includes(r.unidad));o.vac=all.filter(r=>r.estado==='Vacante').length;o.pro=all.filter(r=>r.estado==='Proyectado').length;return {label,o,cls,ind}};
+   const groups=[...UNITS.filter(u=>u.t==='Gerencia'&&u.p==='GG').map(g=>({g,ids:desc(g.id)})),{g:U.GG,ids:['GG',...UNITS.filter(u=>u.p==='GG'&&u.t!=='Gerencia').flatMap(u=>desc(u.id))]}];
+   const rows=[];
+   groups.forEach(({g,ids})=>{const members=ids.filter(id=>ownAll(id).length);if(!members.length)return;
+     members.forEach(id=>rows.push(rowOf(U[id].n,[id],'',depth(id)>1?1:0)));
+     rows.push(rowOf(g.id==='GG'?'Total Gerencia General y unidades de apoyo':'Total '+g.n,ids,'vtot',0))});
+   const T=rowOf('TOTAL GENERAL',pers.map(r=>r.unidad),'vtot',0),tt=T.o.tot||0;
+   const pc=v=>tt?`<div class="note" style="margin:0">${(v/tt*100).toLocaleString('es-PE',{maximumFractionDigits:1})}%</div>`:'';
+   const cols=[['Activos','tot'],...MOD.map(m=>[m==='Locación de servicios'?'Locación':m,'m_'+m]),['Sin modalidad','m_sd'],...CON.map(c=>[c+'s','c_'+c]),['Sin condición','c_sd'],['Vacantes','vac'],['Proyectados','pro']];
+   const grpHead=`<tr><th></th><th></th><th colspan="${MOD.length+1}" style="text-align:center;border-bottom:1px solid var(--rule)">Modalidad</th><th colspan="3" style="text-align:center;border-bottom:1px solid var(--rule)">Contratado o empleado</th><th colspan="2" style="text-align:center;border-bottom:1px solid var(--rule)">Plazas</th></tr>`;
+   const cmpBar=(o)=>stackBar([{l:'Empleado',v:o['c_Empleado'],c:'var(--ink)'},{l:'Contratado',v:o['c_Contratado'],c:'var(--cyan)'},{l:'Sin condición',v:o.c_sd,c:'var(--rule)'}]);
+   if(pers.length){h+=`<div class="panel"><div class="bar"><h3>Estadística del personal por unidad</h3><div class="legend"><span><i style="background:var(--ink)"></i>Empleado</span><span><i style="background:var(--cyan)"></i>Contratado</span><span><i style="background:var(--rule)"></i>Sin condición</span></div></div>
+     <div class="note">Personal activo de cada unidad por modalidad y por condición (contratado o empleado). Las vacantes y plazas proyectadas van aparte y no se suman a los activos.${T.o.c_sd?` <b>${T.o.c_sd} de ${tt}</b> activos aún no tienen registrada la condición: complétala en la pestaña Personal (campo «Condición laboral»).`:''}</div>
+     <div class="kpis" style="margin:8px 0">
+      <div class="kpi"><span class="l">Personal activo</span><span class="v">${tt}</span><span class="s">${T.o.vac} vacantes · ${T.o.pro} proyectados</span></div>
+      <div class="kpi"><span class="l">Empleados</span><span class="v">${T.o['c_Empleado']}</span><span class="s">${tt?(T.o['c_Empleado']/tt*100).toLocaleString('es-PE',{maximumFractionDigits:1}):0}% de los activos</span></div>
+      <div class="kpi"><span class="l">Contratados</span><span class="v">${T.o['c_Contratado']}</span><span class="s">${tt?(T.o['c_Contratado']/tt*100).toLocaleString('es-PE',{maximumFractionDigits:1}):0}% de los activos</span></div>
+      <div class="kpi"><span class="l">Modalidad más común</span><span class="v" style="font-size:1.2rem">${(()=>{const b=MOD.map(m=>[m,T.o['m_'+m]]).sort((a,b)=>b[1]-a[1])[0];return b&&b[1]?esc(b[0]):'—'})()}</span><span class="s">${MOD.map(m=>`${m==='Locación de servicios'?'Locación':m}: ${T.o['m_'+m]}`).join(' · ')}</span></div></div>
+     <div class="tbl" style="border:0"><table><thead>${grpHead}<tr><th>Unidad</th>${cols.map(c=>`<th class="num">${c[0]}</th>`).join('')}<th style="min-width:110px">Empleado / contratado</th></tr></thead><tbody>
+     ${[...rows,T].map(r=>`<tr style="${r.cls?'font-weight:600;background:var(--paper)':''}"><td style="min-width:220px;white-space:normal;${r.ind?'padding-left:24px':''}">${esc(r.label)}</td>${cols.map(c=>`<td class="num">${r.o[c[1]]||(c[1]==='tot'?0:'—')}${r===T&&c[1]!=='vac'&&c[1]!=='pro'&&c[1]!=='tot'?pc(r.o[c[1]]):''}</td>`).join('')}<td>${r.o.tot?cmpBar(r.o):''}</td></tr>`).join('')}</tbody></table></div></div>`}}
+
   // Tabla de proyectos
   if(proy.length){h+=`<div class="panel"><h3>Cartera de proyectos</h3><div class="tbl" style="border:0"><table><thead><tr><th>Proyecto</th><th>Unidad</th><th>Estado</th><th>Avance</th><th class="num">Presupuesto</th><th class="num">Ejecutado</th><th>Metas</th><th>Riesgos</th></tr></thead><tbody>`;
    proy.slice().sort((a,b)=>(a.fin||'9').localeCompare(b.fin||'9')).forEach(p=>{const av=proyAvance(p),ms=S.metas.filter(m=>m.proyecto===p.id),ma=ms.length?ms.reduce((s,m)=>s+Math.min(100,metaAvance(m)),0)/ms.length:null,rs=S.riesgos.filter(r=>r.proyecto===p.id&&r.estado!=='Cerrado');
@@ -1098,6 +1125,7 @@ const IMP_COLS=[ // campo, etiqueta en plantilla, alias aceptados
  ['unidad','Unidad',['unidad','area','área','gerencia','jefatura','coordinacion','coordinación','dependencia']],
  ['estado','Situación',['situacion','situación','estado']],
  ['tipo','Modalidad',['modalidad','tipo','contrato','tipo de contrato']],
+ ['condicion','Condición laboral',['condicion','condición','condicion laboral','condición laboral','empleado o contratado','empleado/contratado']],
  ['fechaIngreso','Fecha de ingreso',['fecha de ingreso','fecha ingreso','ingreso','fecha']],
  ['remuneracion','Remuneración mensual',['remuneracion','remuneración','sueldo','remuneracion mensual','remuneración mensual','haber']],
  ['dni','Documento',['dni','documento','codigo','código','doc']],
@@ -1136,6 +1164,7 @@ function parseGrid(grid){
     const o={nombre:String(g('nombre')??'').trim(),cargo:String(g('cargo')??'').trim(),unidadTxt:String(g('unidad')??'').trim(),
       estado:matchOpt(g('estado'),['Activo','Vacante','Proyectado','Cesado'],'Activo'),
       tipo:matchOpt(g('tipo'),['Planilla','Locación de servicios','Practicante','Temporal'],''),
+      condicion:matchOpt(g('condicion'),['Empleado','Contratado'],''),
       fechaIngreso:toDate(g('fechaIngreso')),remuneracion:toNum(g('remuneracion')),
       dni:String(g('dni')??'').trim(),contacto:String(g('contacto')??'').trim(),obs:String(g('obs')??'').trim(),fila:i+2};
     if(!o.nombre&&o.cargo&&o.estado!=='Activo')o.nombre=o.cargo;
@@ -1190,7 +1219,7 @@ async function runImport(){
   try{
     for(const [i,r] of ok.entries()){
       const o={id:uid(),creado:new Date(base+i).toISOString(),actualizado:new Date().toISOString(),importado:true,
-        nombre:r.nombre,cargo:r.cargo,unidad:r.unidad||imp.defUnit,estado:r.estado,tipo:r.tipo,fechaIngreso:r.fechaIngreso,remuneracion:r.remuneracion,dni:r.dni,contacto:r.contacto,obs:r.obs};
+        nombre:r.nombre,cargo:r.cargo,unidad:r.unidad||imp.defUnit,estado:r.estado,tipo:r.tipo,condicion:r.condicion,fechaIngreso:r.fechaIngreso,remuneracion:r.remuneracion,dni:r.dni,contacto:r.contacto,obs:r.obs};
       await put('personal',o);imp.done=i+1;
       if(i%5===4){const s=$('#impGo');if(s)s.previousElementSibling.textContent=`Importando… ${imp.done} de ${ok.length}`}
     }
@@ -1200,7 +1229,7 @@ async function runImport(){
   render();
 }
 async function downloadTemplate(){
-  const csv=[IMP_COLS.map(c=>c[1]).join(';'),'María Pérez;Jefa de Prensa;Jefatura de Prensa;Activo;Planilla;15/03/2021;5200;12345678;999 888 777;','Diseñador gráfico;Diseñador gráfico;Jefatura de Diseño;Vacante;Planilla;01/12/2026;3800;;;Plaza por cubrir'].join('\r\n');
+  const csv=[IMP_COLS.map(c=>c[1]).join(';'),'María Pérez;Jefa de Prensa;Jefatura de Prensa;Activo;Planilla;Empleado;15/03/2021;5200;12345678;999 888 777;','Diseñador gráfico;Diseñador gráfico;Jefatura de Diseño;Vacante;Planilla;Contratado;01/12/2026;3800;;;Plaza por cubrir'].join('\r\n');
   if(!downloads){toast('La descarga no está disponible en esta vista. Usa estos encabezados: '+IMP_COLS.map(c=>c[1]).join(', '));return}
   try{await downloads.save({filename:'plantilla-personal.csv',data:'﻿'+csv,mimeType:'text/csv'})}catch(e){}
 }
