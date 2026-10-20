@@ -1238,6 +1238,8 @@ let CAP=[];
 let APT=[];
 let JV=[];
 let DIS=[];
+let MANT=[];
+let ADEN=[];
 const af={anio:null,corte:null,canal:'Todos'};
 const A_ORDEN=['Suscripciones UPN','Suscripciones UPS','Biblias','Libros ACES','Libro Misionero','Libro Didáctico - Educación','Plan Lector','Corporativo ACES','Materiales varios','Librería Móvil','Libros Safeliz','Matutinas','Libros Varios','Games Safeliz','Lecciones Inglés'];
 const aRank=c=>{if(c==='Todos')return 99;const i=A_ORDEN.indexOf(c);return i<0?50:i};
@@ -1314,7 +1316,7 @@ const vYearCol=(y,years)=>V_YCOL[(years.length-1-years.indexOf(y))%V_YCOL.length
 
 /* Vista */
 function vNav(hasV){
-  const items=[['rep-eiu','Ventas EIU',hasV],['rep-susc','Suscripciones',SUSC.length||canManage()],['rep-prod','Producción',PROD.length||canManage()],['rep-aces','Ventas ACES',ACES.length||canManage()],['rep-soma','SOMA',SOMA.length||canManage()],['rep-cap','Capellanía',CAP.length||canManage()],['rep-apt','APT',APT.length||canManage()],['rep-jv','Jefatura Ventas EIU',JV.length||canManage()],['rep-dis','Diseño',DIS.length||canManage()]];
+  const items=[['rep-eiu','Ventas EIU',hasV],['rep-susc','Suscripciones',SUSC.length||canManage()],['rep-prod','Producción',PROD.length||canManage()],['rep-aces','Ventas ACES',ACES.length||canManage()],['rep-soma','SOMA',SOMA.length||canManage()],['rep-cap','Capellanía',CAP.length||canManage()],['rep-apt','APT',APT.length||canManage()],['rep-jv','Jefatura Ventas EIU',JV.length||canManage()],['rep-dis','Diseño',DIS.length||canManage()],['rep-mant','Mantenimiento',MANT.length||canManage()],['rep-aden','ACES Denominacional',ADEN.length||canManage()]];
   return `<nav class="vnav" aria-label="Ir a un reporte">${items.map(([id,l,on])=>`<button type="button" class="vnav-b" data-goto="${id}" ${on?'':'disabled'}>${l}</button>`).join('')}</nav>`;
 }
 function viewVentas(){
@@ -1324,7 +1326,7 @@ function viewVentas(){
    <div class="right">${M.years.length?'<button class="btn" id="vCsv">Exportar CSV</button>':''}${adm?`<button class="btn ${vImp.open?'':'primary'}" id="vImpBtn" aria-pressed="${vImp.open}">${vImp.open?'Cerrar carga de datos':'Cargar o actualizar datos'}</button>`:''}</div></div>`;
   h+=vNav(M.years.length>0);
   if(adm&&vImp.open)h+=viewVImport(M);
-  if(!M.years.length)return h+`<div id="rep-eiu" class="rep-sec"></div><div class="panel empty"><strong>Aún no hay datos de ventas</strong>${adm?'Usa “Cargar o actualizar datos” para pegar el cuadro de AASINET o subir el archivo de datos.':'El administrador todavía no carga los reportes de ventas.'}</div>`+viewSusc()+viewProd()+viewAces()+viewSoma()+viewCap()+viewApt()+viewJv()+viewDis();
+  if(!M.years.length)return h+`<div id="rep-eiu" class="rep-sec"></div><div class="panel empty"><strong>Aún no hay datos de ventas</strong>${adm?'Usa “Cargar o actualizar datos” para pegar el cuadro de AASINET o subir el archivo de datos.':'El administrador todavía no carga los reportes de ventas.'}</div>`+viewSusc()+viewProd()+viewAces()+viewSoma()+viewCap()+viewApt()+viewJv()+viewDis()+viewMant()+viewAden();
   if(!M.years.includes(vf.anio)){vf.anio=M.years[M.years.length-1];vf.corte=null}
   if(!vf.corte)vf.corte=M.maxMes[vf.anio]||12;
   if(!['Todos',...M.canales].includes(vf.canal))vf.canal='Todos';
@@ -1404,7 +1406,7 @@ function viewVentas(){
   const st=rowsAll.map(k=>({k,s:vStats(M,y,c,k)})).filter(o=>o.s);
   h+=`<div class="panel"><h2 style="font-size:1.05rem">Estadísticos por canal · ${per}</h2><div class="note">Calculados sobre los meses de enero al mes de corte.</div>
    ${st.length?`<div class="tbl vt"><table><thead><tr><th>Canal</th><th class="num">Acumulado</th><th class="num">Part.</th><th class="num">Prom. mensual</th><th class="num">Mediana</th><th class="num">Desv. estándar</th><th class="num">Coef. variación</th><th class="num">Mes más alto</th><th>Mes</th><th class="num">Mes más bajo</th><th>Mes</th><th class="num">Var. vs ${y-1}</th></tr></thead><tbody>${st.map(({k,s})=>`<tr class="${k==='Todos'?'vtot':''}"><td>${esc(vLabel(k))}</td><td class="num">${vN(s.total)}</td><td class="num">${vP1(s.part)}</td><td class="num">${vN(s.prom)}</td><td class="num">${vN(s.med)}</td><td class="num">${vN(s.desv)}</td><td class="num">${vP1(s.cv)}</td><td class="num">${vN(s.max)}</td><td>${s.mesMax}</td><td class="num">${vN(s.min)}</td><td>${s.mesMin}</td><td class="num ${vCls(s.var)}">${vP(s.var)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="note">Sin datos para este periodo.</div>'}</div>`;
-  return h+viewSusc()+viewProd()+viewAces()+viewSoma()+viewCap()+viewApt()+viewJv()+viewDis();
+  return h+viewSusc()+viewProd()+viewAces()+viewSoma()+viewCap()+viewApt()+viewJv()+viewDis()+viewMant()+viewAden();
 }
 
 /* Carga de datos (solo administradores) */
@@ -1432,6 +1434,8 @@ function viewVImport(M){
   h+=`<div style="border-top:1px solid var(--rule);padding-top:12px;display:flex;flex-direction:column;gap:8px"><h3>Informe de APT</h3><div class="note">Sube el archivo del informe de APT (formato JSON). Si ya hay uno del mismo periodo, se reemplaza.${APT.length?` Cargados: ${APT.map(s=>`<b>${esc(s.periodo)}</b> <button class="link" data-apdel="${esc(s.id)}">Quitar</button>`).join(' · ')}`:''}</div><div><label class="btn" style="cursor:pointer">Subir informe de APT<input id="viApt" type="file" accept=".json,application/json" hidden></label></div></div>`;
   h+=`<div style="border-top:1px solid var(--rule);padding-top:12px;display:flex;flex-direction:column;gap:8px"><h3>Informe de la Jefatura de Ventas EIU</h3><div class="note">Sube el archivo del informe de la Jefatura de Ventas (formato JSON). Si ya hay uno del mismo periodo, se reemplaza.${JV.length?` Cargados: ${JV.map(s=>`<b>${esc(s.periodo)}</b> <button class="link" data-jvdel="${esc(s.id)}">Quitar</button>`).join(' · ')}`:''}</div><div><label class="btn" style="cursor:pointer">Subir informe de Jefatura de Ventas<input id="viJv" type="file" accept=".json,application/json" hidden></label></div></div>`;
   h+=`<div style="border-top:1px solid var(--rule);padding-top:12px;display:flex;flex-direction:column;gap:8px"><h3>Informe de Diseño y corrección</h3><div class="note">Sube el archivo del informe de Diseño (formato JSON). Si ya hay uno del mismo periodo, se reemplaza.${DIS.length?` Cargados: ${DIS.map(s=>`<b>${esc(s.periodo)}</b> <button class="link" data-disdel="${esc(s.id)}">Quitar</button>`).join(' · ')}`:''}</div><div><label class="btn" style="cursor:pointer">Subir informe de Diseño<input id="viDis" type="file" accept=".json,application/json" hidden></label></div></div>`;
+  h+=`<div style="border-top:1px solid var(--rule);padding-top:12px;display:flex;flex-direction:column;gap:8px"><h3>Informe de Mantenimiento</h3><div class="note">Sube el archivo del informe de Mantenimiento (formato JSON). Si ya hay uno del mismo periodo, se reemplaza.${MANT.length?` Cargados: ${MANT.map(s=>`<b>${esc(s.periodo)}</b> <button class="link" data-mtdel="${esc(s.id)}">Quitar</button>`).join(' · ')}`:''}</div><div><label class="btn" style="cursor:pointer">Subir informe de Mantenimiento<input id="viMant" type="file" accept=".json,application/json" hidden></label></div></div>`;
+  h+=`<div style="border-top:1px solid var(--rule);padding-top:12px;display:flex;flex-direction:column;gap:8px"><h3>Informe Denominacional ACES</h3><div class="note">Sube el archivo del informe Denominacional de ACES (formato JSON). Si ya hay uno del mismo periodo, se reemplaza.${ADEN.length?` Cargados: ${ADEN.map(s=>`<b>${esc(s.periodo)}</b> <button class="link" data-addel="${esc(s.id)}">Quitar</button>`).join(' · ')}`:''}</div><div><label class="btn" style="cursor:pointer">Subir informe Denominacional ACES<input id="viAden" type="file" accept=".json,application/json" hidden></label></div></div>`;
   if(M.years.length)h+=`<div class="note">Años cargados: ${M.years.map(x=>`<span style="display:inline-flex;gap:6px;align-items:center;margin-right:12px"><b>${x}</b> (a ${V_MESL[M.maxMes[x]-1]}) <button class="link" data-vdel="${x}">Quitar</button></span>`).join('')}</div>`;
   return h+'</div>';
 }
@@ -1665,25 +1669,35 @@ function vDiverge(el,rows){
 }
 
 /* ===== Informe de producción (imprenta) ===== */
+const prodDoc=()=>PROD.slice().sort((a,b)=>String(b.actualizado||'').localeCompare(String(a.actualizado||'')))[0];
 function viewProd(){
   if(!PROD.length)return canManage()?`<h3 id="rep-prod" class="rep-sec" style="margin-top:6px">INFORME DE PRODUCCIÓN</h3><div class="panel empty"><strong>Aún no hay informe de producción</strong>Súbelo desde “Cargar o actualizar datos”.</div>`:'';
-  const P=PROD.slice().sort((a,b)=>String(b.actualizado||'').localeCompare(String(a.actualizado||'')))[0];
-  const ms=P.mes.slice().sort((a,b)=>a.orden-b.orden),sum=k=>ms.reduce((a,m)=>a+(+m[k]||0),0);
+  const P=prodDoc();
+  const ms=P.mes.slice().sort((a,b)=>a.orden-b.orden),sum=k=>ms.reduce((a,m)=>a+(+m[k]||0),0),has=k=>ms.some(m=>m[k]!=null);
   const C=Array.isArray(P.comparativo)?P.comparativo:[],cy=[...new Set(C.map(r=>+r.anio))].sort(),nm=ms.length;
   const cper=y=>{const rs=C.filter(r=>+r.anio===y&&+r.orden<=nm);return rs.length?rs.reduce((a,r)=>a+ +r.trabajos,0):null};
   const cfull=y=>{const rs=C.filter(r=>+r.anio===y);return rs.length===12?rs.reduce((a,r)=>a+ +r.trabajos,0):null};
   const ylast=cy[cy.length-1],yprev=cy[cy.length-2],vprev=ylast&&yprev?vVar(cper(ylast),cper(yprev)):null;
   const cmpTxt=yprev?` · <span class="${vCls(vprev)}">${vP(vprev)}</span> vs ${V_MES[0]}–${V_MES[nm-1]} ${yprev} (${sN(cper(yprev))})`:'';
   const tr=sum('trabajos'),mx=ms.reduce((m,r)=>+r.trabajos>+m.trabajos?r:m,ms[0]),mn=ms.reduce((m,r)=>+r.trabajos<+m.trabajos?r:m,ms[0]);
+  const T=P.terceros||null,Q=P.calidad||null,li=a=>`<ul class="note" style="margin:0;padding-left:1.1em;line-height:1.6">${(a||[]).map(x=>`<li>${x}</li>`).join('')}</ul>`;
+  const tT=T?T.mes.reduce((a,r)=>a+ +r.trabajos,0):0,tTc=T?T.mes.filter(r=>!r.parcial).reduce((a,r)=>a+ +r.trabajos,0):0;
+  const qj=Q?Q.jobs.slice().sort((a,b)=>a.orden-b.orden):[],pb=r=>r&&(+r.buenos+ +r.corregidos)?r.buenos/(+r.buenos+ +r.corregidos):null;
+  const hbar=(rs,note,title,wrap)=>{rs=(rs||[]).filter(r=>+r.trabajos>0).slice().sort((a,b)=>b.trabajos-a.trabajos);if(!rs.length)return '';const t=rs.reduce((a,r)=>a+ +r.trabajos,0),m2=rs[0].trabajos;
+    return `<div class="panel"><h2 style="font-size:1.05rem">${title}</h2><div class="note">${note}</div><div class="vbars${wrap?' vwrap':''}">${rs.map((r,i)=>`<div class="vbar"><span${wrap?'':' style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"'}>${esc(r.nombre)}</span><div class="t"><b style="width:${r.trabajos/m2*100}%;background:${i<3?'var(--cyan)':'var(--ink-2)'};opacity:${i<3?1:.45}"></b></div><span class="val">${sN(+r.trabajos)} · ${vP1(r.trabajos/t)}</span></div>`).join('')}</div></div>`};
   let h=`<h3 id="rep-prod" class="rep-sec" style="margin-top:6px">INFORME DE PRODUCCIÓN</h3>
-   <p class="vlead">Trabajos entregados por la imprenta y cuánto se debería facturar según la producción, ${esc(String(P.periodo).toLowerCase())}. Fuente: ${esc(P.fuente||'Producción')}. Montos en soles.</p>
+   <p class="vlead">Trabajos entregados por la imprenta, avance de cada área, producción para terceros y control de calidad, ${esc(String(P.periodo).toLowerCase())}.${P.gerente?` Gerente de Producción: ${esc(P.gerente)}.`:''} Fuente: ${esc(P.fuente||'Producción')}.</p>
    <div class="kpis">
     <div class="kpi"><span class="l">Trabajos entregados</span><span class="v">${sN(tr)}</span><span class="s">Promedio mensual: ${(tr/ms.length).toLocaleString('es-PE',{maximumFractionDigits:1})}${cmpTxt}</span></div>
     <div class="kpi"><span class="l">Mes con más trabajos</span><span class="v">${sN(+mx.trabajos)} en ${esc(mx.mes.toLowerCase())}</span><span class="s">Mínimo: ${sN(+mn.trabajos)} en ${esc(mn.mes.toLowerCase())}</span></div>
-    <div class="kpi"><span class="l">Facturación según producción</span><span class="v">${vM(sum('monto_principal'))}</span><span class="s">Monto principal</span></div>
-    <div class="kpi"><span class="l">RRPP</span><span class="v">${vS(sum('rrpp'))}</span><span class="s">Reposición: ${vS(sum('reposicion'))}</span></div></div>
-   <div class="grid2"><div class="panel"><h2 style="font-size:1.05rem">Trabajos entregados por mes</h2><div class="vchart" id="vpTrab"></div></div>
-    <div class="panel"><h2 style="font-size:1.05rem">Facturación según producción por mes</h2><div class="legend"><span><i style="background:var(--cyan)"></i>Monto principal</span><span><i style="background:#b9bec8"></i>RRPP</span></div><div class="vchart" id="vpFact"></div></div></div>`;
+    ${has('preprensa')?`<div class="kpi"><span class="l">Trabajos por área (Asana)</span><span class="v">${sN(sum('preprensa'))} · ${sN(sum('prensa'))}</span><span class="s">Pre prensa · Prensa</span></div>`:''}
+    ${T?`<div class="kpi"><span class="l">Producción terceros</span><span class="v">${sN(tT)}</span><span class="s">${tT!==tTc?`Ene–Set: ${sN(tTc)} (incluye octubre en curso)`:''}</span></div>`:''}
+    <div class="kpi"><span class="l">RRPP</span><span class="v">${vS(P.rrpp_total!=null?P.rrpp_total:sum('rrpp'))}</span><span class="s">${P.rrpp_cantidad?`${sN(P.rrpp_cantidad)} trabajos con RRPP`:''}</span></div>
+    ${qj.length?`<div class="kpi"><span class="l">JOBs revisados sin corrección</span><span class="v">${vP1(pb(qj[qj.length-1]))}</span><span class="s">En ${esc(qj[qj.length-1].mes.toLowerCase())}; en ${esc(qj[0].mes.toLowerCase())} era ${vP1(pb(qj[0]))}</span></div>`:''}</div>
+   <div class="grid2"><div class="panel"><h2 style="font-size:1.05rem">Trabajos entregados por mes</h2><div class="note">Trabajos terminados y entregados por la imprenta cada mes.</div><div class="vchart" id="vpTrab"></div></div>
+    <div class="panel"><h2 style="font-size:1.05rem">RRPP por mes</h2><div class="note">Monto de los trabajos con RRPP de cada mes, en soles.</div><div class="vchart" id="vpRrpp"></div></div></div>`;
+  if(has('preprensa'))h+=`<div class="panel"><h2 style="font-size:1.05rem">Trabajos por área y mes</h2><div class="note">Pre prensa y Prensa cuentan los trabajos de su propio proceso (fuente Asana); Entregados son los trabajos terminados de la imprenta.</div><div class="legend"><span><i style="background:var(--cyan)"></i>Pre prensa</span><span><i style="background:#2b3f63"></i>Prensa</span><span><i style="background:#b9bec8"></i>Entregados</span></div><div class="vchart" id="vpAreas"></div>
+     <div class="tbl vt" style="margin-top:10px"><table><thead><tr><th>Área</th>${ms.map(m=>`<th class="num">${esc(m.mes)}</th>`).join('')}<th class="num">Total</th></tr></thead><tbody>${[['Pre prensa','preprensa'],['Prensa','prensa'],['Entregados','trabajos']].map(([l,k])=>`<tr class="${k==='trabajos'?'vtot':''}"><td>${l}</td>${ms.map(m=>`<td class="num">${sN(+m[k])}</td>`).join('')}<td class="num">${sN(sum(k))}</td></tr>`).join('')}</tbody></table></div></div>`;
   if(cy.length){
     const ylg=[...cy].reverse().map(y=>`<span style="${y===ylast?'font-weight:600;color:var(--ink)':''}"><i style="background:${vYearCol(y,cy)}"></i>${y}</span>`).join('');
     h+=`<div class="grid2"><div class="panel"><h2 style="font-size:1.05rem">Trabajos por mes, ${cy[0]}–${ylast}</h2><div class="note">Cada línea es un año; ${ylast} va resaltado.</div><div class="legend">${ylg}</div><div class="vchart" id="vpComp"></div></div>
@@ -1692,18 +1706,26 @@ function viewProd(){
     h+=`<div class="panel"><h2 style="font-size:1.05rem">CANTIDAD DE TRABAJOS POR MES ${cy[0]}–${ylast}</h2><div class="note">Cantidad de trabajos por mes, como en la hoja de comparativos. La fila "TOTAL del Excel" suma de enero a octubre en los años anteriores, y en ${ylast} llega hasta ${V_MESL[nm-1]}; para comparar en el mismo periodo se usa ${V_MESL[0]}–${V_MESL[nm-1]}. También se muestra el año completo.</div>
      <div class="tbl vt"><table><thead><tr><th>Mes</th>${cy.map((y,i)=>`<th class="num">${y}</th>${i?`<th class="num">Var. ${String(y).slice(2)}/${String(cy[i-1]).slice(2)}</th>`:''}`).join('')}</tr></thead><tbody>${V_MES.map((m,j)=>`<tr><td>${m}</td>${cy.map((y,i)=>{const r=C.find(x=>+x.anio===y&&+x.orden===j+1),a=r?+r.trabajos:null;let td=`<td class="num">${a==null?'—':sN(a)}</td>`;if(i){const rp=C.find(x=>+x.anio===cy[i-1]&&+x.orden===j+1),v=a!=null&&rp?vVar(a,+rp.trabajos):null;td+=`<td class="num ${vCls(v)}">${vP(v)}</td>`}return td}).join('')}</tr>`).join('')}
      <tr class="vtot"><td>TOTAL del Excel (enero–octubre)</td>${cy.map((y,i)=>`<td class="num">${sN(C.filter(r=>+r.anio===y&&+r.orden<=10).reduce((a,r)=>a+ +r.trabajos,0))}</td>${i?'<td class="num"></td>':''}`).join('')}</tr>
-     ${[[`${per}`,cper],['Año completo',cfull]].map(([lbl,f],k)=>`<tr class="vtot"><td>${lbl}</td>${cy.map((y,i)=>{const a=f(y);let td=`<td class="num">${a==null?'—':sN(a)}</td>`;if(i){const v=vVar(a,f(cy[i-1]));td+=`<td class="num ${vCls(v)}">${vP(v)}</td>`}return td}).join('')}</tr>`).join('')}</tbody></table></div></div>`;
+     ${[[`${per}`,cper],['Año completo',cfull]].map(([lbl,f])=>`<tr class="vtot"><td>${lbl}</td>${cy.map((y,i)=>{const a=f(y);let td=`<td class="num">${a==null?'—':sN(a)}</td>`;if(i){const v=vVar(a,f(cy[i-1]));td+=`<td class="num ${vCls(v)}">${vP(v)}</td>`}return td}).join('')}</tr>`).join('')}</tbody></table></div></div>`;
   }
-  if(Array.isArray(P.clientes_mes)&&P.clientes_mes.length){const cl=[...new Set(P.clientes_mes.map(r=>r.cliente))],mm=[...new Set(P.clientes_mes.map(r=>r.mes))];
-    h+=`<div class="panel"><h2 style="font-size:1.05rem">Trabajos por mes de ${cl.join(', ')}</h2><div class="note">Cuadros auxiliares del Excel, de enero a octubre. Solo el de UPeU indica el año (2025).</div><div class="tbl vt"><table><thead><tr><th>Mes</th>${cl.map(c=>`<th class="num">${esc(c)}${c==='UPeU'?' (2025)':''}</th>`).join('')}</tr></thead><tbody>${mm.map(m=>`<tr><td>${esc(m)}</td>${cl.map(c=>{const r=P.clientes_mes.find(x=>x.cliente===c&&x.mes===m);return `<td class="num">${r?sN(+r.trabajos):'—'}</td>`}).join('')}</tr>`).join('')}<tr class="vtot"><td>Total</td>${cl.map(c=>`<td class="num">${sN(P.clientes_mes.filter(r=>r.cliente===c).reduce((a,r)=>a+ +r.trabajos,0))}</td>`).join('')}</tr></tbody></table></div></div>`}
-  const campos=[...new Set(P.facturacion_campo.map(r=>r.campo))],fv=(m,c)=>{const r=P.facturacion_campo.find(x=>x.mes===m&&x.campo===c);return r?+r.monto:0};
-  const fila=(lbl,vals,sc,mp,tot)=>`<tr class="${tot?'vtot':''}"><td>${esc(lbl)}</td>${vals.map(v=>`<td class="num">${vN(v)}</td>`).join('')}<td class="num">${vN(sc)}</td><td class="num">${vN(mp)}</td><td class="num">${vN(mp-sc)}</td></tr>`;
-  const tv=campos.map(c=>ms.reduce((a,m)=>a+fv(m.mes,c),0));
-  h+=`<div class="panel"><h2 style="font-size:1.05rem">Facturación según producción por campo</h2><div class="note">Soles. La suma de los campos queda por debajo del monto principal; "Sin asignar" muestra esa diferencia, que el Excel no reparte por campo.</div>
-   <div class="tbl vt"><table><thead><tr><th>Mes</th>${campos.map(c=>`<th class="num">${esc(c)}</th>`).join('')}<th class="num">Suma de campos</th><th class="num">Monto principal</th><th class="num">Sin asignar</th></tr></thead><tbody>${ms.map(m=>{const vs=campos.map(c=>fv(m.mes,c));return fila(m.mes,vs,vs.reduce((a,b)=>a+b,0),+m.monto_principal)}).join('')}${fila('Total',tv,tv.reduce((a,b)=>a+b,0),sum('monto_principal'),1)}</tbody></table></div></div>`;
-  const bars=(cat,title,note)=>{const rs=P.categorias.filter(r=>r.categoria===cat&&+r.trabajos>0).sort((a,b)=>b.trabajos-a.trabajos);if(!rs.length)return '';const t=rs.reduce((a,r)=>a+ +r.trabajos,0),mx2=rs[0].trabajos;
-    return `<div class="panel"><h2 style="font-size:1.05rem">${title}</h2><div class="note">${note}</div><div class="vbars">${rs.map((r,i)=>`<div class="vbar"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.nombre)}</span><div class="t"><b style="width:${r.trabajos/mx2*100}%;background:${i<3?'var(--cyan)':'var(--ink-2)'};opacity:${i<3?1:.45}"></b></div><span class="val">${sN(+r.trabajos)} · ${vP1(r.trabajos/t)}</span></div>`).join('')}</div></div>`};
-  h+=`<div class="grid2">${bars('Campo','Trabajos por campo','Cantidad de trabajos y su peso en el total.')}${bars('Cliente agrupado','Trabajos por cliente','Clientes agrupados como en el Excel; UPS aparece en dos filas.')}${bars('Departamento','Trabajos por departamento','Cantidad de trabajos y su peso en el total.')}${bars('Evento','Trabajos por evento','Cantidad de trabajos y su peso en el total.')}</div>${bars('Clasificación','Trabajos por clasificación','Tipo de pieza impresa.')}`;
+  const cat=c=>(P.categorias||[]).filter(r=>r.categoria===c);
+  h+=`<h3 style="margin-top:6px">Trabajos entregados por campo, cliente, departamento, evento y clasificación</h3><div class="grid2">${hbar(cat('Campo'),'Cantidad de trabajos y su peso en el total.','Trabajos por campo')}${hbar(cat('Cliente agrupado'),'Clientes agrupados como en el informe; UPS aparece en dos filas.','Trabajos por cliente')}${hbar(cat('Departamento'),'Cantidad de trabajos y su peso en el total.','Trabajos por departamento')}${hbar(cat('Evento'),'Cantidad de trabajos y su peso en el total.','Trabajos por evento')}</div>${hbar(cat('Clasificación'),'Tipo de pieza impresa.','Trabajos por clasificación')}`;
+  if(T){h+=`<h3 style="margin-top:6px">Producción terceros</h3>
+    <div class="grid2"><div class="panel"><h2 style="font-size:1.05rem">Trabajos para terceros por mes</h2><div class="note">${tT!==tTc?'El último mes (en gris) está en curso.':''}</div><div class="vchart" id="vpTerMes"></div></div>${hbar(T.distribucion,`Total: ${sN(tT)} trabajos.`,'Distribución de trabajos para terceros')}</div>
+    <div class="grid2">${hbar(T.campos_iglesia,'Sin contar universidades e institutos.','Terceros por campo de iglesia y cliente',1)}${hbar(T.clasificacion,'Tipo de pieza. Los certificados son más de un tercio.','Terceros por clasificación')}</div>
+    ${hbar(T.universidades,`${sN((T.universidades||[]).length)} universidades e institutos.`,'Terceros: universidades e institutos',1)}`}
+  if(Q){const pl=Q.plotters.slice().sort((a,b)=>a.orden-b.orden),rs=Q.responsables.slice().sort((a,b)=>a.orden-b.orden);
+    h+=`<h3 style="margin-top:6px">Control de calidad</h3>
+    <div class="grid2"><div class="panel"><h2 style="font-size:1.05rem">Primer control: revisión de plotters</h2><div class="note">Plotters con visto bueno y observados (no pasan) en la primera revisión.</div><div class="legend"><span><i style="background:var(--cyan)"></i>Visto bueno</span><span><i style="background:#d1435b"></i>No pasa</span></div><div class="vchart" id="vpPlot"></div></div>
+     <div class="panel"><h2 style="font-size:1.05rem">Revisión de hojas de JOB</h2><div class="note">Hojas de JOB buenas y corregidas cada mes. Las correcciones bajaron de ${vP1(1-pb(qj[0]))} en ${esc(qj[0].mes.toLowerCase())} a ${vP1(1-pb(qj[qj.length-1]))} en ${esc(qj[qj.length-1].mes.toLowerCase())}.</div><div class="legend"><span><i style="background:var(--cyan)"></i>Buenos</span><span><i style="background:#d1435b"></i>Corregidos</span></div><div class="vchart" id="vpJobs"></div></div></div>
+    <div class="panel"><h2 style="font-size:1.05rem">Control de calidad por mes</h2><div class="note">Responsables de los JOBs con errores: asesor, asesor y costos, o costos.</div>
+     <div class="tbl vt"><table><thead><tr><th>Mes</th><th class="num">Plotters visto bueno</th><th class="num">Plotters no pasa</th><th class="num">JOBs buenos</th><th class="num">JOBs corregidos</th><th class="num">% buenos</th><th class="num">Error: asesor</th><th class="num">Error: asesor y costos</th><th class="num">Error: costos</th></tr></thead><tbody>${pl.map((p,i)=>{const j=qj[i]||{},r=rs[i]||{};return `<tr><td>${esc(p.mes)}</td><td class="num">${sN(p.visto_bueno)}</td><td class="num">${sN(p.no_pasa)}</td><td class="num">${sN(j.buenos)}</td><td class="num">${sN(j.corregidos)}</td><td class="num">${vP1(pb(j))}</td><td class="num">${sN(r.asesor)}</td><td class="num">${sN(r.asesor_costos)}</td><td class="num">${sN(r.costos)}</td></tr>`}).join('')}
+     <tr class="vtot"><td>Total</td>${[pl.reduce((a,p)=>a+p.visto_bueno,0),pl.reduce((a,p)=>a+p.no_pasa,0),qj.reduce((a,p)=>a+p.buenos,0),qj.reduce((a,p)=>a+p.corregidos,0)].map(v=>`<td class="num">${sN(v)}</td>`).join('')}<td class="num">${vP1(qj.reduce((a,p)=>a+p.buenos,0)/qj.reduce((a,p)=>a+p.buenos+p.corregidos,0))}</td>${['asesor','asesor_costos','costos'].map(k=>`<td class="num">${sN(rs.reduce((a,r)=>a+ +r[k],0))}</td>`).join('')}</tr></tbody></table></div></div>`}
+  if((P.areas||[]).length){h+=`<h3 style="margin-top:6px">Avances y requerimientos por área</h3><div class="grid2">${P.areas.filter(a=>(a.avances||[]).length||(a.requerimientos||[]).length).map(a=>`<div class="panel"><h2 style="font-size:1.05rem">${esc(a.area)}</h2><div class="note">${esc(a.responsable||'')}${(a.maquinas||[]).length?` · Máquinas: ${a.maquinas.map(esc).join(', ')}`:''}</div>${(a.avances||[]).length?`<b style="font-size:.85rem">Avances y resultados</b>${li(a.avances.map(esc))}`:''}${(a.requerimientos||[]).length?`<b style="font-size:.85rem;margin-top:8px">Requerimientos</b>${a.requerimientos.map(g=>`${g.grupo?`<div class="note" style="margin:4px 0 0"><b>${esc(g.grupo)}</b></div>`:''}${li(g.items.map(esc))}`).join('')}`:''}</div>`).join('')}</div>`}
+  if((P.organizacion||[]).length)h+=`<div class="panel"><h2 style="font-size:1.05rem">Organización del área de Producción</h2>${li(P.organizacion.map(o=>`<b>${esc(o.cargo)}:</b> ${esc(o.nombre)}`))}</div>`;
+  if((P.guias||[]).length)h+=`<div class="panel"><h2 style="font-size:1.05rem">Guías de estudio 2026–2027: calendario</h2><div class="note">Las Uniones entregan las cartas de presidentes (Unión Sur y Norte) y la publicidad de departamentos (Unión Sur, Norte y ACES); luego se autoriza la impresión y Producción entrega a APT para su distribución.</div><div class="tbl vt"><table><thead><tr><th>Trimestre</th><th>Cartas y publicidad</th><th>Autorización para impresión</th><th>Entrega de Producción a APT</th></tr></thead><tbody>${P.guias.map(g=>`<tr><td>${esc(g.trimestre)}</td><td>${esc(g.desde)}</td><td>${esc(g.autorizacion)}</td><td>${esc(g.entrega_apt)}</td></tr>`).join('')}</tbody></table></div></div>`;
+  if(P.resultados||P.proyeccion)h+=`<div class="panel"><h2 style="font-size:1.05rem">Informe de gestión enero–setiembre 2026</h2>${li([P.resultados?`<b>Resultados:</b> ${esc(P.resultados)}`:'',P.proyeccion?`<b>Proyección:</b> ${esc(P.proyeccion)}`:''].filter(Boolean))}</div>`;
+  if((P.notas||[]).length)h+=`<div class="panel"><h2 style="font-size:1.05rem">Notas sobre el informe de producción</h2>${li(P.notas.map(esc))}</div>`;
   return h;
 }
 
@@ -1980,9 +2002,91 @@ function viewDis(){
   return h;
 }
 
+/* ===== Informe de Mantenimiento ===== */
+const mantDoc=()=>MANT.slice().sort((a,b)=>String(b.actualizado||'').localeCompare(String(a.actualizado||'')))[0];
+function viewMant(){
+  const d=mantDoc();
+  if(!d)return canManage()?`<h3 id="rep-mant" class="rep-sec" style="margin-top:6px">INFORME MANTENIMIENTO</h3><div class="panel empty"><strong>Aún no hay informe de Mantenimiento</strong>Súbelo desde “Cargar o actualizar datos”.</div>`:'';
+  const li=a=>`<ul class="note" style="margin:0;padding-left:1.1em;line-height:1.6">${(a||[]).map(x=>`<li>${x}</li>`).join('')}</ul>`;
+  const bl=d.bloques||[],tb=bl.reduce((a,b)=>a+ +b.trabajos,0),ms=(d.mes||[]).slice().sort((a,b)=>a.orden-b.orden);
+  const mx=ms.reduce((m,r)=>+r.trabajos>+m.trabajos?r:m,ms[0]||{}),mq=d.maquinas||[],s=k=>mq.reduce((a,r)=>a+ +r[k],0);
+  const tc=s('correctivo'),tp=s('preventivo'),tn=s('no_especificado'),tm=tc+tp+tn;
+  const ht=(d.herramientas||[]).reduce((a,r)=>a+ +r.precio,0);
+  const tbl=(cols,rows)=>`<div class="tbl vt"><table><thead><tr>${cols.map(c=>`<th${c[2]?' class="num"':''}>${c[0]}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${cols.map(c=>`<td${c[2]?' class="num"':' style="white-space:normal"'}>${c[1](r)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+  const bars=(rows,fmt)=>{const m2=Math.max(...rows.map(r=>r.v))||1,t=rows.reduce((a,r)=>a+r.v,0);return `<div class="vbars">${rows.map((r,i)=>`<div class="vbar"><span>${esc(r.n)}</span><div class="t"><b style="width:${r.v/m2*100}%;background:${r.c||'var(--cyan)'}"></b></div><span class="val">${sN(r.v)} · ${vP1(t?r.v/t:null)}</span></div>`).join('')}</div>`};
+  let h=`<h2 id="rep-mant" class="rep-sec" style="margin-top:14px">INFORME MANTENIMIENTO</h2>
+   <p class="vlead">Área de Mantenimiento, ${esc(String(d.periodo||'').toLowerCase())}: trabajos por bloque, mes y máquina, tipo de mantenimiento, recurrencias y requerimientos. Responsable: ${esc(d.responsable||'')}. Fuente: ${esc(d.fuente||'')}.</p>
+   <div class="kpis">
+    <div class="kpi"><span class="l">Trabajos · ${esc(d.periodo||'')}</span><span class="v">${sN(tb)}</span><span class="s">${bl.map(b=>`${esc(b.bloque)}: ${sN(b.trabajos)}`).join(' · ')}</span></div>
+    <div class="kpi"><span class="l">Mes con más trabajos</span><span class="v">${sN(+mx.trabajos)} en ${esc(String(mx.mes||'').toLowerCase())}</span><span class="s">Meses sin trabajos: ${ms.filter(m=>!+m.trabajos).map(m=>esc(m.mes.toLowerCase())).join(', ')||'ninguno'}</span></div>
+    <div class="kpi"><span class="l">Correctivos en máquinas EIU</span><span class="v v-down">${sN(tc)} de ${sN(tm)}</span><span class="s">${vP1(tm?tc/tm:null)} · preventivos: ${sN(tp)} · sin especificar: ${sN(tn)}</span></div>
+    <div class="kpi"><span class="l">Encuadernadora Pantera</span><span class="v">${sN((d.pantera||[]).length)} intervenciones</span><span class="s">${vP1(tm?(d.pantera||[]).length/tm:null)} de los trabajos en máquinas EIU${d.piezas_lima?` · ${d.piezas_lima} envíos de piezas a Lima`:''}</span></div></div>
+   <div class="grid2"><div class="panel"><h2 style="font-size:1.05rem">Trabajos registrados por mes</h2><div class="note">Cantidad de trabajos de mantenimiento cada mes.</div><div class="vchart" id="vmMes"></div></div>
+    <div class="panel"><h2 style="font-size:1.05rem">Distribución de la carga por bloque</h2><div class="note">${sN(tb)} trabajos en ${ms.length} meses.</div>${bars(bl.map((b,i)=>({n:b.bloque,v:+b.trabajos,c:['var(--cyan)','#e8a33d','#2b3f63'][i%3]})))}
+     <h2 style="font-size:1.05rem;margin-top:14px">Tipos de mantenimiento en máquinas EIU</h2>${bars([{n:'Correctivo',v:tc,c:'#d1435b'},{n:'Preventivo',v:tp,c:'var(--cyan)'},{n:'No especificado',v:tn,c:'#b9bec8'}])}</div></div>
+   <div class="panel"><h2 style="font-size:1.05rem">Máquinas EIU: intervenciones por equipo</h2><div class="note">Líneas y máquinas de posprensa. ${d.piezas_lima?`${d.piezas_lima} intervenciones requirieron enviar piezas a talleres externos en Lima.`:''}</div>
+    <div class="legend"><span><i style="background:#d1435b"></i>Correctivo</span><span><i style="background:var(--cyan)"></i>Preventivo</span><span><i style="background:#b9bec8"></i>No especificado</span></div><div class="vchart" id="vmMaq"></div>
+    ${tbl([['Línea / máquina',r=>esc(r.maquina)],['Correctivo',r=>sN(r.correctivo),1],['Preventivo',r=>sN(r.preventivo),1],['No especificado',r=>sN(r.no_especificado),1],['Total',r=>sN(+r.correctivo+ +r.preventivo+ +r.no_especificado),1]],mq).replace('</tbody>',`<tr class="vtot"><td>Total de intervenciones</td><td class="num">${sN(tc)}</td><td class="num">${sN(tp)}</td><td class="num">${sN(tn)}</td><td class="num">${sN(tm)}</td></tr></tbody>`)}</div>
+   <div class="panel"><h2 style="font-size:1.05rem">Encuadernadora Pantera: registro de intervenciones</h2><div class="note">7 en febrero y 8 desde mayo.</div>${tbl([['Fecha',r=>esc(r.fecha)],['Trabajo realizado',r=>esc(r.trabajo)],['Tipo',r=>`<span class="${r.tipo==='Correctivo'?'v-down':r.tipo==='Preventivo'?'v-up':''}">${esc(r.tipo)}</span>`]],d.pantera||[])}</div>
+   <div class="grid2"><div class="panel"><h2 style="font-size:1.05rem">Otros trabajos de agosto</h2><div class="note">Todos fueron correctivos.</div>${tbl([['Fecha',r=>esc(r.fecha)],['Equipo',r=>esc(r.equipo)],['Trabajo',r=>esc(r.trabajo)],['Bloque',r=>esc(r.bloque)]],d.agosto_otros||[])}</div>
+    <div class="panel"><h2 style="font-size:1.05rem">Soporte para ACES</h2><div class="note">${vP1(tb?(d.aces||[]).length/tb:null)} del esfuerzo del equipo fue apoyo fuera de planta e infraestructura institucional.</div>${tbl([['Fecha',r=>esc(r.fecha)],['Lugar',r=>esc(r.lugar)],['Trabajo',r=>esc(r.trabajo)]],d.aces||[])}</div></div>
+   <div class="panel"><h2 style="font-size:1.05rem">Iluminación, instalaciones y equipos auxiliares</h2><div class="note">Trabajos del bloque «Otros mantenimientos».</div>${tbl([['Fecha',r=>esc(r.fecha)],['Categoría',r=>esc(r.categoria)],['Área beneficiaria',r=>esc(r.area)],['Intervención',r=>esc(r.trabajo)]],d.instalaciones||[])}</div>
+   <div class="grid2"><div class="panel"><h2 style="font-size:1.05rem">Recurrencias a vigilar</h2>${li((d.recurrencias||[]).map(r=>`<b>${esc(r.equipo)} (${sN(r.valor)}):</b> ${esc(r.detalle)}`))}</div>
+    <div class="panel"><h2 style="font-size:1.05rem">Causas de fallas repetitivas en la Pantera</h2>${li((d.causas_pantera||[]).map(c=>`<b>${esc(c.grupo)}:</b> ${c.causas.map(esc).join('; ')}`))}</div></div>
+   <div class="panel"><h2 style="font-size:1.05rem">Recomendación: renovar equipos</h2>${li((d.recomendacion||[]).map(esc))}</div>
+   <div class="panel"><h2 style="font-size:1.05rem">Requerimientos</h2>
+    ${(d.cotizaciones||[]).map(c=>`<div class="note" style="margin:0 0 8px"><b>${esc(c.detalle)}.</b> ${esc(c.proveedor)}: US$ ${(+c.subtotal_usd).toLocaleString('es-PE',{minimumFractionDigits:2})} + IGV = <b>US$ ${(+c.total_usd).toLocaleString('es-PE',{minimumFractionDigits:2})}</b>. ${esc(c.condicion||'')}.</div>`).join('')}
+    ${(d.otros_requerimientos||[]).length?`<div style="margin-bottom:8px">${li(d.otros_requerimientos.map(esc))}</div>`:''}
+    ${(d.herramientas||[]).length?`<h3 style="font-size:.95rem;margin:8px 0 6px">${esc(d.herramientas_titulo||'Herramientas')} · total ${jvS2(ht)}</h3>${tbl([['Cant.',r=>sN(r.cantidad),1],['Detalle',r=>esc(r.detalle)],['Precio',r=>(+r.precio).toLocaleString('es-PE',{minimumFractionDigits:2}),1]],d.herramientas).replace('</tbody>',`<tr class="vtot"><td></td><td>Total</td><td class="num">${ht.toLocaleString('es-PE',{minimumFractionDigits:2})}</td></tr></tbody>`)}`:''}</div>`;
+  if((d.notas||[]).length)h+=`<div class="panel"><h2 style="font-size:1.05rem">Notas sobre el informe de Mantenimiento</h2>${li(d.notas.map(esc))}</div>`;
+  return h;
+}
+
+/* ===== Informe Denominacional ACES ===== */
+const adenDoc=()=>ADEN.slice().sort((a,b)=>String(b.actualizado||'').localeCompare(String(a.actualizado||'')))[0];
+const adenSum=(L,y,n)=>{const rs=(L||[]).filter(r=>+r.anio===y&&+r.orden<=n);return rs.length?rs.reduce((a,r)=>a+ +r.monto,0):null};
+function viewAden(){
+  const d=adenDoc();
+  if(!d)return canManage()?`<h3 id="rep-aden" class="rep-sec" style="margin-top:6px">INFORME DENOMINACIONAL ACES</h3><div class="panel empty"><strong>Aún no hay informe Denominacional de ACES</strong>Súbelo desde “Cargar o actualizar datos”.</div>`:'';
+  const li=a=>`<ul class="note" style="margin:0;padding-left:1.1em;line-height:1.6">${(a||[]).map(x=>`<li>${x}</li>`).join('')}</ul>`;
+  const tbl=(cols,rows,tot)=>`<div class="tbl vt"><table><thead><tr>${cols.map(c=>`<th${c[2]?' class="num"':''}>${c[0]}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${cols.map(c=>`<td${c[2]?' class="num"':' style="white-space:normal"'}>${c[1](r)}</td>`).join('')}</tr>`).join('')}${tot||''}</tbody></table></div>`;
+  const V=d.ventas||{},ap=V.aproximado?'≈ ':'',den=V.denominacional||[],meg=V.megaferias||[],mov=V.libreria_movil_sur||[];
+  const yrs=L=>[...new Set(L.map(r=>+r.anio))].sort();
+  const vD=vVar(adenSum(den,2026,9),adenSum(den,2025,9)),vMg=vVar(adenSum(meg,2026,9),adenSum(meg,2025,9)),vMv=vVar(adenSum(mov,2026,9),adenSum(mov,2025,9));
+  const C=d.club_libro||{},sus=C.suscriptores||[],mf=d.megaferias_2026||[],inv=d.inversiones_2027||[],ti=inv.reduce((a,r)=>a+ +r.monto,0);
+  const vtab=(L,title,id,note)=>{const ys=yrs(L),ms=[...new Set(L.map(r=>+r.orden))].sort((a,b)=>a-b),g=(y,m)=>{const r=L.find(x=>+x.anio===y&&+x.orden===m);return r?+r.monto:null};
+    return `<div class="panel"><h2 style="font-size:1.05rem">${title}</h2><div class="note">${note} Montos aproximados en soles, leídos del gráfico.</div><div class="legend">${[...ys].reverse().map(y=>`<span style="${y===ys[ys.length-1]?'font-weight:600;color:var(--ink)':''}"><i style="background:${vYearCol(y,ys)}"></i>${y}</span>`).join('')}</div><div class="vchart" id="${id}"></div>
+     ${tbl([['Mes',m=>V_MES[m-1]],...ys.map(y=>[String(y),m=>{const v=g(y,m);return v==null?'—':ap+vN(v)},1])],ms,`<tr class="vtot"><td>Ene–Set</td>${ys.map(y=>`<td class="num">${adenSum(L,y,9)==null?'—':ap+vN(adenSum(L,y,9))}</td>`).join('')}</tr>`)}</div>`};
+  let h=`<h2 id="rep-aden" class="rep-sec" style="margin-top:14px">INFORME DENOMINACIONAL ACES</h2>
+   <p class="vlead">Gestión comercial de ACES Perú en el canal denominacional, ${esc(String(d.periodo||'').toLowerCase())}: ventas, Megaferias, Librería Móvil, Club del Libro, capacitación, ferias del libro y planificación 2027. Responsable: ${esc(d.responsable||'')}. Fuente: ${esc(d.fuente||'')}.</p>
+   ${d.objetivo?`<div class="note"><b>Enfoque:</b> ${esc(d.objetivo)}</div>`:''}
+   <div class="kpis">
+    <div class="kpi"><span class="l">Ventas denominacionales · Ene–Set 2026</span><span class="v">${ap}${vS(adenSum(den,2026,9))}</span><span class="s"><span class="${vCls(vD)}">${vP(vD)}</span> vs 2025 (${ap}${vS(adenSum(den,2025,9))}) · aproximado</span></div>
+    <div class="kpi"><span class="l">Megaferias · Feb–Set 2026</span><span class="v">${ap}${vS(adenSum(meg,2026,9))}</span><span class="s"><span class="${vCls(vMg)}">${vP(vMg)}</span> vs 2025 · ${mf.filter(m=>m.estado==='Realizada').length} realizadas, ${mf.filter(m=>m.estado!=='Realizada').length} por realizar</span></div>
+    <div class="kpi"><span class="l">Librería Móvil Sur · Feb–Set 2026</span><span class="v">${ap}${vS(adenSum(mov,2026,9))}</span><span class="s"><span class="${vCls(vMv)}">${vP(vMv)}</span> vs 2025 · aproximado</span></div>
+    <div class="kpi"><span class="l">Club del Libro 2026</span><span class="v">${vS(C.ventas)}</span><span class="s">${sus.map(s=>`${esc(s.categoria.replace('Club de Libros ',''))}: ${sN(s.cantidad)}`).join(' · ')}</span></div>
+    <div class="kpi"><span class="l">Inversión proyectada 2027</span><span class="v">${vS(ti)}</span><span class="s">${inv.length} rubros</span></div></div>
+   ${(d.canales||[]).length?`<div class="panel"><h2 style="font-size:1.05rem">Canales para llegar al miembro de iglesia</h2><div class="note">${d.canales.map(esc).join(' · ')}</div></div>`:''}
+   ${vtab(den,'Ventas ACES denominacional por mes','vadDen','Comparativo 2024, 2025 y 2026.')}
+   <div class="grid2">${vtab(meg,'Megaferias ACES: ventas por mes','vadMeg','2025 y 2026.')}${vtab(mov,'Librería Móvil Sur: ventas por mes','vadMov','2024, 2025 y 2026.')}</div>
+   <div class="grid2"><div class="panel"><h2 style="font-size:1.05rem">Megaferias 2026</h2>${tbl([['N°',r=>sN(r.n),1],['Campo',r=>esc(r.campo)],['Ciudad',r=>esc(r.ciudad)],['Fecha',r=>esc(r.fecha)],['Estado',r=>`<span class="${r.estado==='Realizada'?'v-up':''}">${esc(r.estado)}</span>`]],mf)}</div>
+    <div class="panel"><h2 style="font-size:1.05rem">Club del Libro 2026</h2><div class="note">Ventas: ${vS(C.ventas)}. ${esc(C.control_lectura||'')}</div>${tbl([['Categoría',r=>esc(r.categoria)],['Cantidad',r=>sN(r.cantidad),1]],sus,`<tr class="vtot"><td>Total</td><td class="num">${sN(sus.reduce((a,r)=>a+ +r.cantidad,0))}</td></tr>`)}
+     <h3 style="font-size:.95rem;margin:10px 0 6px">Libros del Club Premium</h3>${li((C.libros_premium||[]).map(b=>`<b>${esc(b.trimestre)}:</b> ${esc(b.titulo)} (${esc(b.autor)})`))}</div></div>
+   <div class="grid2"><div class="panel"><h2 style="font-size:1.05rem">${esc((d.capacitacion||{}).titulo||'Capacitación')}</h2><div class="note">Fechas: ${((d.capacitacion||{}).fechas||[]).map(esc).join(' · ')}</div>${li(((d.capacitacion||{}).detalle||[]).map(esc))}</div>
+    <div class="panel"><h2 style="font-size:1.05rem">Ferias del libro 2026</h2>${li((d.ferias_libro||[]).map(f=>`<b>${esc(f.feria)}:</b> ${esc(f.fecha)} · ${esc(f.stand)}`))}${(d.material||[]).length?`<h3 style="font-size:.95rem;margin:10px 0 6px">Material comercial</h3>${li(d.material.map(esc))}`:''}</div></div>
+   <div class="panel"><h2 style="font-size:1.05rem">Personal ACES denominacional</h2><div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(16rem,1fr))">${(d.personal||[]).map(p=>`<div><b>${esc(p.cargo)}</b><div class="note" style="margin:2px 0 6px">${esc(p.nombre)}</div>${li(p.funciones.map(esc))}</div>`).join('')}</div></div>
+   <h3 style="margin-top:6px">Planificación 2027</h3>
+   <div class="grid2"><div class="panel"><h2 style="font-size:1.05rem">Proyección de equipos e inversiones 2027</h2>${tbl([['Concepto',r=>esc(r.concepto)],['Monto',r=>jvS2(r.monto),1]],inv,`<tr class="vtot"><td>Total</td><td class="num">${jvS2(ti)}</td></tr>`)}</div>
+    <div class="panel"><h2 style="font-size:1.05rem">Requerimientos de la Librería UPeU Juliaca 2027</h2>${li((d.requerimientos_juliaca_2027||[]).map(esc))}</div></div>
+   <div class="grid2"><div class="panel"><h2 style="font-size:1.05rem">Megaferias 2027</h2>${tbl([['N°',r=>sN(r.n),1],['Mes',r=>esc(r.mes)],['Campo',r=>esc(r.campo)],['Ciudad',r=>esc(r.ciudad)],['Fecha',r=>esc(r.fecha)]],d.megaferias_2027||[])}</div>
+    <div class="panel"><h2 style="font-size:1.05rem">Proyectos 2027</h2>${(d.proyectos_2027||[]).map((p,i)=>`<div class="note" style="margin:${i?'10px':'0'} 0 4px"><b>${i+1}. ${esc(p.proyecto)}</b></div>${li(p.items.map(esc))}`).join('')}</div></div>`;
+  if((d.notas||[]).length)h+=`<div class="panel"><h2 style="font-size:1.05rem">Notas sobre el informe Denominacional de ACES</h2>${li(d.notas.map(esc))}</div>`;
+  return h;
+}
+
 function bindVentas(){
   const g=id=>document.getElementById(id);
-  document.querySelectorAll('[data-goto]').forEach(b=>b.onclick=()=>{const t=g(b.dataset.goto);if(t){vGoto=b.dataset.goto;t.scrollIntoView({behavior:'smooth',block:'start'})}});
+  document.querySelectorAll('[data-goto]').forEach(b=>b.onclick=()=>{const t=g(b.dataset.goto);if(t){vGoto=b.dataset.goto;const nv=document.querySelector('.vnav');t.style.scrollMarginTop=((nv?nv.offsetHeight:56)+8)+'px';t.scrollIntoView({behavior:'smooth',block:'start'})}});
   if(g('vAnio'))g('vAnio').onchange=e=>{vf.anio=+e.target.value;render()};
   if(g('vCorte'))g('vCorte').onchange=e=>{vf.corte=+e.target.value;render()};
   if(g('vCanal'))g('vCanal').onchange=e=>{vf.canal=e.target.value;render()};
@@ -2003,7 +2107,7 @@ function bindVentas(){
     const r=await sb.from('registros').delete().eq('col','suscripciones').eq('id',b.dataset.sdel);if(r.error)toast('No se pudo quitar: '+r.error.message);else{db.reloadAll();toast('Informe quitado.')}});
   document.querySelectorAll('[data-sdiv]').forEach(el=>vDiverge(el,JSON.parse(el.dataset.sdiv)));
   if(g('viProd'))g('viProd').onchange=async e=>{const f=e.target.files[0];if(!f)return;
-    try{const o=JSON.parse(await f.text());const ok=o&&o.periodo&&['mes','categorias','facturacion_campo'].every(k=>Array.isArray(o[k])&&o[k].length);
+    try{const o=JSON.parse(await f.text());const ok=o&&o.periodo&&['mes','categorias'].every(k=>Array.isArray(o[k])&&o[k].length);
       if(!ok){toast('El archivo no tiene el formato del informe de producción.');return}
       const id='prod-'+vSlug(o.periodo);const r=await sb.from('registros').upsert({col:'produccion',id,data:{...o,actualizado:today(),creadoPor:actorId()},updated_at:new Date().toISOString()});if(r.error)throw r.error;db.reloadAll();toast('Informe de producción guardado.')}
     catch(err){toast('No se pudo cargar: '+(err.message||err))}};
@@ -2027,6 +2131,20 @@ function bindVentas(){
       if(!ok){toast('El archivo no tiene el formato del informe de APT.');return}
       const id='apt-'+vSlug(o.periodo);const r=await sb.from('registros').upsert({col:'apt',id,data:{...o,actualizado:today(),creadoPor:actorId()},updated_at:new Date().toISOString()});if(r.error)throw r.error;db.reloadAll();toast('Informe de APT guardado.')}
     catch(err){toast('No se pudo cargar: '+(err.message||err))}};
+  if(g('viAden'))g('viAden').onchange=async e=>{const f=e.target.files[0];if(!f)return;
+    try{const o=JSON.parse(await f.text());const ok=o&&o.periodo&&o.ventas&&o.tipo==='aces_denominacional';
+      if(!ok){toast('El archivo no tiene el formato del informe Denominacional de ACES.');return}
+      const id='aden-'+vSlug(o.periodo);const r=await sb.from('registros').upsert({col:'aces_denominacional',id,data:{...o,actualizado:today(),creadoPor:actorId()},updated_at:new Date().toISOString()});if(r.error)throw r.error;db.reloadAll();toast('Informe Denominacional de ACES guardado.')}
+    catch(err){toast('No se pudo cargar: '+(err.message||err))}};
+  document.querySelectorAll('[data-addel]').forEach(b=>b.onclick=async()=>{if(!b.dataset.arm){b.dataset.arm=1;b.textContent='Confirmar';return}
+    const r=await sb.from('registros').delete().eq('col','aces_denominacional').eq('id',b.dataset.addel);if(r.error)toast('No se pudo quitar: '+r.error.message);else{db.reloadAll();toast('Informe quitado.')}});
+  if(g('viMant'))g('viMant').onchange=async e=>{const f=e.target.files[0];if(!f)return;
+    try{const o=JSON.parse(await f.text());const ok=o&&o.periodo&&Array.isArray(o.mes)&&Array.isArray(o.maquinas)&&Array.isArray(o.bloques);
+      if(!ok){toast('El archivo no tiene el formato del informe de Mantenimiento.');return}
+      const id='mant-'+vSlug(o.periodo);const r=await sb.from('registros').upsert({col:'mantenimiento',id,data:{...o,actualizado:today(),creadoPor:actorId()},updated_at:new Date().toISOString()});if(r.error)throw r.error;db.reloadAll();toast('Informe de Mantenimiento guardado.')}
+    catch(err){toast('No se pudo cargar: '+(err.message||err))}};
+  document.querySelectorAll('[data-mtdel]').forEach(b=>b.onclick=async()=>{if(!b.dataset.arm){b.dataset.arm=1;b.textContent='Confirmar';return}
+    const r=await sb.from('registros').delete().eq('col','mantenimiento').eq('id',b.dataset.mtdel);if(r.error)toast('No se pudo quitar: '+r.error.message);else{db.reloadAll();toast('Informe quitado.')}});
   if(g('viDis'))g('viDis').onchange=async e=>{const f=e.target.files[0];if(!f)return;
     try{const o=JSON.parse(await f.text());const ok=o&&o.periodo&&Array.isArray(o.personas)&&o.totales;
       if(!ok){toast('El archivo no tiene el formato del informe de Diseño.');return}
@@ -2051,10 +2169,15 @@ function bindVentas(){
     const r=await sb.from('registros').delete().eq('col','aces').eq('id',b.dataset.adel);if(r.error)toast('No se pudo quitar: '+r.error.message);else{db.reloadAll();toast('Informe quitado.')}});
   document.querySelectorAll('[data-pdel]').forEach(b=>b.onclick=async()=>{if(!b.dataset.arm){b.dataset.arm=1;b.textContent='Confirmar';return}
     const r=await sb.from('registros').delete().eq('col','produccion').eq('id',b.dataset.pdel);if(r.error)toast('No se pudo quitar: '+r.error.message);else{db.reloadAll();toast('Informe quitado.')}});
-  const P0=PROD.slice().sort((a,b)=>String(b.actualizado||'').localeCompare(String(a.actualizado||'')))[0];
+  const P0=prodDoc();
   if(P0&&g('vpTrab')){const ms=P0.mes.slice().sort((a,b)=>a.orden-b.orden);
     vStack(g('vpTrab'),ms.map(m=>({x:m.mes,vals:{Trabajos:+m.trabajos}})),['Trabajos'],['var(--cyan)'],r=>r.x,v=>sN(v)+' trabajos');
-    vStack(g('vpFact'),ms.map(m=>({x:m.mes,vals:{'Monto principal':+m.monto_principal,RRPP:+m.rrpp}})),['Monto principal','RRPP'],['var(--cyan)','#b9bec8'],r=>r.x);
+    if(g('vpRrpp'))vStack(g('vpRrpp'),ms.map(m=>({x:m.mes,vals:{RRPP:+(m.rrpp||0)}})),['RRPP'],['#2b3f63'],r=>r.x);
+    if(g('vpAreas'))vLines(g('vpAreas'),[{n:'Pre prensa',c:'var(--cyan)',strong:true,vals:ms.map(m=>+m.preprensa)},{n:'Prensa',c:'#2b3f63',strong:true,vals:ms.map(m=>+m.prensa)},{n:'Entregados',c:'#b9bec8',strong:false,vals:ms.map(m=>+m.trabajos)}],null,ms.map(m=>m.mes),v=>sN(v)+' trabajos',v=>sN(v));
+    const T=P0.terceros;if(T&&g('vpTerMes')){const tm=T.mes.slice().sort((a,b)=>a.orden-b.orden);vStack(g('vpTerMes'),tm.map(m=>({x:m.mes,p:m.parcial,vals:{Cerrado:m.parcial?0:+m.trabajos,'En curso':m.parcial?+m.trabajos:0}})),['Cerrado','En curso'],['var(--cyan)','#b9bec8'],r=>r.p?r.x+' (en curso)':r.x,v=>sN(v)+' trabajos')}
+    const Q=P0.calidad;if(Q&&g('vpPlot')){const pl=Q.plotters.slice().sort((a,b)=>a.orden-b.orden),jb=Q.jobs.slice().sort((a,b)=>a.orden-b.orden);
+      vStack(g('vpPlot'),pl.map(p=>({x:p.mes,vals:{'Visto bueno':+p.visto_bueno,'No pasa':+p.no_pasa}})),['Visto bueno','No pasa'],['var(--cyan)','#d1435b'],r=>r.x,v=>sN(v)+' plotters');
+      vStack(g('vpJobs'),jb.map(p=>({x:p.mes,vals:{Buenos:+p.buenos,Corregidos:+p.corregidos}})),['Buenos','Corregidos'],['var(--cyan)','#d1435b'],r=>r.x,v=>sN(v)+' JOBs')}
     const C=Array.isArray(P0.comparativo)?P0.comparativo:[],cy=[...new Set(C.map(r=>+r.anio))].sort(),nm=ms.length;
     if(cy.length&&g('vpComp')){
       vLines(g('vpComp'),[...cy].reverse().map(y=>({n:String(y),c:vYearCol(y,cy),strong:y===cy[cy.length-1],vals:V_MES.map((_,j)=>{const r=C.find(x=>+x.anio===y&&+x.orden===j+1);return r?+r.trabajos:null})})),null,V_MES,v=>sN(v)+' trabajos',v=>sN(v));
@@ -2069,6 +2192,10 @@ function bindVentas(){
   {const d=aptDoc();if(d&&g('vaptMes')){const ms=(d.mes||[]).slice().sort((a,b)=>a.orden-b.orden);vStack(g('vaptMes'),ms.map(m=>({x:m.parcial?m.mes+'*':m.mes,vals:{Cerrado:m.parcial?0:+m.trabajos,'En curso':m.parcial?+m.trabajos:0}})),['Cerrado','En curso'],['var(--cyan)','#b9bec8'],r=>r.x.endsWith('*')?r.x.slice(0,-1)+' (en curso)':r.x,v=>sN(v)+' trabajos')}}
   {const d=jvDoc();if(d&&g('vjvMes')){const C=jvCanales(d),ck=Object.keys(C);vStack(g('vjvMes'),V_MES.slice(0,9).map((m,i)=>({x:m,vals:Object.fromEntries(ck.map(k=>[k,C[k][i]]))})),ck,ck.map((_,i)=>V_CCOL[i%V_CCOL.length]),r=>r.x+' 2026')}}
   {const d=disDoc();if(d&&g('vdisPer')){const ps=(d.personas||[]).slice().sort((a,b)=>a.orden-b.orden);vStack(g('vdisPer'),ps.map(p=>({x:p.abrev,n:p.nombre+' · '+p.rol,vals:{'JOB autorizados':+p.autorizados,'Sin JOB':+p.sin_job}})),['JOB autorizados','Sin JOB'],['var(--cyan)','#2b3f63'],r=>r.n,v=>v==null?'—':v+'%')}}
+  {const d=mantDoc();if(d&&g('vmMes')){const ms=(d.mes||[]).slice().sort((a,b)=>a.orden-b.orden);vStack(g('vmMes'),ms.map(m=>({x:m.mes,vals:{Trabajos:+m.trabajos}})),['Trabajos'],['var(--cyan)'],r=>r.x+' 2026',v=>sN(v)+' trabajos');
+    vStack(g('vmMaq'),(d.maquinas||[]).map(r=>({x:r.corto,n:r.maquina,vals:{Correctivo:+r.correctivo,Preventivo:+r.preventivo,'No especificado':+r.no_especificado}})),['Correctivo','Preventivo','No especificado'],['#d1435b','var(--cyan)','#b9bec8'],r=>r.n,v=>sN(v))}}
+  {const d=adenDoc();if(d&&g('vadDen')){const V=d.ventas||{};[['vadDen',V.denominacional],['vadMeg',V.megaferias],['vadMov',V.libreria_movil_sur]].forEach(([id,L])=>{L=L||[];const ys=[...new Set(L.map(r=>+r.anio))].sort(),ms=[...new Set(L.map(r=>+r.orden))].sort((a,b)=>a-b);
+    vLines(g(id),[...ys].reverse().map(y=>({n:String(y),c:vYearCol(y,ys),strong:y===ys[ys.length-1],vals:ms.map(m=>{const r=L.find(x=>+x.anio===y&&+x.orden===m);return r?+r.monto:null})})),null,ms.map(m=>V_MES[m-1]),v=>v==null?'—':'≈ '+vS(v))})}}
 
   const M=vModel();if(!M.years.length||!g('vcAcum'))return;
   const y=vf.anio,c=vf.corte,keys=vf.canal==='Todos'?M.canales:[vf.canal],cols=keys.length>1?keys.map(k=>vColor(k,M)):['var(--cyan)'];
@@ -2160,6 +2287,8 @@ render();
     db.collection('apt').onSnapshot(snap=>{APT=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
     db.collection('jefatura_ventas').onSnapshot(snap=>{JV=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
     db.collection('diseno').onSnapshot(snap=>{DIS=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
+    db.collection('mantenimiento').onSnapshot(snap=>{MANT=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
+    db.collection('aces_denominacional').onSnapshot(snap=>{ADEN=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
     COLS.forEach(c=>db.collection(c).onSnapshot(snap=>{const rows=snap.docs.map(d=>({...d.data(),id:d.id}));if(c==='personal'){PUBP.length=0;PUBP.push(...rows);mergeP();migrate()}else RAW[c]=rows;render()},()=>toast('No se pudieron cargar los datos. Revisa tu conexión.')))};
   sb.auth.onAuthStateChange((ev,sess)=>{const had=!!SESSION;SESSION=sess;if(sess){loadUsers().then(startData)}else{USR=[];USR_READY=false;if(had){COLS.forEach(c=>RAW[c]=[]);db.clear()}loadUsers()}});
   sb.channel('perfiles-cambios').on('postgres_changes',{event:'*',schema:'public',table:'perfiles'},()=>{if(SESSION)loadUsers()}).subscribe();
