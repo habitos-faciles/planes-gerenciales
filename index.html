@@ -1236,6 +1236,8 @@ let vGoto=null;
 let SOMA=[];
 let CAP=[];
 let APT=[];
+let JV=[];
+let DIS=[];
 const af={anio:null,corte:null,canal:'Todos'};
 const A_ORDEN=['Suscripciones UPN','Suscripciones UPS','Biblias','Libros ACES','Libro Misionero','Libro Didáctico - Educación','Plan Lector','Corporativo ACES','Materiales varios','Librería Móvil','Libros Safeliz','Matutinas','Libros Varios','Games Safeliz','Lecciones Inglés'];
 const aRank=c=>{if(c==='Todos')return 99;const i=A_ORDEN.indexOf(c);return i<0?50:i};
@@ -1312,7 +1314,7 @@ const vYearCol=(y,years)=>V_YCOL[(years.length-1-years.indexOf(y))%V_YCOL.length
 
 /* Vista */
 function vNav(hasV){
-  const items=[['rep-eiu','Ventas EIU',hasV],['rep-susc','Suscripciones',SUSC.length||canManage()],['rep-prod','Producción',PROD.length||canManage()],['rep-aces','Ventas ACES',ACES.length||canManage()],['rep-soma','SOMA',SOMA.length||canManage()],['rep-cap','Capellanía',CAP.length||canManage()],['rep-apt','APT',APT.length||canManage()]];
+  const items=[['rep-eiu','Ventas EIU',hasV],['rep-susc','Suscripciones',SUSC.length||canManage()],['rep-prod','Producción',PROD.length||canManage()],['rep-aces','Ventas ACES',ACES.length||canManage()],['rep-soma','SOMA',SOMA.length||canManage()],['rep-cap','Capellanía',CAP.length||canManage()],['rep-apt','APT',APT.length||canManage()],['rep-jv','Jefatura Ventas EIU',JV.length||canManage()],['rep-dis','Diseño',DIS.length||canManage()]];
   return `<nav class="vnav" aria-label="Ir a un reporte">${items.map(([id,l,on])=>`<button type="button" class="vnav-b" data-goto="${id}" ${on?'':'disabled'}>${l}</button>`).join('')}</nav>`;
 }
 function viewVentas(){
@@ -1322,7 +1324,7 @@ function viewVentas(){
    <div class="right">${M.years.length?'<button class="btn" id="vCsv">Exportar CSV</button>':''}${adm?`<button class="btn ${vImp.open?'':'primary'}" id="vImpBtn" aria-pressed="${vImp.open}">${vImp.open?'Cerrar carga de datos':'Cargar o actualizar datos'}</button>`:''}</div></div>`;
   h+=vNav(M.years.length>0);
   if(adm&&vImp.open)h+=viewVImport(M);
-  if(!M.years.length)return h+`<div id="rep-eiu" class="rep-sec"></div><div class="panel empty"><strong>Aún no hay datos de ventas</strong>${adm?'Usa “Cargar o actualizar datos” para pegar el cuadro de AASINET o subir el archivo de datos.':'El administrador todavía no carga los reportes de ventas.'}</div>`+viewSusc()+viewProd()+viewAces()+viewSoma()+viewCap()+viewApt();
+  if(!M.years.length)return h+`<div id="rep-eiu" class="rep-sec"></div><div class="panel empty"><strong>Aún no hay datos de ventas</strong>${adm?'Usa “Cargar o actualizar datos” para pegar el cuadro de AASINET o subir el archivo de datos.':'El administrador todavía no carga los reportes de ventas.'}</div>`+viewSusc()+viewProd()+viewAces()+viewSoma()+viewCap()+viewApt()+viewJv()+viewDis();
   if(!M.years.includes(vf.anio)){vf.anio=M.years[M.years.length-1];vf.corte=null}
   if(!vf.corte)vf.corte=M.maxMes[vf.anio]||12;
   if(!['Todos',...M.canales].includes(vf.canal))vf.canal='Todos';
@@ -1402,7 +1404,7 @@ function viewVentas(){
   const st=rowsAll.map(k=>({k,s:vStats(M,y,c,k)})).filter(o=>o.s);
   h+=`<div class="panel"><h2 style="font-size:1.05rem">Estadísticos por canal · ${per}</h2><div class="note">Calculados sobre los meses de enero al mes de corte.</div>
    ${st.length?`<div class="tbl vt"><table><thead><tr><th>Canal</th><th class="num">Acumulado</th><th class="num">Part.</th><th class="num">Prom. mensual</th><th class="num">Mediana</th><th class="num">Desv. estándar</th><th class="num">Coef. variación</th><th class="num">Mes más alto</th><th>Mes</th><th class="num">Mes más bajo</th><th>Mes</th><th class="num">Var. vs ${y-1}</th></tr></thead><tbody>${st.map(({k,s})=>`<tr class="${k==='Todos'?'vtot':''}"><td>${esc(vLabel(k))}</td><td class="num">${vN(s.total)}</td><td class="num">${vP1(s.part)}</td><td class="num">${vN(s.prom)}</td><td class="num">${vN(s.med)}</td><td class="num">${vN(s.desv)}</td><td class="num">${vP1(s.cv)}</td><td class="num">${vN(s.max)}</td><td>${s.mesMax}</td><td class="num">${vN(s.min)}</td><td>${s.mesMin}</td><td class="num ${vCls(s.var)}">${vP(s.var)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="note">Sin datos para este periodo.</div>'}</div>`;
-  return h+viewSusc()+viewProd()+viewAces()+viewSoma()+viewCap()+viewApt();
+  return h+viewSusc()+viewProd()+viewAces()+viewSoma()+viewCap()+viewApt()+viewJv()+viewDis();
 }
 
 /* Carga de datos (solo administradores) */
@@ -1428,6 +1430,8 @@ function viewVImport(M){
   h+=`<div style="border-top:1px solid var(--rule);padding-top:12px;display:flex;flex-direction:column;gap:8px"><h3>Informe de SOMA</h3><div class="note">Sube el archivo del informe de SOMA (formato JSON). Si ya hay uno del mismo periodo, se reemplaza.${SOMA.length?` Cargados: ${SOMA.map(s=>`<b>${esc(s.periodo)}</b> <button class="link" data-smdel="${esc(s.id)}">Quitar</button>`).join(' · ')}`:''}</div><div><label class="btn" style="cursor:pointer">Subir informe de SOMA<input id="viSoma" type="file" accept=".json,application/json" hidden></label></div></div>`;
   h+=`<div style="border-top:1px solid var(--rule);padding-top:12px;display:flex;flex-direction:column;gap:8px"><h3>Informe de Capellanía</h3><div class="note">Sube el archivo del informe de Capellanía (formato JSON). Si ya hay uno del mismo periodo, se reemplaza.${CAP.length?` Cargados: ${CAP.map(s=>`<b>${esc(s.periodo)}</b> <button class="link" data-cpdel="${esc(s.id)}">Quitar</button>`).join(' · ')}`:''}</div><div><label class="btn" style="cursor:pointer">Subir informe de Capellanía<input id="viCap" type="file" accept=".json,application/json" hidden></label></div></div>`;
   h+=`<div style="border-top:1px solid var(--rule);padding-top:12px;display:flex;flex-direction:column;gap:8px"><h3>Informe de APT</h3><div class="note">Sube el archivo del informe de APT (formato JSON). Si ya hay uno del mismo periodo, se reemplaza.${APT.length?` Cargados: ${APT.map(s=>`<b>${esc(s.periodo)}</b> <button class="link" data-apdel="${esc(s.id)}">Quitar</button>`).join(' · ')}`:''}</div><div><label class="btn" style="cursor:pointer">Subir informe de APT<input id="viApt" type="file" accept=".json,application/json" hidden></label></div></div>`;
+  h+=`<div style="border-top:1px solid var(--rule);padding-top:12px;display:flex;flex-direction:column;gap:8px"><h3>Informe de la Jefatura de Ventas EIU</h3><div class="note">Sube el archivo del informe de la Jefatura de Ventas (formato JSON). Si ya hay uno del mismo periodo, se reemplaza.${JV.length?` Cargados: ${JV.map(s=>`<b>${esc(s.periodo)}</b> <button class="link" data-jvdel="${esc(s.id)}">Quitar</button>`).join(' · ')}`:''}</div><div><label class="btn" style="cursor:pointer">Subir informe de Jefatura de Ventas<input id="viJv" type="file" accept=".json,application/json" hidden></label></div></div>`;
+  h+=`<div style="border-top:1px solid var(--rule);padding-top:12px;display:flex;flex-direction:column;gap:8px"><h3>Informe de Diseño y corrección</h3><div class="note">Sube el archivo del informe de Diseño (formato JSON). Si ya hay uno del mismo periodo, se reemplaza.${DIS.length?` Cargados: ${DIS.map(s=>`<b>${esc(s.periodo)}</b> <button class="link" data-disdel="${esc(s.id)}">Quitar</button>`).join(' · ')}`:''}</div><div><label class="btn" style="cursor:pointer">Subir informe de Diseño<input id="viDis" type="file" accept=".json,application/json" hidden></label></div></div>`;
   if(M.years.length)h+=`<div class="note">Años cargados: ${M.years.map(x=>`<span style="display:inline-flex;gap:6px;align-items:center;margin-right:12px"><b>${x}</b> (a ${V_MESL[M.maxMes[x]-1]}) <button class="link" data-vdel="${x}">Quitar</button></span>`).join('')}</div>`;
   return h+'</div>';
 }
@@ -1906,6 +1910,76 @@ function viewApt(){
   return h;
 }
 
+/* ===== Informe de Jefatura de Ventas EIU (por asesor y canal) ===== */
+const jvDoc=()=>JV.slice().sort((a,b)=>String(b.actualizado||'').localeCompare(String(a.actualizado||'')))[0];
+const jvS2=v=>v==null?'—':'S/ '+(+v).toLocaleString('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2});
+function jvCanales(d){const o={};(d.asesores||[]).forEach(a=>{if(!(a.mes||[]).some(m=>m.ventas!=null))return;o[a.canal]=o[a.canal]||Array(9).fill(0);a.mes.forEach(m=>{o[a.canal][m.orden-1]+=+(m.ventas||0)})});return o}
+function viewJv(){
+  const d=jvDoc();
+  if(!d)return canManage()?`<h3 id="rep-jv" class="rep-sec" style="margin-top:6px">INFORME JEFATURA VENTAS EIU</h3><div class="panel empty"><strong>Aún no hay informe de la Jefatura de Ventas</strong>Súbelo desde “Cargar o actualizar datos”.</div>`:'';
+  const li=a=>`<ul class="note" style="margin:0;padding-left:1.1em;line-height:1.6">${(a||[]).map(x=>`<li>${x}</li>`).join('')}</ul>`;
+  const dg=d.diagnostico||[],t25=dg.reduce((s,r)=>s+ +r.v2025,0),t26=dg.reduce((s,r)=>s+ +r.v2026,0),vv=t25?t26/t25-1:null;
+  const as=d.asesores||[],jobs=as.reduce((s,a)=>s+a.mes.reduce((x,m)=>x+ +(m.jobs||0),0),0),anu=as.reduce((s,a)=>s+a.mes.reduce((x,m)=>x+ +(m.anulados||0),0),0);
+  const p26=d.proy2026||{filas:[]},c26=p26.filas.reduce((s,r)=>s+ +r.cierre,0),p27=d.proy2027||{filas:[]},c27=p27.filas.reduce((s,r)=>s+ +r.cierre,0);
+  const sube=dg.filter(r=>+r.v2026>=+r.v2025).length;
+  const C=jvCanales(d),ck=Object.keys(C),meses=V_MES.slice(0,9);
+  const sum=(a,f)=>a.reduce((s,m)=>s+ +(m[f]||0),0);
+  let h=`<h2 id="rep-jv" class="rep-sec" style="margin-top:14px">INFORME JEFATURA VENTAS EIU</h2>
+   <p class="vlead">Ventas facturadas, trabajos (jobs) por asesor y canal, diagnóstico frente a 2025 y proyecciones de cierre, ${esc(String(d.periodo||'').toLowerCase())}. Responsable: ${esc(d.responsable||'')}. Fuente: ${esc(d.fuente||'')}.</p>
+   ${d.objetivo?`<div class="note"><b>Objetivo:</b> ${esc(d.objetivo)}</div>`:''}${d.proyeccion_texto?`<div class="note"><b>Proyección:</b> ${esc(d.proyeccion_texto)}</div>`:''}
+   <div class="kpis">
+    <div class="kpi"><span class="l">Ventas Ene–Set 2026</span><span class="v">${vS(t26)}</span><span class="s"><span class="${vCls(vv)}">${vP(vv)}</span> frente a ene–set 2025 (${vS(t25)})</span></div>
+    <div class="kpi"><span class="l">Canales que crecen</span><span class="v">${sube} de ${dg.length}</span><span class="s">${dg.length-sube} canales en alerta</span></div>
+    <div class="kpi"><span class="l">Trabajos (jobs) · Ene–Set</span><span class="v">${sN(jobs)}</span><span class="s">${sN(anu)} anulados (${vP1(jobs?anu/jobs:null)})</span></div>
+    <div class="kpi"><span class="l">Cierre proyectado 2026</span><span class="v">${vS(c26)}</span><span class="s">2027 proyectado: ${vS(c27)}</span></div></div>
+   <div class="panel"><h2 style="font-size:1.05rem">Diagnóstico de ventas por canal · Ene–Set 2025 vs 2026</h2><div class="note">Comparativo del informe. En rojo, los canales en alerta (bajan frente a 2025).</div>
+   <div class="vbars vwrap">${(()=>{const mx=Math.max(...dg.map(r=>Math.abs(r.v2026-r.v2025)));return dg.slice().sort((a,b)=>(b.v2026-b.v2025)-(a.v2026-a.v2025)).map(r=>{const x=r.v2026-r.v2025;return `<div class="vbar"><span>${esc(r.canal)}</span><div class="t"><b style="width:${Math.abs(x)/mx*100}%;background:${x>=0?'var(--cyan)':'#d1435b'}"></b></div><span class="val ${vCls(x)}">${x>=0?'+':'−'}${vS(Math.abs(x))} · ${vP(r.v2025?r.v2026/r.v2025-1:null)}</span></div>`}).join('')})()}</div>
+   <div class="tbl vt" style="margin-top:10px"><table><thead><tr><th>Canal</th><th class="num">Ene–Set 2025</th><th class="num">Ene–Set 2026</th><th class="num">Var. absoluta</th><th class="num">Var. %</th><th class="num">Part. 2026</th><th>Estado</th></tr></thead><tbody>${dg.map(r=>{const x=r.v2026-r.v2025,p=r.v2025?r.v2026/r.v2025-1:null;return `<tr><td>${esc(r.canal)}</td><td class="num">${jvS2(r.v2025)}</td><td class="num">${jvS2(r.v2026)}</td><td class="num ${vCls(x)}">${jvS2(x)}</td><td class="num ${vCls(p)}">${vP(p)}</td><td class="num">${vP1(t26?r.v2026/t26:null)}</td><td class="${vCls(x)}">${x>=0?'Crecimiento':'Alerta'}</td></tr>`}).join('')}<tr class="vtot"><td>Total</td><td class="num">${jvS2(t25)}</td><td class="num">${jvS2(t26)}</td><td class="num ${vCls(t26-t25)}">${jvS2(t26-t25)}</td><td class="num ${vCls(vv)}">${vP(vv)}</td><td class="num">${vP1(1)}</td><td></td></tr></tbody></table></div></div>
+   <div class="panel"><h2 style="font-size:1.05rem">Ventas facturadas por mes y canal · 2026</h2><div class="note">Según las tablas de cada asesor. Suscripciones concentra las ventas de marzo, mayo y agosto.</div><div class="legend">${ck.map((k,i)=>`<span><i style="background:${V_CCOL[i%V_CCOL.length]}"></i>${esc(k)}</span>`).join('')}</div><div class="vchart" id="vjvMes"></div>
+   <div class="tbl vt" style="margin-top:10px"><table><thead><tr><th>Canal</th>${meses.map(m=>`<th class="num">${m}</th>`).join('')}<th class="num">Total</th></tr></thead><tbody>${ck.map(k=>`<tr><td>${esc(k)}</td>${C[k].map(v=>`<td class="num">${v?vN(v):'—'}</td>`).join('')}<td class="num">${vN(C[k].reduce((a,b)=>a+b,0))}</td></tr>`).join('')}<tr class="vtot"><td>Total</td>${meses.map((_,i)=>`<td class="num">${vN(ck.reduce((s,k)=>s+C[k][i],0))}</td>`).join('')}<td class="num">${vN(ck.reduce((s,k)=>s+C[k].reduce((a,b)=>a+b,0),0))}</td></tr></tbody></table></div></div>
+   <div class="panel"><h2 style="font-size:1.05rem">Desempeño por asesor comercial · Ene–Set 2026</h2><div class="note">Trabajos (jobs), anulados, trabajos con RRPP, reposiciones y ventas facturadas de cada asesor.</div>
+   <div class="tbl vt"><table><thead><tr><th>Asesor</th><th>Canal</th><th class="num">Jobs</th><th class="num">Anulados</th><th class="num">Con RRPP</th><th class="num">Reposición</th><th class="num">Ventas facturadas</th><th class="num">Venta por job</th><th>Clientes</th></tr></thead><tbody>${as.map(a=>{const j=sum(a.mes,'jobs'),hv=a.mes.some(m=>m.ventas!=null),v=sum(a.mes,'ventas'),hr=a.mes.some(m=>m.reposicion!=null);return `<tr><td>${esc(a.asesor)}</td><td>${esc(a.canal)}</td><td class="num">${sN(j)}</td><td class="num">${sN(sum(a.mes,'anulados'))}</td><td class="num">${sN(sum(a.mes,'rrpp'))}</td><td class="num">${hr?sN(sum(a.mes,'reposicion')):'—'}</td><td class="num">${hv?jvS2(v):'—'}</td><td class="num">${hv&&j?vS(v/j):'—'}</td><td style="min-width:16rem;white-space:normal">${esc(a.clientes||'')}</td></tr>`}).join('')}</tbody></table></div>
+   <h3 style="font-size:.95rem;margin:12px 0 6px">Trabajos (jobs) por mes</h3>
+   <div class="tbl vt"><table><thead><tr><th>Asesor · canal</th>${meses.map(m=>`<th class="num">${m}</th>`).join('')}<th class="num">Total</th></tr></thead><tbody>${as.map(a=>`<tr><td>${esc(a.asesor)} · ${esc(a.canal)}</td>${a.mes.map(m=>`<td class="num">${+m.jobs?sN(m.jobs):'—'}</td>`).join('')}<td class="num">${sN(sum(a.mes,'jobs'))}</td></tr>`).join('')}<tr class="vtot"><td>Total</td>${meses.map((_,i)=>`<td class="num">${sN(as.reduce((s,a)=>s+ +((a.mes[i]||{}).jobs||0),0))}</td>`).join('')}<td class="num">${sN(jobs)}</td></tr></tbody></table></div></div>`;
+  const ptab=(p,t1,t2,t3)=>{const tb=p.filas.reduce((s,r)=>s+ +r.base,0),tp=p.filas.reduce((s,r)=>s+ +r.proyectado,0),tc=p.filas.reduce((s,r)=>s+ +r.cierre,0);
+    return `<div class="tbl vt"><table><thead><tr><th>Canal</th><th class="num">${t1}</th><th class="num">${t2}</th><th class="num">${t3}</th><th class="num">Participación</th></tr></thead><tbody>${p.filas.map(r=>`<tr><td>${esc(r.canal)}</td><td class="num">${jvS2(r.base)}</td><td class="num">${jvS2(r.proyectado)}</td><td class="num">${jvS2(r.cierre)}</td><td class="num">${vP1(tc?r.cierre/tc:null)}</td></tr>`).join('')}<tr class="vtot"><td>Total proyectado</td><td class="num">${jvS2(tb)}</td><td class="num">${jvS2(tp)}</td><td class="num">${jvS2(tc)}</td><td class="num">${vP1(1)}</td></tr></tbody></table></div>`};
+  h+=`<div class="grid2"><div class="panel"><h2 style="font-size:1.05rem">Proyección de cierre 2026</h2><div class="note">Factor ${vP1(p26.factor)}: ${esc(p26.texto||'')}.</div>${ptab(p26,'Ejecutado ene–set','Proyectado oct–dic','Cierre 2026')}</div>
+   <div class="panel"><h2 style="font-size:1.05rem">Proyección de ventas 2027</h2><div class="note">Factor ${vP1(p27.factor)}: ${esc(p27.texto||'')}. Tal como viene en el informe (ver notas).</div>${ptab(p27,'Cierre 2026','Crecimiento 2027','Cierre 2027')}</div></div>
+   <div class="grid2"><div class="panel"><h2 style="font-size:1.05rem">Requerimientos 2027 del área</h2>${li((d.requerimientos||[]).map(esc))}<h2 style="font-size:1.05rem;margin-top:12px">Prioridades del área de ventas</h2>${li((d.prioridades||[]).map(esc))}</div>
+   <div class="panel"><h2 style="font-size:1.05rem">Proyectos nuevos en ventas</h2>${li((d.proyectos||[]).map(p=>`<b>${esc(p.nombre)}:</b> ${esc(p.detalle)}`))}</div></div>`;
+  if((d.notas||[]).length)h+=`<div class="panel"><h2 style="font-size:1.05rem">Notas sobre el informe de la Jefatura de Ventas</h2>${li(d.notas.map(esc))}</div>`;
+  return h;
+}
+
+/* ===== Informe de Diseño y corrección ===== */
+const disDoc=()=>DIS.slice().sort((a,b)=>String(b.actualizado||'').localeCompare(String(a.actualizado||'')))[0];
+function viewDis(){
+  const d=disDoc();
+  if(!d)return canManage()?`<h3 id="rep-dis" class="rep-sec" style="margin-top:6px">INFORME DISEÑO</h3><div class="panel empty"><strong>Aún no hay informe de Diseño</strong>Súbelo desde “Cargar o actualizar datos”.</div>`:'';
+  const li=a=>`<ul class="note" style="margin:0;padding-left:1.1em;line-height:1.6">${(a||[]).map(x=>`<li>${x}</li>`).join('')}</ul>`;
+  const ps=(d.personas||[]).slice().sort((a,b)=>a.orden-b.orden),T=d.totales||{},tt=(+T.autorizados||0)+(+T.sin_job||0),pa=tt?T.autorizados/tt:null;
+  const alto=ps.filter(p=>+p.sin_job>=50),eq=d.equipo||[],nD=eq.filter(e=>/diseñ/i.test(e.rol)).length,nC=eq.filter(e=>/correct/i.test(e.rol)).length;
+  const best=ps.slice().sort((a,b)=>b.autorizados-a.autorizados)[0]||{};
+  let h=`<h2 id="rep-dis" class="rep-sec" style="margin-top:14px">INFORME DISEÑO</h2>
+   <p class="vlead">${esc(d.area||'Diseño y corrección')}: trabajos con JOB autorizado frente a trabajos sin JOB por diseñador y corrector, del ${esc(d.periodo||'')}. Jefatura: ${esc(d.jefatura||'')}. Fuente: ${esc(d.fuente||'')}.</p>
+   <div class="kpis">
+    <div class="kpi"><span class="l">Trabajos con JOB autorizado</span><span class="v">${sN(T.autorizados)}</span><span class="s">${vP1(pa)} del total (${sN(tt)})</span></div>
+    <div class="kpi"><span class="l">Trabajos sin JOB</span><span class="v v-down">${sN(T.sin_job)}</span><span class="s">${vP1(pa==null?null:1-pa)} del total</span></div>
+    <div class="kpi"><span class="l">Personas con más de la mitad sin JOB</span><span class="v">${alto.length} de ${ps.length}</span><span class="s">${alto.map(p=>esc(p.nombre)).join(', ')||'Ninguna'}</span></div>
+    <div class="kpi"><span class="l">Equipo</span><span class="v">${eq.length} personas</span><span class="s">1 jefatura, ${nD} diseñadores, ${nC} correctores</span></div></div>
+   <div class="panel"><h2 style="font-size:1.05rem">Distribución: JOB autorizados vs trabajos sin JOB</h2><div class="note">Del ${esc(d.periodo||'')}.</div>
+    <div style="display:flex;height:34px;border-radius:6px;overflow:hidden;margin:6px 0 8px"><div style="width:${(pa||0)*100}%;background:var(--cyan);color:#fff;display:flex;align-items:center;padding-left:10px;font-weight:600">${vP1(pa)} · ${sN(T.autorizados)}</div><div style="flex:1;background:#2b3f63;color:#fff;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;font-weight:600">${sN(T.sin_job)} · ${vP1(pa==null?null:1-pa)}</div></div>
+    <div class="legend"><span><i style="background:var(--cyan)"></i>JOB autorizados</span><span><i style="background:#2b3f63"></i>Trabajos sin JOB</span></div></div>
+   <div class="panel"><h2 style="font-size:1.05rem">% JOB autorizados vs % trabajos sin JOB por persona</h2><div class="note">La parte oscura es el trabajo hecho sin JOB. ${best.nombre?`El mejor registro es el de ${esc(best.nombre)} (${best.autorizados}% con JOB).`:''}</div>
+    <div class="legend"><span><i style="background:var(--cyan)"></i>JOB autorizados</span><span><i style="background:#2b3f63"></i>Trabajos sin JOB</span></div><div class="vchart" id="vdisPer"></div>
+    <div class="tbl vt" style="margin-top:10px"><table><thead><tr><th>Persona</th><th>Rol</th><th class="num">% JOB autorizados</th><th class="num">% sin JOB</th><th>Estado</th></tr></thead><tbody>${ps.map(p=>{const s=+p.sin_job,st=s>=50?['Alerta','v-down']:s>=20?['Por mejorar','']:['Bien','v-up'];return `<tr><td>${esc(p.nombre)}</td><td>${esc(p.rol)}</td><td class="num">${p.autorizados}%</td><td class="num ${s>=50?'v-down':''}">${p.sin_job}%</td><td class="${st[1]}">${st[0]}</td></tr>`}).join('')}</tbody></table></div></div>
+   <div class="grid2"><div class="panel"><h2 style="font-size:1.05rem">Informe diario de trabajo 2026</h2><div class="note" style="margin:0;line-height:1.6">${esc(d.informe_diario||'')}</div></div>
+   <div class="panel"><h2 style="font-size:1.05rem">Requerimientos 2027</h2>${li((d.requerimientos||[]).map(r=>`<b>${esc(r.requerimiento)}:</b> ${esc(r.detalle)}`))}</div></div>
+   <div class="panel"><h2 style="font-size:1.05rem">Diseñadores y correctores</h2>${li(['Jefatura','Diseñador','Diseñadora','Corrector','Correctora'].map(r=>[r,eq.filter(e=>e.rol===r)]).filter(x=>x[1].length).map(([r,xs])=>`<b>${esc(r)}${xs.length>1?(/[aeiou]$/.test(r)?'s':'es'):''}:</b> ${xs.map(e=>esc(e.nombre)).join(', ')}`))}</div>`;
+  if((d.notas||[]).length)h+=`<div class="panel"><h2 style="font-size:1.05rem">Notas sobre el informe de Diseño</h2>${li(d.notas.map(esc))}</div>`;
+  return h;
+}
+
 function bindVentas(){
   const g=id=>document.getElementById(id);
   document.querySelectorAll('[data-goto]').forEach(b=>b.onclick=()=>{const t=g(b.dataset.goto);if(t){vGoto=b.dataset.goto;t.scrollIntoView({behavior:'smooth',block:'start'})}});
@@ -1953,6 +2027,20 @@ function bindVentas(){
       if(!ok){toast('El archivo no tiene el formato del informe de APT.');return}
       const id='apt-'+vSlug(o.periodo);const r=await sb.from('registros').upsert({col:'apt',id,data:{...o,actualizado:today(),creadoPor:actorId()},updated_at:new Date().toISOString()});if(r.error)throw r.error;db.reloadAll();toast('Informe de APT guardado.')}
     catch(err){toast('No se pudo cargar: '+(err.message||err))}};
+  if(g('viDis'))g('viDis').onchange=async e=>{const f=e.target.files[0];if(!f)return;
+    try{const o=JSON.parse(await f.text());const ok=o&&o.periodo&&Array.isArray(o.personas)&&o.totales;
+      if(!ok){toast('El archivo no tiene el formato del informe de Diseño.');return}
+      const id='dis-'+vSlug(o.periodo);const r=await sb.from('registros').upsert({col:'diseno',id,data:{...o,actualizado:today(),creadoPor:actorId()},updated_at:new Date().toISOString()});if(r.error)throw r.error;db.reloadAll();toast('Informe de Diseño guardado.')}
+    catch(err){toast('No se pudo cargar: '+(err.message||err))}};
+  document.querySelectorAll('[data-disdel]').forEach(b=>b.onclick=async()=>{if(!b.dataset.arm){b.dataset.arm=1;b.textContent='Confirmar';return}
+    const r=await sb.from('registros').delete().eq('col','diseno').eq('id',b.dataset.disdel);if(r.error)toast('No se pudo quitar: '+r.error.message);else{db.reloadAll();toast('Informe quitado.')}});
+  if(g('viJv'))g('viJv').onchange=async e=>{const f=e.target.files[0];if(!f)return;
+    try{const o=JSON.parse(await f.text());const ok=o&&o.periodo&&Array.isArray(o.asesores)&&Array.isArray(o.diagnostico);
+      if(!ok){toast('El archivo no tiene el formato del informe de la Jefatura de Ventas.');return}
+      const id='jv-'+vSlug(o.periodo);const r=await sb.from('registros').upsert({col:'jefatura_ventas',id,data:{...o,actualizado:today(),creadoPor:actorId()},updated_at:new Date().toISOString()});if(r.error)throw r.error;db.reloadAll();toast('Informe de la Jefatura de Ventas guardado.')}
+    catch(err){toast('No se pudo cargar: '+(err.message||err))}};
+  document.querySelectorAll('[data-jvdel]').forEach(b=>b.onclick=async()=>{if(!b.dataset.arm){b.dataset.arm=1;b.textContent='Confirmar';return}
+    const r=await sb.from('registros').delete().eq('col','jefatura_ventas').eq('id',b.dataset.jvdel);if(r.error)toast('No se pudo quitar: '+r.error.message);else{db.reloadAll();toast('Informe quitado.')}});
   document.querySelectorAll('[data-apdel]').forEach(b=>b.onclick=async()=>{if(!b.dataset.arm){b.dataset.arm=1;b.textContent='Confirmar';return}
     const r=await sb.from('registros').delete().eq('col','apt').eq('id',b.dataset.apdel);if(r.error)toast('No se pudo quitar: '+r.error.message);else{db.reloadAll();toast('Informe quitado.')}});
   document.querySelectorAll('[data-cpdel]').forEach(b=>b.onclick=async()=>{if(!b.dataset.arm){b.dataset.arm=1;b.textContent='Confirmar';return}
@@ -1979,6 +2067,8 @@ function bindVentas(){
   if(vFocus){const f=g(vFocus.id);if(f){f.focus();try{if(vFocus.s!=null)f.setSelectionRange(vFocus.s,vFocus.e);f.scrollTop=vFocus.top||0}catch(_){}}vFocus=null}
   bindAces();
   {const d=aptDoc();if(d&&g('vaptMes')){const ms=(d.mes||[]).slice().sort((a,b)=>a.orden-b.orden);vStack(g('vaptMes'),ms.map(m=>({x:m.parcial?m.mes+'*':m.mes,vals:{Cerrado:m.parcial?0:+m.trabajos,'En curso':m.parcial?+m.trabajos:0}})),['Cerrado','En curso'],['var(--cyan)','#b9bec8'],r=>r.x.endsWith('*')?r.x.slice(0,-1)+' (en curso)':r.x,v=>sN(v)+' trabajos')}}
+  {const d=jvDoc();if(d&&g('vjvMes')){const C=jvCanales(d),ck=Object.keys(C);vStack(g('vjvMes'),V_MES.slice(0,9).map((m,i)=>({x:m,vals:Object.fromEntries(ck.map(k=>[k,C[k][i]]))})),ck,ck.map((_,i)=>V_CCOL[i%V_CCOL.length]),r=>r.x+' 2026')}}
+  {const d=disDoc();if(d&&g('vdisPer')){const ps=(d.personas||[]).slice().sort((a,b)=>a.orden-b.orden);vStack(g('vdisPer'),ps.map(p=>({x:p.abrev,n:p.nombre+' · '+p.rol,vals:{'JOB autorizados':+p.autorizados,'Sin JOB':+p.sin_job}})),['JOB autorizados','Sin JOB'],['var(--cyan)','#2b3f63'],r=>r.n,v=>v==null?'—':v+'%')}}
 
   const M=vModel();if(!M.years.length||!g('vcAcum'))return;
   const y=vf.anio,c=vf.corte,keys=vf.canal==='Todos'?M.canales:[vf.canal],cols=keys.length>1?keys.map(k=>vColor(k,M)):['var(--cyan)'];
@@ -2068,6 +2158,8 @@ render();
     db.collection('soma').onSnapshot(snap=>{SOMA=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
     db.collection('capellania').onSnapshot(snap=>{CAP=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
     db.collection('apt').onSnapshot(snap=>{APT=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
+    db.collection('jefatura_ventas').onSnapshot(snap=>{JV=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
+    db.collection('diseno').onSnapshot(snap=>{DIS=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
     COLS.forEach(c=>db.collection(c).onSnapshot(snap=>{const rows=snap.docs.map(d=>({...d.data(),id:d.id}));if(c==='personal'){PUBP.length=0;PUBP.push(...rows);mergeP();migrate()}else RAW[c]=rows;render()},()=>toast('No se pudieron cargar los datos. Revisa tu conexión.')))};
   sb.auth.onAuthStateChange((ev,sess)=>{const had=!!SESSION;SESSION=sess;if(sess){loadUsers().then(startData)}else{USR=[];USR_READY=false;if(had){COLS.forEach(c=>RAW[c]=[]);db.clear()}loadUsers()}});
   sb.channel('perfiles-cambios').on('postgres_changes',{event:'*',schema:'public',table:'perfiles'},()=>{if(SESSION)loadUsers()}).subscribe();
