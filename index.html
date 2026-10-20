@@ -1413,6 +1413,13 @@ function viewVentas(){
    <div class="tbl vt"><table><thead><tr><th>Canal</th>${M.years.map(x=>`<th class="num">${M.maxMes[x]<12?`${x} (a ${V_MES[M.maxMes[x]-1].toLowerCase()}.)`:x}</th>${yComp.includes(x)?`<th class="num">Var. ${String(x).slice(2)}/${String(x-1).slice(2)}</th>`:''}`).join('')}${cl?`<th class="num">Part. ${cl}</th>`:''}</tr></thead><tbody>${[...cSin,'__tot'].map(k=>
     `<tr class="${k==='__tot'?'vtot':''}"><td>${k==='__tot'?'Total sin Libro Misionero':esc(k)}</td>${M.years.map((x,i)=>{const a=valSin(x,k);let td=`<td class="num">${vN(a)}</td>`;if(yComp.includes(x)){const v=vVar(a,valSin(M.years[i-1],k));td+=`<td class="num ${vCls(v)}">${vP(v)}</td>`}return td}).join('')}${cl?`<td class="num">${vP1(valSin(cl,k)!=null&&totSin(cl)?valSin(cl,k)/totSin(cl):null)}</td>`:''}</tr>`).join('')}</tbody></table></div></div>`;
 
+  {const cS=M.canales.filter(k=>k!=='Libro Misionero'),yS=M.years.filter(x=>M.acum(x,'Todos',c)!=null);
+   const tS=x=>{const v=cS.map(k=>M.acum(x,k,c)).filter(a=>a!=null);return v.length?v.reduce((a,b)=>a+b,0):null};
+   const vS2=(x,k)=>k==='__tot'?tS(x):M.acum(x,k,c),yL=yS[yS.length-1];
+   h+=`<div class="panel"><h2 style="font-size:1.05rem">Cuadro acumulado enero–${mesL} por canal sin Libro Misionero</h2><div class="note">Soles, de enero al mes de corte de cada año (cámbialo arriba en «Acumulado hasta»). Sin Libro Misionero, que vende por campañas, se compara parejo la tendencia del resto de canales. Junto a cada año, su variación frente al anterior en el mismo periodo.</div>
+   <div class="tbl vt"><table><thead><tr><th>Canal</th>${yS.map((x,i)=>`<th class="num">${x}</th>${i?`<th class="num">Var. ${String(x).slice(2)}/${String(yS[i-1]).slice(2)}</th>`:''}`).join('')}${yL?`<th class="num">Part. ${yL}</th>`:''}</tr></thead><tbody>${[...cS.filter(k=>yS.some(x=>M.acum(x,k,c))),'__tot'].map(k=>
+    `<tr class="${k==='__tot'?'vtot':''}"><td>${k==='__tot'?'Total sin Libro Misionero':esc(k)}</td>${yS.map((x,i)=>{const a=vS2(x,k);let td=`<td class="num">${vN(a)}</td>`;if(i){const v=vVar(a,vS2(yS[i-1],k));td+=`<td class="num ${vCls(v)}">${vP(v)}</td>`}return td}).join('')}${yL?`<td class="num">${vP1(vS2(yL,k)!=null&&tS(yL)?vS2(yL,k)/tS(yL):null)}</td>`:''}</tr>`).join('')}</tbody></table></div></div>`;}
+
   const mm=M.maxMes[y]||12,rowsY=rowsAll.filter(k=>M.mens(y,k));
   h+=`<h3 style="margin-top:6px">Comparativo mensual</h3>
    <div class="panel"><h2 style="font-size:1.05rem">Venta mensual por año</h2><div class="note">Cada línea es un año; el año elegido va resaltado.${cnote}</div><div class="legend">${ylg}</div><div class="vchart" id="vcMens"></div></div>
