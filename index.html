@@ -176,6 +176,11 @@ dialog label.full{grid-column:1/-1}
 .vlead{font-size:.95rem;color:var(--ink-2);max-width:70rem;margin:0}
 .vlead b{color:var(--ink)}
 @media (max-width:560px){.vbar{grid-template-columns:minmax(0,1fr) auto}.vbar .t{grid-column:1/-1;grid-row:2}}
+.vnav{position:sticky;top:0;z-index:30;display:flex;gap:8px;flex-wrap:wrap;padding:10px 0;background:var(--paper);border-bottom:1px solid var(--rule)}
+.vnav-b{font:500 .86rem var(--body);border:1px solid var(--rule);background:var(--sheet);color:var(--ink);border-radius:999px;padding:6px 14px;cursor:pointer}
+.vnav-b:hover:not(:disabled){border-color:var(--cyan);color:var(--cyan)}
+.vnav-b:disabled{opacity:.45;cursor:not-allowed}
+.rep-sec{scroll-margin-top:64px}
 </style>
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px}img{max-width:100%}[hidden]{display:none!important}</style>
 <script src="config.js?v=2"></script>
@@ -1224,6 +1229,7 @@ let vFocus=null;
 let SUSC=[];
 let PROD=[];
 let ACES=[];
+let vGoto=null;
 const af={anio:null,corte:null,canal:'Todos'};
 const A_ORDEN=['Suscripciones UPN','Suscripciones UPS','Biblias','Libros ACES','Libro Misionero','Libro Didáctico - Educación','Plan Lector','Corporativo ACES','Materiales varios','Librería Móvil','Libros Safeliz','Matutinas','Libros Varios','Games Safeliz','Lecciones Inglés'];
 const aRank=c=>{if(c==='Todos')return 99;const i=A_ORDEN.indexOf(c);return i<0?50:i};
@@ -1299,18 +1305,24 @@ function vStats(M,y,corte,c){
 const vYearCol=(y,years)=>V_YCOL[(years.length-1-years.indexOf(y))%V_YCOL.length];
 
 /* Vista */
+function vNav(hasV){
+  const items=[['rep-eiu','Ventas EIU',hasV],['rep-susc','Suscripciones',SUSC.length||canManage()],['rep-prod','Producción',PROD.length||canManage()],['rep-aces','Ventas ACES',ACES.length||canManage()]];
+  return `<nav class="vnav" aria-label="Ir a un reporte">${items.map(([id,l,on])=>`<button type="button" class="vnav-b" data-goto="${id}" ${on?'':'disabled'}>${l}</button>`).join('')}</nav>`;
+}
 function viewVentas(){
   const fe=document.activeElement;vFocus=fe&&fe.id&&/^vi/.test(fe.id)?{id:fe.id,s:fe.selectionStart,e:fe.selectionEnd,top:fe.scrollTop}:null;
   const adm=canManage(),M=vModel();
   let h=`<div class="bar"><div class="left"><h2>Reportes · Ventas por canales</h2><span class="note">${M.years.length?`${M.years[0]}–${M.years[M.years.length-1]} · fuente AASINET`:'Sin datos cargados'}</span></div>
    <div class="right">${M.years.length?'<button class="btn" id="vCsv">Exportar CSV</button>':''}${adm?`<button class="btn ${vImp.open?'':'primary'}" id="vImpBtn" aria-pressed="${vImp.open}">${vImp.open?'Cerrar carga de datos':'Cargar o actualizar datos'}</button>`:''}</div></div>`;
+  h+=vNav(M.years.length>0);
   if(adm&&vImp.open)h+=viewVImport(M);
-  if(!M.years.length)return h+`<div class="panel empty"><strong>Aún no hay datos de ventas</strong>${adm?'Usa “Cargar o actualizar datos” para pegar el cuadro de AASINET o subir el archivo de datos.':'El administrador todavía no carga los reportes de ventas.'}</div>`+viewSusc()+viewProd()+viewAces();
+  if(!M.years.length)return h+`<div id="rep-eiu" class="rep-sec"></div><div class="panel empty"><strong>Aún no hay datos de ventas</strong>${adm?'Usa “Cargar o actualizar datos” para pegar el cuadro de AASINET o subir el archivo de datos.':'El administrador todavía no carga los reportes de ventas.'}</div>`+viewSusc()+viewProd()+viewAces();
   if(!M.years.includes(vf.anio)){vf.anio=M.years[M.years.length-1];vf.corte=null}
   if(!vf.corte)vf.corte=M.maxMes[vf.anio]||12;
   if(!['Todos',...M.canales].includes(vf.canal))vf.canal='Todos';
   const y=vf.anio,c=vf.corte,per=`Ene–${V_MES[c-1]} ${y}`,mesL=V_MESL[c-1];
 
+  h+=`<h3 id="rep-eiu" class="rep-sec" style="margin-top:2px">VENTAS EIU · Ventas por canales</h3>`;
   h+=`<div class="panel" style="flex-direction:row;flex-wrap:wrap;gap:14px;align-items:end;padding:14px 18px">
    <label class="note v-lbl" for="vAnio">Año<select id="vAnio">${[...M.years].reverse().map(x=>`<option ${x===y?'selected':''}>${x}</option>`).join('')}</select></label>
    <label class="note v-lbl" for="vCorte">Acumulado hasta<select id="vCorte">${V_MESL.map((m,i)=>`<option value="${i+1}" ${i+1===c?'selected':''}>${m[0].toUpperCase()+m.slice(1)}</option>`).join('')}</select></label>
@@ -1590,12 +1602,12 @@ function sGuia(n){const s=String(n).toLowerCase();
   if(s.includes('intermediario'))return 'Geb Intermediarios';if(s.includes('primario'))return 'Geb Primarios';if(s.includes('infante'))return 'Geb Infantes';
   if(s.includes('principiante'))return 'Geb Principiantes';if(s.includes('beb'))return 'Geb Bebés';return String(n)}
 function viewSusc(){
-  if(!SUSC.length)return canManage()?`<h3 style="margin-top:6px">COMPARATIVO SUSCRIPCIONES</h3><div class="panel empty"><strong>Aún no hay informe de suscripciones</strong>Súbelo desde “Cargar o actualizar datos”.</div>`:'';
+  if(!SUSC.length)return canManage()?`<h3 id="rep-susc" class="rep-sec" style="margin-top:6px">COMPARATIVO SUSCRIPCIONES</h3><div class="panel empty"><strong>Aún no hay informe de suscripciones</strong>Súbelo desde “Cargar o actualizar datos”.</div>`:'';
   const s=SUSC.slice().sort((a,b)=>String(b.periodo).localeCompare(String(a.periodo)))[0];
   const [y0,y1]=String(s.periodo).split(/[–-]/).map(t=>t.trim());
   const sum=(rs,k)=>rs.reduce((a,r)=>a+(+r[k]||0),0),R=s.resumen,sehs=R.filter(r=>/^SEHS/i.test(r.indicador)),ups=R.filter(r=>!/^SEHS/i.test(r.indicador));
   const s26=sum(sehs,'anio_2026'),s27=sum(sehs,'sin_ingles_2027'),u26=sum(ups,'anio_2026'),u27=sum(ups,'sin_ingles_2027');
-  let h=`<h3 style="margin-top:6px">COMPARATIVO SUSCRIPCIONES</h3>
+  let h=`<h3 id="rep-susc" class="rep-sec" style="margin-top:6px">COMPARATIVO SUSCRIPCIONES</h3>
    <p class="vlead">Pedidos de SEHS Norte y Sur para ${esc(y1)} frente a ${esc(y0)}, en unidades. Fuente: ${esc(s.fuente||'Informe final para Administración')}. ${esc(s.nota||'')}</p>
    <div class="kpis">
     <div class="kpi"><span class="l">Pedidos ${esc(y1)} con Inglés</span><span class="v">${sN(sum(R,'con_ingles_2027'))}</span><span class="s">${esc(y0)} sin Inglés: ${sN(sum(R,'anio_2026'))}</span></div>
@@ -1641,7 +1653,7 @@ function vDiverge(el,rows){
 
 /* ===== Informe de producción (imprenta) ===== */
 function viewProd(){
-  if(!PROD.length)return canManage()?`<h3 style="margin-top:6px">INFORME DE PRODUCCIÓN</h3><div class="panel empty"><strong>Aún no hay informe de producción</strong>Súbelo desde “Cargar o actualizar datos”.</div>`:'';
+  if(!PROD.length)return canManage()?`<h3 id="rep-prod" class="rep-sec" style="margin-top:6px">INFORME DE PRODUCCIÓN</h3><div class="panel empty"><strong>Aún no hay informe de producción</strong>Súbelo desde “Cargar o actualizar datos”.</div>`:'';
   const P=PROD.slice().sort((a,b)=>String(b.actualizado||'').localeCompare(String(a.actualizado||'')))[0];
   const ms=P.mes.slice().sort((a,b)=>a.orden-b.orden),sum=k=>ms.reduce((a,m)=>a+(+m[k]||0),0);
   const C=Array.isArray(P.comparativo)?P.comparativo:[],cy=[...new Set(C.map(r=>+r.anio))].sort(),nm=ms.length;
@@ -1650,7 +1662,7 @@ function viewProd(){
   const ylast=cy[cy.length-1],yprev=cy[cy.length-2],vprev=ylast&&yprev?vVar(cper(ylast),cper(yprev)):null;
   const cmpTxt=yprev?` · <span class="${vCls(vprev)}">${vP(vprev)}</span> vs ${V_MES[0]}–${V_MES[nm-1]} ${yprev} (${sN(cper(yprev))})`:'';
   const tr=sum('trabajos'),mx=ms.reduce((m,r)=>+r.trabajos>+m.trabajos?r:m,ms[0]),mn=ms.reduce((m,r)=>+r.trabajos<+m.trabajos?r:m,ms[0]);
-  let h=`<h3 style="margin-top:6px">INFORME DE PRODUCCIÓN</h3>
+  let h=`<h3 id="rep-prod" class="rep-sec" style="margin-top:6px">INFORME DE PRODUCCIÓN</h3>
    <p class="vlead">Trabajos entregados por la imprenta y cuánto se debería facturar según la producción, ${esc(String(P.periodo).toLowerCase())}. Fuente: ${esc(P.fuente||'Producción')}. Montos en soles.</p>
    <div class="kpis">
     <div class="kpi"><span class="l">Trabajos entregados</span><span class="v">${sN(tr)}</span><span class="s">Promedio mensual: ${(tr/ms.length).toLocaleString('es-PE',{maximumFractionDigits:1})}${cmpTxt}</span></div>
@@ -1685,9 +1697,9 @@ function viewProd(){
 /* ===== Informe comercial ACES (mismo modelo que ventas por canales) ===== */
 function viewAces(){
   const d=acesDoc();
-  if(!d)return canManage()?`<h3 style="margin-top:6px">INFORME COMERCIAL ACES</h3><div class="panel empty"><strong>Aún no hay informe comercial de ACES</strong>Súbelo desde “Cargar o actualizar datos”.</div>`:'';
+  if(!d)return canManage()?`<h3 id="rep-aces" class="rep-sec" style="margin-top:6px">INFORME COMERCIAL ACES</h3><div class="panel empty"><strong>Aún no hay informe comercial de ACES</strong>Súbelo desde “Cargar o actualizar datos”.</div>`:'';
   const M=vModel(acesRows(),aRank);if(!M.years.length)return '';
-  let h=`<h2 style="margin-top:14px">INFORME COMERCIAL ACES</h2><p class="vlead">Ventas de ACES por canal o familia de productos, ${M.years[0]}–${M.years[M.years.length-1]}, en soles. Fuente: ${esc(d.fuente||'Reporte de ventas por canales ACES')}.</p>`;
+  let h=`<h2 id="rep-aces" class="rep-sec" style="margin-top:14px">INFORME COMERCIAL ACES</h2><p class="vlead">Ventas de ACES por canal o familia de productos, ${M.years[0]}–${M.years[M.years.length-1]}, en soles. Fuente: ${esc(d.fuente||'Reporte de ventas por canales ACES')}.</p>`;
   if(!M.years.includes(af.anio)){af.anio=M.years[M.years.length-1];af.corte=null}
   if(!af.corte)af.corte=M.maxMes[af.anio]||12;
   if(!['Todos',...M.canales].includes(af.canal))af.canal='Todos';
@@ -1797,6 +1809,7 @@ function bindAces(){
 
 function bindVentas(){
   const g=id=>document.getElementById(id);
+  document.querySelectorAll('[data-goto]').forEach(b=>b.onclick=()=>{const t=g(b.dataset.goto);if(t){vGoto=b.dataset.goto;t.scrollIntoView({behavior:'smooth',block:'start'})}});
   if(g('vAnio'))g('vAnio').onchange=e=>{vf.anio=+e.target.value;render()};
   if(g('vCorte'))g('vCorte').onchange=e=>{vf.corte=+e.target.value;render()};
   if(g('vCanal'))g('vCanal').onchange=e=>{vf.canal=e.target.value;render()};
