@@ -1327,15 +1327,16 @@ const vSrc=()=>{const s=REPV.eiu&&VHIST.find(x=>x.id===REPV.eiu);return s?(s.fil
 const REP_UP={susc:['viSusc','suscripciones'],prod:['viProd','produccion'],aces:['viAces','aces'],soma:['viSoma','soma'],cap:['viCap','capellania'],apt:['viApt','apt'],jv:['viJv','jefatura_ventas'],dis:['viDis','diseno'],mant:['viMant','mantenimiento'],aden:['viAden','aces_denominacional'],edu:['viEdu','educacion_aces'],upn:['viUpn','upn_material']};
 function verBar(key,arr){
   const adm=canManage(),s=vSorted(arr),cur=key==='eiu'?(VHIST.find(x=>x.id===REPV.eiu)||null):pickDoc(key,arr);
-  if(!s.length&&!adm)return '';
+  if(!s.length&&!adm&&key!=='eiu')return '';
   const lab=(d,i)=>`${vFmtDT(vTime(d))} · ${String(d.periodo||'')}${i===0?' (más reciente)':''}`;
   const opts=key==='eiu'?`<option value="">Datos vigentes${s[0]?' (última carga: '+vFmtDT(vTime(s[0]))+')':''}</option>${s.map(d=>`<option value="${esc(d.id)}" ${cur&&cur.id===d.id?'selected':''}>Carga del ${esc(vFmtDT(vTime(d)))} · ${esc(d.periodo||'')}</option>`).join('')}`
     :s.map((d,i)=>`<option value="${esc(d.id)}" ${cur&&cur.id===d.id?'selected':''}>${esc(lab(d,i))}</option>`).join('');
   const old=key==='eiu'?!!cur:(cur&&s[0]&&cur.id!==s[0].id);
   const up=REP_UP[key];
-  return `<div class="panel" style="flex-direction:row;flex-wrap:wrap;gap:10px;align-items:center;padding:10px 16px;margin-bottom:4px">
+  return `<div class="panel vver-bar" style="flex-direction:row;flex-wrap:wrap;gap:10px;align-items:center;padding:10px 16px;margin-bottom:4px">
    <label class="note v-lbl" style="flex:1 1 260px">Versión del reporte (de la más reciente a la más antigua)${(s.length||key==='eiu')?`<select data-vver="${key}">${opts}</select>`:'<span>Aún no hay versiones cargadas</span>'}</label>
    <span class="note">${s.length} ${s.length===1?'versión guardada':'versiones guardadas'}</span>
+   <button class="btn small primary" data-vprint="${key}">🖨 Imprimir sección</button>
    ${adm&&up?`<label class="btn small" style="cursor:pointer">Subir nueva versión<input type="file" accept=".json,application/json" data-up="${up[0]}" hidden></label>`:''}
    ${adm&&key==='eiu'?`<button class="btn small" data-vopenimp="1">Cargar nueva versión</button>`:''}
    ${adm&&cur&&(key==='eiu'||up)?`<button class="btn small" data-vdelcol="${key==='eiu'?'ventas_hist':up[1]}" data-vdelid="${esc(cur.id)}">Quitar esta versión</button>`:''}
@@ -2285,6 +2286,40 @@ function viewUpn(){
   return h;
 }
 
+/* Imprimir una sección de Reportes: copia lo que está en pantalla (con la versión y filtros elegidos) y lo manda a imprimir */
+const REP_TIT={eiu:'INFORME FACTURACIÓN EIU',susc:'COMPARATIVO SUSCRIPCIONES',prod:'INFORME DE PRODUCCIÓN',aces:'INFORME FACTURACIÓN ACES',soma:'INFORME DE SOMA',cap:'INFORME DE CAPELLANÍA',apt:'INFORME DE APT',jv:'INFORME JEFATURA VENTAS EIU',dis:'INFORME DISEÑO',mant:'INFORME MANTENIMIENTO',aden:'INFORME DENOMINACIONAL ACES',edu:'INFORME EDUCACIÓN ACES',upn:'INFORME UPN MATERIAL IGLESIAS'};
+function printRepSection(key){
+  const head=document.getElementById('rep-'+key);if(!head){toast('No se encontró la sección.');return}
+  const nodes=[];let n=head.nextElementSibling;
+  while(n&&!n.classList.contains('rep-sec')&&!(n.querySelector&&n.querySelector(':scope > .rep-sec'))){nodes.push(n);n=n.nextElementSibling}
+  const arr=key==='eiu'?VHIST:REP_ARR()[key]||[];const cur=key==='eiu'?(VHIST.find(x=>x.id===REPV.eiu)||null):pickDoc(key,arr);
+  const ver=key==='eiu'?(cur?`Versión: carga del ${vFmtDT(vTime(cur))}`:'Versión: datos vigentes'):(cur?`Versión: ${vFmtDT(vTime(cur))} · ${cur.periodo||''}`:'');
+  document.getElementById('repPrintBox')?.remove();document.getElementById('repPrintCss')?.remove();
+  const st=document.createElement('style');st.id='repPrintCss';
+  st.textContent=`@page{size:A4 landscape;margin:9mm}
+   @media screen{#repPrintBox{display:none}}
+   @media print{body>*:not(#repPrintBox){display:none!important}#repPrintBox{display:block;font-size:9pt}
+    *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    #repPrintBox .vver-bar,#repPrintBox button,#repPrintBox input[type=file]{display:none!important}
+    #repPrintBox .panel,#repPrintBox .kpi,#repPrintBox .card,#repPrintBox tr{break-inside:avoid;page-break-inside:avoid}
+    #repPrintBox .panel{box-shadow:none!important;margin:0 0 8px}
+    #repPrintBox .tbl,#repPrintBox .vt{overflow:visible!important;max-height:none!important}
+    #repPrintBox table{font-size:7.5pt}
+    #repPrintBox .grid2{grid-template-columns:1fr 1fr!important}
+    #repPrintBox .rp-h{margin:0 0 2px;font-size:15pt}#repPrintBox .rp-s{color:#555;font-size:8pt;margin:0 0 8px}}`;
+  document.head.appendChild(st);
+  const box=document.createElement('div');box.id='repPrintBox';
+  box.innerHTML=`<h1 class="rp-h">${esc(REP_TIT[key]||head.textContent)}</h1><div class="rp-s">Planes Gerenciales de la Editorial · Reportes · ${esc(ver)} · Impreso el ${fdate(today())}${myAcc()?' por '+esc(myAcc().nombre):''}</div>`;
+  nodes.forEach(x=>{const c=x.cloneNode(true);c.querySelectorAll('[id]').forEach(e=>e.removeAttribute('id'));
+    /* conservar lo elegido en los filtros */
+    const sa=x.querySelectorAll('select'),sb2=c.querySelectorAll('select');sa.forEach((s,i)=>{if(sb2[i])sb2[i].value=s.value;const o=sb2[i]&&sb2[i].options[s.selectedIndex];if(o)o.setAttribute('selected','')});
+    box.appendChild(c)});
+  document.body.appendChild(box);
+  const clean=()=>{box.remove();st.remove();window.removeEventListener('afterprint',clean)};
+  window.addEventListener('afterprint',clean);
+  setTimeout(()=>window.print(),80);
+}
+
 function bindVentas(){
   const g=id=>document.getElementById(id);
   const UPH={};
@@ -2387,6 +2422,7 @@ function bindVentas(){
     const r=await sb.from('registros').delete().eq('col','produccion').eq('id',b.dataset.pdel);if(r.error)toast('No se pudo quitar: '+r.error.message);else{db.reloadAll();toast('Informe quitado.')}});
   Object.keys(UPH).forEach(k=>{if(g(k))g(k).onchange=UPH[k]});
   document.querySelectorAll('[data-up]').forEach(i=>{const k=i.dataset.up;if(UPH[k])i.onchange=async e=>{const key=Object.keys(REP_UP).find(x=>REP_UP[x][0]===k);if(key)delete REPV[key];await UPH[k](e)}});
+  document.querySelectorAll('[data-vprint]').forEach(b=>b.onclick=()=>printRepSection(b.dataset.vprint));
   document.querySelectorAll('[data-vver]').forEach(s=>s.onchange=e=>{const k=s.dataset.vver;if(e.target.value)REPV[k]=e.target.value;else delete REPV[k];render()});
   document.querySelectorAll('[data-vopenimp]').forEach(b=>b.onclick=()=>{vImp.open=true;render();window.scrollTo({top:0})});
   document.querySelectorAll('[data-vdelcol]').forEach(b=>b.onclick=async()=>{if(!b.dataset.arm){b.dataset.arm=1;b.textContent='Confirmar: quitar esta versión';return}
