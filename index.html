@@ -1260,6 +1260,33 @@ const V_CCOL=['#0a8fb8','#c2185b','#e5a50a','#2f8a4f','#7c5cc4','#d2691e','#3a9d
 const vColor=(k,M)=>{const i=M.canales.indexOf(k);return V_CCOL[(i<0?0:i)%V_CCOL.length]};
 const V_YCOL=['var(--cyan)','var(--magenta)','var(--yellow)','var(--ok)','#7c5cc4','var(--warn)','#8a94a6','#5b8def','#d2691e','#3a9d9b'];
 let VENTAS=[];
+let VHIST=[];           /* versiones guardadas de Facturación EIU (colección ventas_hist) */
+const REPV={};          /* versión elegida en cada sección */
+const vTime=d=>String(d&&(d.cargadoEn||d.actualizado)||'');
+const vSorted=arr=>arr.slice().sort((a,b)=>vTime(b).localeCompare(vTime(a))||String(b.id).localeCompare(String(a.id)));
+function pickDoc(key,arr){const s=vSorted(arr);return s.find(d=>d.id===REPV[key])||s[0]}
+const vFmtDT=t=>{if(!t)return 'sin fecha';const d=new Date(t.length<=10?t+'T12:00:00':t);if(isNaN(d))return t;return d.toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric'})+(t.length>10?' '+d.toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'}):'')};
+const vSrc=()=>{const s=REPV.eiu&&VHIST.find(x=>x.id===REPV.eiu);return s?(s.filas||[]):VENTAS};
+/* Barra de versiones de cada sección: elegir versión (de la más reciente a la más antigua), subir otra y quitar la elegida */
+const REP_UP={susc:['viSusc','suscripciones'],prod:['viProd','produccion'],aces:['viAces','aces'],soma:['viSoma','soma'],cap:['viCap','capellania'],apt:['viApt','apt'],jv:['viJv','jefatura_ventas'],dis:['viDis','diseno'],mant:['viMant','mantenimiento'],aden:['viAden','aces_denominacional'],edu:['viEdu','educacion_aces'],upn:['viUpn','upn_material']};
+function verBar(key,arr){
+  const adm=canManage(),s=vSorted(arr),cur=key==='eiu'?(VHIST.find(x=>x.id===REPV.eiu)||null):pickDoc(key,arr);
+  if(!s.length&&!adm)return '';
+  const lab=(d,i)=>`${vFmtDT(vTime(d))} · ${String(d.periodo||'')}${i===0?' (más reciente)':''}`;
+  const opts=key==='eiu'?`<option value="">Datos vigentes${s[0]?' (última carga: '+vFmtDT(vTime(s[0]))+')':''}</option>${s.map(d=>`<option value="${esc(d.id)}" ${cur&&cur.id===d.id?'selected':''}>Carga del ${esc(vFmtDT(vTime(d)))} · ${esc(d.periodo||'')}</option>`).join('')}`
+    :s.map((d,i)=>`<option value="${esc(d.id)}" ${cur&&cur.id===d.id?'selected':''}>${esc(lab(d,i))}</option>`).join('');
+  const old=key==='eiu'?!!cur:(cur&&s[0]&&cur.id!==s[0].id);
+  const up=REP_UP[key];
+  return `<div class="panel" style="flex-direction:row;flex-wrap:wrap;gap:10px;align-items:center;padding:10px 16px;margin-bottom:4px">
+   <label class="note v-lbl" style="flex:1 1 260px">Versión del reporte (de la más reciente a la más antigua)${(s.length||key==='eiu')?`<select data-vver="${key}">${opts}</select>`:'<span>Aún no hay versiones cargadas</span>'}</label>
+   <span class="note">${s.length} ${s.length===1?'versión guardada':'versiones guardadas'}</span>
+   ${adm&&up?`<label class="btn small" style="cursor:pointer">Subir nueva versión<input type="file" accept=".json,application/json" data-up="${up[0]}" hidden></label>`:''}
+   ${adm&&key==='eiu'?`<button class="btn small" data-vopenimp="1">Cargar nueva versión</button>`:''}
+   ${adm&&cur&&(key==='eiu'||up)?`<button class="btn small" data-vdelcol="${key==='eiu'?'ventas_hist':up[1]}" data-vdelid="${esc(cur.id)}">Quitar esta versión</button>`:''}
+   ${old?`<span class="pill warn" style="flex-basis:100%">Estás viendo una versión anterior (${esc(vFmtDT(vTime(cur)))}). Elige la más reciente para volver.</span>`:''}</div>`;
+}
+const REP_ARR=()=>({susc:SUSC,prod:PROD,aces:ACES,soma:SOMA,cap:CAP,apt:APT,jv:JV,dis:DIS,mant:MANT,aden:ADEN,edu:EDU,upn:UPNM});
+function withVer(key,html){const re=new RegExp('(<h[23] id="rep-'+key+'" class="rep-sec"[^>]*>[\\s\\S]*?</h[23]>)');return html.replace(re,m=>m+verBar(key,REP_ARR()[key]))}
 const vf={anio:null,corte:null,canal:'Todos'};
 const vImp={open:false,text:'',anio:new Date().getFullYear(),hasta:'',parsed:null,busy:false};
 let vFocus=null;
@@ -1279,7 +1306,7 @@ let UPNM=[];
 const af={anio:null,corte:null,canal:'Todos'};
 const A_ORDEN=['Suscripciones UPN','Suscripciones UPS','Biblias','Libros ACES','Libro Misionero','Libro Didáctico - Educación','Plan Lector','Corporativo ACES','Materiales varios','Librería Móvil','Libros Safeliz','Matutinas','Libros Varios','Games Safeliz','Lecciones Inglés'];
 const aRank=c=>{if(c==='Todos')return 99;const i=A_ORDEN.indexOf(c);return i<0?50:i};
-const acesDoc=()=>ACES.slice().sort((a,b)=>String(b.actualizado||'').localeCompare(String(a.actualizado||'')))[0];
+const acesDoc=()=>pickDoc('aces',ACES);
 const acesRows=()=>{const d=acesDoc();return d&&Array.isArray(d.ventas)?d.ventas:[]};
 
 const vRank=c=>{if(c==='Todos')return 99;const i=V_ORDEN.indexOf(c);return i<0?50:i};
@@ -1323,7 +1350,7 @@ function vNum(s){
 
 /* Modelo de cálculo */
 function vModel(src,rk){
-  src=src||VENTAS;rk=rk||vRank;
+  src=src||vSrc();rk=rk||vRank;
   const map=new Map(),maxMes={};
   src.forEach(r=>{const y=+r.anio;map.set(y+'|'+r.canal,r.meses||[]);const mm=(r.meses||[]).reduce((m,v,i)=>v!=null?i+1:m,0);maxMes[y]=Math.max(maxMes[y]||0,mm)});
   const years=[...new Set(src.map(r=>+r.anio))].filter(y=>maxMes[y]).sort((a,b)=>a-b);
@@ -1360,7 +1387,7 @@ function vNav(hasV){
   if(!items.length)return '';
   return `<nav class="vnav" aria-label="Ir a un reporte">${items.map(([id,l,on])=>`<button type="button" class="vnav-b" data-goto="${id}" ${on?'':'disabled'}>${l}</button>`).join('')}</nav>`;
 }
-function repViews(){return [['susc',viewSusc],['prod',viewProd],['aces',viewAces],['soma',viewSoma],['cap',viewCap],['apt',viewApt],['jv',viewJv],['dis',viewDis],['mant',viewMant],['aden',viewAden],['edu',viewEdu],['upn',viewUpn]].map(([k,f])=>repOK(k)?f():'').join('')}
+function repViews(){return [['susc',viewSusc],['prod',viewProd],['aces',viewAces],['soma',viewSoma],['cap',viewCap],['apt',viewApt],['jv',viewJv],['dis',viewDis],['mant',viewMant],['aden',viewAden],['edu',viewEdu],['upn',viewUpn]].map(([k,f])=>repOK(k)?withVer(k,f()):'').join('')}
 function viewVentas(){
   const fe=document.activeElement;vFocus=fe&&fe.id&&/^vi/.test(fe.id)?{id:fe.id,s:fe.selectionStart,e:fe.selectionEnd,top:fe.scrollTop}:null;
   const adm=canManage(),M=vModel();
@@ -1376,7 +1403,7 @@ function viewVentas(){
   if(!['Todos',...M.canales].includes(vf.canal))vf.canal='Todos';
   const y=vf.anio,c=vf.corte,per=`Ene–${V_MES[c-1]} ${y}`,mesL=V_MESL[c-1];
 
-  h+=`<h3 id="rep-eiu" class="rep-sec" style="margin-top:2px">INFORME FACTURACIÓN EIU</h3>`;
+  h+=`<h3 id="rep-eiu" class="rep-sec" style="margin-top:2px">INFORME FACTURACIÓN EIU</h3>`+verBar('eiu',VHIST);
   h+=`<div class="panel" style="flex-direction:row;flex-wrap:wrap;gap:14px;align-items:end;padding:14px 18px">
    <label class="note v-lbl" for="vAnio">Año<select id="vAnio">${[...M.years].reverse().map(x=>`<option ${x===y?'selected':''}>${x}</option>`).join('')}</select></label>
    <label class="note v-lbl" for="vCorte">Acumulado hasta<select id="vCorte">${V_MESL.map((m,i)=>`<option value="${i+1}" ${i+1===c?'selected':''}>${m[0].toUpperCase()+m.slice(1)}</option>`).join('')}</select></label>
@@ -1547,7 +1574,12 @@ async function vSave(docs,years){
   for(let i=0;i<rows.length;i+=200){const r=await sb.from('registros').upsert(rows.slice(i,i+200));if(r.error)throw r.error}
   const stale=VENTAS.filter(v=>years.includes(+v.anio)&&!ids.has(v.id)).map(v=>v.id);
   if(stale.length){const r=await sb.from('registros').delete().eq('col','ventas').in('id',stale);if(r.error)throw r.error}
-  db.reloadAll();
+  /* guardar una versión completa de la facturación tal como queda después de esta carga */
+  const filas=[...VENTAS.filter(v=>!years.includes(+v.anio)),...docs.map(d=>({...d.data}))].map(r=>({anio:+r.anio,canal:r.canal,meses:r.meses||[]}));
+  const vid='eiu-'+Date.now().toString(36);
+  const h=await sb.from('registros').upsert({col:'ventas_hist',id:vid,data:{periodo:'Carga de '+years.join(', '),anios:years,cargadoEn:now,actualizado:now.slice(0,10),creadoPor:actorId(),filas},updated_at:now});
+  if(h.error)toast('Datos guardados, pero no se pudo guardar la versión en el historial: '+h.error.message);
+  delete REPV.eiu;db.reloadAll();
 }
 async function vDeleteYear(y){
   const ids=VENTAS.filter(v=>+v.anio===+y).map(v=>v.id);if(!ids.length)return;
@@ -1673,7 +1705,7 @@ function sGuia(n){const s=String(n).toLowerCase();
   if(s.includes('principiante'))return 'Geb Principiantes';if(s.includes('beb'))return 'Geb Bebés';return String(n)}
 function viewSusc(){
   if(!SUSC.length)return canManage()?`<h3 id="rep-susc" class="rep-sec" style="margin-top:6px">COMPARATIVO SUSCRIPCIONES</h3><div class="panel empty"><strong>Aún no hay informe de suscripciones</strong>Súbelo desde “Cargar o actualizar datos”.</div>`:'';
-  const s=SUSC.slice().sort((a,b)=>String(b.periodo).localeCompare(String(a.periodo)))[0];
+  const s=pickDoc('susc',SUSC);
   const [y0,y1]=String(s.periodo).split(/[–-]/).map(t=>t.trim());
   const sum=(rs,k)=>rs.reduce((a,r)=>a+(+r[k]||0),0),R=s.resumen,sehs=R.filter(r=>/^SEHS/i.test(r.indicador)),ups=R.filter(r=>!/^SEHS/i.test(r.indicador));
   const s26=sum(sehs,'anio_2026'),s27=sum(sehs,'sin_ingles_2027'),u26=sum(ups,'anio_2026'),u27=sum(ups,'sin_ingles_2027');
@@ -1722,7 +1754,7 @@ function vDiverge(el,rows){
 }
 
 /* ===== Informe de producción (imprenta) ===== */
-const prodDoc=()=>PROD.slice().sort((a,b)=>String(b.actualizado||'').localeCompare(String(a.actualizado||'')))[0];
+const prodDoc=()=>pickDoc('prod',PROD);
 function viewProd(){
   if(!PROD.length)return canManage()?`<h3 id="rep-prod" class="rep-sec" style="margin-top:6px">INFORME DE PRODUCCIÓN</h3><div class="panel empty"><strong>Aún no hay informe de producción</strong>Súbelo desde “Cargar o actualizar datos”.</div>`:'';
   const P=prodDoc();
@@ -1897,7 +1929,7 @@ function bindAces(){
 
 /* ===== Informe de SOMA (Sistema de Gestión Integrado) ===== */
 function viewSoma(){
-  const d=SOMA.slice().sort((a,b)=>String(b.actualizado||'').localeCompare(String(a.actualizado||'')))[0];
+  const d=pickDoc('soma',SOMA);
   if(!d)return canManage()?`<h3 id="rep-soma" class="rep-sec" style="margin-top:6px">INFORME DE SOMA</h3><div class="panel empty"><strong>Aún no hay informe de SOMA</strong>Súbelo desde “Cargar o actualizar datos”.</div>`:'';
   const C=d.cumplimiento||[],prom=a=>{const x=C.filter(r=>r.area===a);return x.length?x.reduce((s,r)=>s+ +r.avance,0)/x.length:null};
   const g=d.sgi||{},tot=(d.presupuesto||[]).reduce((s,r)=>s+ +r.monto,0),nf=v=>(+v).toLocaleString('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -1932,7 +1964,7 @@ function viewSoma(){
 
 /* ===== Informe de Capellanía ===== */
 function viewCap(){
-  const d=CAP.slice().sort((a,b)=>String(b.actualizado||'').localeCompare(String(a.actualizado||'')))[0];
+  const d=pickDoc('cap',CAP);
   if(!d)return canManage()?`<h3 id="rep-cap" class="rep-sec" style="margin-top:6px">INFORME DE CAPELLANÍA</h3><div class="panel empty"><strong>Aún no hay informe de Capellanía</strong>Súbelo desde “Cargar o actualizar datos”.</div>`:'';
   const I=d.indicadores||{},li=a=>`<ul class="note" style="margin:0;padding-left:1.1em;line-height:1.6">${(a||[]).map(t=>`<li>${esc(t)}</li>`).join('')}</ul>`;
   const n1=v=>v==null?'—':(+v).toLocaleString('es-PE',{maximumFractionDigits:1});
@@ -1962,7 +1994,7 @@ function viewCap(){
 }
 
 /* ===== Informe de APT (Almacén de Productos Terminados) ===== */
-const aptDoc=()=>APT.slice().sort((a,b)=>String(b.actualizado||'').localeCompare(String(a.actualizado||'')))[0];
+const aptDoc=()=>pickDoc('apt',APT);
 function viewApt(){
   const d=aptDoc();
   if(!d)return canManage()?`<h3 id="rep-apt" class="rep-sec" style="margin-top:6px">INFORME DE APT</h3><div class="panel empty"><strong>Aún no hay informe de APT</strong>Súbelo desde “Cargar o actualizar datos”.</div>`:'';
@@ -1986,7 +2018,7 @@ function viewApt(){
 }
 
 /* ===== Informe de Jefatura de Ventas EIU (por asesor y canal) ===== */
-const jvDoc=()=>JV.slice().sort((a,b)=>String(b.actualizado||'').localeCompare(String(a.actualizado||'')))[0];
+const jvDoc=()=>pickDoc('jv',JV);
 const jvS2=v=>v==null?'—':'S/ '+(+v).toLocaleString('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2});
 function jvCanales(d){const o={};(d.asesores||[]).forEach(a=>{if(!(a.mes||[]).some(m=>m.ventas!=null))return;o[a.canal]=o[a.canal]||Array(9).fill(0);a.mes.forEach(m=>{o[a.canal][m.orden-1]+=+(m.ventas||0)})});return o}
 function viewJv(){
@@ -2027,7 +2059,7 @@ function viewJv(){
 }
 
 /* ===== Informe de Diseño y corrección ===== */
-const disDoc=()=>DIS.slice().sort((a,b)=>String(b.actualizado||'').localeCompare(String(a.actualizado||'')))[0];
+const disDoc=()=>pickDoc('dis',DIS);
 function viewDis(){
   const d=disDoc();
   if(!d)return canManage()?`<h3 id="rep-dis" class="rep-sec" style="margin-top:6px">INFORME DISEÑO</h3><div class="panel empty"><strong>Aún no hay informe de Diseño</strong>Súbelo desde “Cargar o actualizar datos”.</div>`:'';
@@ -2056,7 +2088,7 @@ function viewDis(){
 }
 
 /* ===== Informe de Mantenimiento ===== */
-const mantDoc=()=>MANT.slice().sort((a,b)=>String(b.actualizado||'').localeCompare(String(a.actualizado||'')))[0];
+const mantDoc=()=>pickDoc('mant',MANT);
 function viewMant(){
   const d=mantDoc();
   if(!d)return canManage()?`<h3 id="rep-mant" class="rep-sec" style="margin-top:6px">INFORME MANTENIMIENTO</h3><div class="panel empty"><strong>Aún no hay informe de Mantenimiento</strong>Súbelo desde “Cargar o actualizar datos”.</div>`:'';
@@ -2096,7 +2128,7 @@ function viewMant(){
 }
 
 /* ===== Informe Denominacional ACES ===== */
-const adenDoc=()=>ADEN.slice().sort((a,b)=>String(b.actualizado||'').localeCompare(String(a.actualizado||'')))[0];
+const adenDoc=()=>pickDoc('aden',ADEN);
 const adenSum=(L,y,n)=>{const rs=(L||[]).filter(r=>+r.anio===y&&+r.orden<=n);return rs.length?rs.reduce((a,r)=>a+ +r.monto,0):null};
 function viewAden(){
   const d=adenDoc();
@@ -2138,7 +2170,7 @@ function viewAden(){
 }
 
 /* ===== Informe Educación ACES ===== */
-const eduDoc=()=>EDU.slice().sort((a,b)=>String(b.actualizado||'').localeCompare(String(a.actualizado||'')))[0];
+const eduDoc=()=>pickDoc('edu',EDU);
 function viewEdu(){
   const d=eduDoc();
   if(!d)return canManage()?`<h3 id="rep-edu" class="rep-sec" style="margin-top:6px">INFORME EDUCACIÓN ACES</h3><div class="panel empty"><strong>Aún no hay informe de Educación ACES</strong>Súbelo desde “Cargar o actualizar datos”.</div>`:'';
@@ -2171,7 +2203,7 @@ function viewEdu(){
 }
 
 /* ===== Informe UPN Material Iglesias ===== */
-const upnDoc=()=>UPNM.slice().sort((a,b)=>String(b.actualizado||'').localeCompare(String(a.actualizado||'')))[0];
+const upnDoc=()=>pickDoc('upn',UPNM);
 const UPN_COL={'Sin archivo':'#d1435b','Archivo enviado':'#e8a33d','Aprobado por tesorero':'#7a5af8','En diseño':'var(--cyan)','Impresión':'#2fa36b'};
 function viewUpn(){
   const d=upnDoc();
@@ -2199,6 +2231,7 @@ function viewUpn(){
 
 function bindVentas(){
   const g=id=>document.getElementById(id);
+  const UPH={};
   document.querySelectorAll('[data-goto]').forEach(b=>b.onclick=()=>{const t=g(b.dataset.goto);if(t){vGoto=b.dataset.goto;const nv=document.querySelector('.vnav');t.style.scrollMarginTop=((nv?nv.offsetHeight:56)+8)+'px';t.scrollIntoView({behavior:'smooth',block:'start'})}});
   if(g('vAnio'))g('vAnio').onchange=e=>{vf.anio=+e.target.value;render()};
   if(g('vCorte'))g('vCorte').onchange=e=>{vf.corte=+e.target.value;render()};
@@ -2210,79 +2243,79 @@ function bindVentas(){
   if(g('viHasta'))g('viHasta').onchange=e=>{vImp.hasta=e.target.value};
   if(g('viPrev'))g('viPrev').onclick=()=>{vImp.text=g('viText').value;vImp.anio=g('viAnio').value;vImp.parsed=vParse(vImp.text,vImp.anio,vImp.hasta);render()};
   if(g('viFile'))g('viFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{vImp.parsed=vParseJson(JSON.parse(await f.text()))}catch(err){vImp.parsed={err:1,msg:'No se pudo leer el archivo: no es un JSON válido.',warn:[],docs:[],years:[]}}render()};
-  if(g('viSusc'))g('viSusc').onchange=async e=>{const f=e.target.files[0];if(!f)return;
+  UPH.viSusc=async e=>{const f=e.target.files[0];if(!f)return;e.target.value='';
     try{const o=JSON.parse(await f.text());const ok=o&&o.periodo&&['resumen','misiones','productos','materiales'].every(k=>Array.isArray(o[k])&&o[k].length);
       if(!ok){toast('El archivo no tiene el formato del informe de suscripciones.');return}
-      const id='sehs-'+vSlug(o.periodo);const data={...o,actualizado:today(),creadoPor:actorId()};
+      const id='sehs-'+vSlug(o.periodo)+'-'+Date.now().toString(36);const data={...o,actualizado:today(),cargadoEn:new Date().toISOString(),creadoPor:actorId()};
       const r=await sb.from('registros').upsert({col:'suscripciones',id,data,updated_at:new Date().toISOString()});if(r.error)throw r.error;db.reloadAll();toast('Informe de suscripciones guardado.')}
     catch(err){toast('No se pudo cargar: '+(err.message||err))}};
   document.querySelectorAll('[data-sdel]').forEach(b=>b.onclick=async()=>{if(!b.dataset.arm){b.dataset.arm=1;b.textContent='Confirmar';return}
     const r=await sb.from('registros').delete().eq('col','suscripciones').eq('id',b.dataset.sdel);if(r.error)toast('No se pudo quitar: '+r.error.message);else{db.reloadAll();toast('Informe quitado.')}});
   document.querySelectorAll('[data-sdiv]').forEach(el=>vDiverge(el,JSON.parse(el.dataset.sdiv)));
-  if(g('viProd'))g('viProd').onchange=async e=>{const f=e.target.files[0];if(!f)return;
+  UPH.viProd=async e=>{const f=e.target.files[0];if(!f)return;e.target.value='';
     try{const o=JSON.parse(await f.text());const ok=o&&o.periodo&&['mes','categorias'].every(k=>Array.isArray(o[k])&&o[k].length);
       if(!ok){toast('El archivo no tiene el formato del informe de producción.');return}
-      const id='prod-'+vSlug(o.periodo);const r=await sb.from('registros').upsert({col:'produccion',id,data:{...o,actualizado:today(),creadoPor:actorId()},updated_at:new Date().toISOString()});if(r.error)throw r.error;db.reloadAll();toast('Informe de producción guardado.')}
+      const id='prod-'+vSlug(o.periodo)+'-'+Date.now().toString(36);const r=await sb.from('registros').upsert({col:'produccion',id,data:{...o,actualizado:today(),cargadoEn:new Date().toISOString(),creadoPor:actorId()},updated_at:new Date().toISOString()});if(r.error)throw r.error;db.reloadAll();toast('Informe de producción guardado.')}
     catch(err){toast('No se pudo cargar: '+(err.message||err))}};
-  if(g('viAces'))g('viAces').onchange=async e=>{const f=e.target.files[0];if(!f)return;
+  UPH.viAces=async e=>{const f=e.target.files[0];if(!f)return;e.target.value='';
     try{const o=JSON.parse(await f.text());const ok=o&&o.periodo&&Array.isArray(o.ventas)&&o.ventas.length&&o.ventas.every(r=>r&&r.anio&&r.canal&&Array.isArray(r.meses));
       if(!ok){toast('El archivo no tiene el formato del informe comercial de ACES.');return}
-      const id='aces-'+vSlug(o.periodo);const r=await sb.from('registros').upsert({col:'aces',id,data:{...o,actualizado:today(),creadoPor:actorId()},updated_at:new Date().toISOString()});if(r.error)throw r.error;db.reloadAll();toast('Informe de facturación ACES guardado.')}
+      const id='aces-'+vSlug(o.periodo)+'-'+Date.now().toString(36);const r=await sb.from('registros').upsert({col:'aces',id,data:{...o,actualizado:today(),cargadoEn:new Date().toISOString(),creadoPor:actorId()},updated_at:new Date().toISOString()});if(r.error)throw r.error;db.reloadAll();toast('Informe de facturación ACES guardado.')}
     catch(err){toast('No se pudo cargar: '+(err.message||err))}};
-  if(g('viSoma'))g('viSoma').onchange=async e=>{const f=e.target.files[0];if(!f)return;
+  UPH.viSoma=async e=>{const f=e.target.files[0];if(!f)return;e.target.value='';
     try{const o=JSON.parse(await f.text());const ok=o&&o.periodo&&Array.isArray(o.cumplimiento)&&o.cumplimiento.length;
       if(!ok){toast('El archivo no tiene el formato del informe de SOMA.');return}
-      const id='soma-'+vSlug(o.periodo);const r=await sb.from('registros').upsert({col:'soma',id,data:{...o,actualizado:today(),creadoPor:actorId()},updated_at:new Date().toISOString()});if(r.error)throw r.error;db.reloadAll();toast('Informe de SOMA guardado.')}
+      const id='soma-'+vSlug(o.periodo)+'-'+Date.now().toString(36);const r=await sb.from('registros').upsert({col:'soma',id,data:{...o,actualizado:today(),cargadoEn:new Date().toISOString(),creadoPor:actorId()},updated_at:new Date().toISOString()});if(r.error)throw r.error;db.reloadAll();toast('Informe de SOMA guardado.')}
     catch(err){toast('No se pudo cargar: '+(err.message||err))}};
-  if(g('viCap'))g('viCap').onchange=async e=>{const f=e.target.files[0];if(!f)return;
+  UPH.viCap=async e=>{const f=e.target.files[0];if(!f)return;e.target.value='';
     try{const o=JSON.parse(await f.text());const ok=o&&o.periodo&&o.indicadores&&Array.isArray(o.grupos);
       if(!ok){toast('El archivo no tiene el formato del informe de Capellanía.');return}
-      const id='cap-'+vSlug(o.periodo);const r=await sb.from('registros').upsert({col:'capellania',id,data:{...o,actualizado:today(),creadoPor:actorId()},updated_at:new Date().toISOString()});if(r.error)throw r.error;db.reloadAll();toast('Informe de Capellanía guardado.')}
+      const id='cap-'+vSlug(o.periodo)+'-'+Date.now().toString(36);const r=await sb.from('registros').upsert({col:'capellania',id,data:{...o,actualizado:today(),cargadoEn:new Date().toISOString(),creadoPor:actorId()},updated_at:new Date().toISOString()});if(r.error)throw r.error;db.reloadAll();toast('Informe de Capellanía guardado.')}
     catch(err){toast('No se pudo cargar: '+(err.message||err))}};
-  if(g('viApt'))g('viApt').onchange=async e=>{const f=e.target.files[0];if(!f)return;
+  UPH.viApt=async e=>{const f=e.target.files[0];if(!f)return;e.target.value='';
     try{const o=JSON.parse(await f.text());const ok=o&&o.periodo&&Array.isArray(o.mes)&&o.mes.length;
       if(!ok){toast('El archivo no tiene el formato del informe de APT.');return}
-      const id='apt-'+vSlug(o.periodo);const r=await sb.from('registros').upsert({col:'apt',id,data:{...o,actualizado:today(),creadoPor:actorId()},updated_at:new Date().toISOString()});if(r.error)throw r.error;db.reloadAll();toast('Informe de APT guardado.')}
+      const id='apt-'+vSlug(o.periodo)+'-'+Date.now().toString(36);const r=await sb.from('registros').upsert({col:'apt',id,data:{...o,actualizado:today(),cargadoEn:new Date().toISOString(),creadoPor:actorId()},updated_at:new Date().toISOString()});if(r.error)throw r.error;db.reloadAll();toast('Informe de APT guardado.')}
     catch(err){toast('No se pudo cargar: '+(err.message||err))}};
-  if(g('viUpn'))g('viUpn').onchange=async e=>{const f=e.target.files[0];if(!f)return;
+  UPH.viUpn=async e=>{const f=e.target.files[0];if(!f)return;e.target.value='';
     try{const o=JSON.parse(await f.text());const ok=o&&o.periodo&&o.tipo==='upn_material_iglesias'&&Array.isArray(o.materiales);
       if(!ok){toast('El archivo no tiene el formato del informe UPN Material Iglesias.');return}
-      const id='upn-'+vSlug(o.periodo);const r=await sb.from('registros').upsert({col:'upn_material',id,data:{...o,actualizado:today(),creadoPor:actorId()},updated_at:new Date().toISOString()});if(r.error)throw r.error;db.reloadAll();toast('Informe UPN Material Iglesias guardado.')}
+      const id='upn-'+vSlug(o.periodo)+'-'+Date.now().toString(36);const r=await sb.from('registros').upsert({col:'upn_material',id,data:{...o,actualizado:today(),cargadoEn:new Date().toISOString(),creadoPor:actorId()},updated_at:new Date().toISOString()});if(r.error)throw r.error;db.reloadAll();toast('Informe UPN Material Iglesias guardado.')}
     catch(err){toast('No se pudo cargar: '+(err.message||err))}};
   document.querySelectorAll('[data-upndel]').forEach(b=>b.onclick=async()=>{if(!b.dataset.arm){b.dataset.arm=1;b.textContent='Confirmar';return}
     const r=await sb.from('registros').delete().eq('col','upn_material').eq('id',b.dataset.upndel);if(r.error)toast('No se pudo quitar: '+r.error.message);else{db.reloadAll();toast('Informe quitado.')}});
-  if(g('viEdu'))g('viEdu').onchange=async e=>{const f=e.target.files[0];if(!f)return;
+  UPH.viEdu=async e=>{const f=e.target.files[0];if(!f)return;e.target.value='';
     try{const o=JSON.parse(await f.text());const ok=o&&o.periodo&&o.tipo==='educacion_aces'&&Array.isArray(o.crecimiento);
       if(!ok){toast('El archivo no tiene el formato del informe de Educación ACES.');return}
-      const id='edu-'+vSlug(o.periodo);const r=await sb.from('registros').upsert({col:'educacion_aces',id,data:{...o,actualizado:today(),creadoPor:actorId()},updated_at:new Date().toISOString()});if(r.error)throw r.error;db.reloadAll();toast('Informe de Educación ACES guardado.')}
+      const id='edu-'+vSlug(o.periodo)+'-'+Date.now().toString(36);const r=await sb.from('registros').upsert({col:'educacion_aces',id,data:{...o,actualizado:today(),cargadoEn:new Date().toISOString(),creadoPor:actorId()},updated_at:new Date().toISOString()});if(r.error)throw r.error;db.reloadAll();toast('Informe de Educación ACES guardado.')}
     catch(err){toast('No se pudo cargar: '+(err.message||err))}};
   document.querySelectorAll('[data-edudel]').forEach(b=>b.onclick=async()=>{if(!b.dataset.arm){b.dataset.arm=1;b.textContent='Confirmar';return}
     const r=await sb.from('registros').delete().eq('col','educacion_aces').eq('id',b.dataset.edudel);if(r.error)toast('No se pudo quitar: '+r.error.message);else{db.reloadAll();toast('Informe quitado.')}});
-  if(g('viAden'))g('viAden').onchange=async e=>{const f=e.target.files[0];if(!f)return;
+  UPH.viAden=async e=>{const f=e.target.files[0];if(!f)return;e.target.value='';
     try{const o=JSON.parse(await f.text());const ok=o&&o.periodo&&o.ventas&&o.tipo==='aces_denominacional';
       if(!ok){toast('El archivo no tiene el formato del informe Denominacional de ACES.');return}
-      const id='aden-'+vSlug(o.periodo);const r=await sb.from('registros').upsert({col:'aces_denominacional',id,data:{...o,actualizado:today(),creadoPor:actorId()},updated_at:new Date().toISOString()});if(r.error)throw r.error;db.reloadAll();toast('Informe Denominacional de ACES guardado.')}
+      const id='aden-'+vSlug(o.periodo)+'-'+Date.now().toString(36);const r=await sb.from('registros').upsert({col:'aces_denominacional',id,data:{...o,actualizado:today(),cargadoEn:new Date().toISOString(),creadoPor:actorId()},updated_at:new Date().toISOString()});if(r.error)throw r.error;db.reloadAll();toast('Informe Denominacional de ACES guardado.')}
     catch(err){toast('No se pudo cargar: '+(err.message||err))}};
   document.querySelectorAll('[data-addel]').forEach(b=>b.onclick=async()=>{if(!b.dataset.arm){b.dataset.arm=1;b.textContent='Confirmar';return}
     const r=await sb.from('registros').delete().eq('col','aces_denominacional').eq('id',b.dataset.addel);if(r.error)toast('No se pudo quitar: '+r.error.message);else{db.reloadAll();toast('Informe quitado.')}});
-  if(g('viMant'))g('viMant').onchange=async e=>{const f=e.target.files[0];if(!f)return;
+  UPH.viMant=async e=>{const f=e.target.files[0];if(!f)return;e.target.value='';
     try{const o=JSON.parse(await f.text());const ok=o&&o.periodo&&Array.isArray(o.mes)&&Array.isArray(o.maquinas)&&Array.isArray(o.bloques);
       if(!ok){toast('El archivo no tiene el formato del informe de Mantenimiento.');return}
-      const id='mant-'+vSlug(o.periodo);const r=await sb.from('registros').upsert({col:'mantenimiento',id,data:{...o,actualizado:today(),creadoPor:actorId()},updated_at:new Date().toISOString()});if(r.error)throw r.error;db.reloadAll();toast('Informe de Mantenimiento guardado.')}
+      const id='mant-'+vSlug(o.periodo)+'-'+Date.now().toString(36);const r=await sb.from('registros').upsert({col:'mantenimiento',id,data:{...o,actualizado:today(),cargadoEn:new Date().toISOString(),creadoPor:actorId()},updated_at:new Date().toISOString()});if(r.error)throw r.error;db.reloadAll();toast('Informe de Mantenimiento guardado.')}
     catch(err){toast('No se pudo cargar: '+(err.message||err))}};
   document.querySelectorAll('[data-mtdel]').forEach(b=>b.onclick=async()=>{if(!b.dataset.arm){b.dataset.arm=1;b.textContent='Confirmar';return}
     const r=await sb.from('registros').delete().eq('col','mantenimiento').eq('id',b.dataset.mtdel);if(r.error)toast('No se pudo quitar: '+r.error.message);else{db.reloadAll();toast('Informe quitado.')}});
-  if(g('viDis'))g('viDis').onchange=async e=>{const f=e.target.files[0];if(!f)return;
+  UPH.viDis=async e=>{const f=e.target.files[0];if(!f)return;e.target.value='';
     try{const o=JSON.parse(await f.text());const ok=o&&o.periodo&&Array.isArray(o.personas)&&o.totales;
       if(!ok){toast('El archivo no tiene el formato del informe de Diseño.');return}
-      const id='dis-'+vSlug(o.periodo);const r=await sb.from('registros').upsert({col:'diseno',id,data:{...o,actualizado:today(),creadoPor:actorId()},updated_at:new Date().toISOString()});if(r.error)throw r.error;db.reloadAll();toast('Informe de Diseño guardado.')}
+      const id='dis-'+vSlug(o.periodo)+'-'+Date.now().toString(36);const r=await sb.from('registros').upsert({col:'diseno',id,data:{...o,actualizado:today(),cargadoEn:new Date().toISOString(),creadoPor:actorId()},updated_at:new Date().toISOString()});if(r.error)throw r.error;db.reloadAll();toast('Informe de Diseño guardado.')}
     catch(err){toast('No se pudo cargar: '+(err.message||err))}};
   document.querySelectorAll('[data-disdel]').forEach(b=>b.onclick=async()=>{if(!b.dataset.arm){b.dataset.arm=1;b.textContent='Confirmar';return}
     const r=await sb.from('registros').delete().eq('col','diseno').eq('id',b.dataset.disdel);if(r.error)toast('No se pudo quitar: '+r.error.message);else{db.reloadAll();toast('Informe quitado.')}});
-  if(g('viJv'))g('viJv').onchange=async e=>{const f=e.target.files[0];if(!f)return;
+  UPH.viJv=async e=>{const f=e.target.files[0];if(!f)return;e.target.value='';
     try{const o=JSON.parse(await f.text());const ok=o&&o.periodo&&Array.isArray(o.asesores)&&Array.isArray(o.diagnostico);
       if(!ok){toast('El archivo no tiene el formato del informe de la Jefatura de Ventas.');return}
-      const id='jv-'+vSlug(o.periodo);const r=await sb.from('registros').upsert({col:'jefatura_ventas',id,data:{...o,actualizado:today(),creadoPor:actorId()},updated_at:new Date().toISOString()});if(r.error)throw r.error;db.reloadAll();toast('Informe de la Jefatura de Ventas guardado.')}
+      const id='jv-'+vSlug(o.periodo)+'-'+Date.now().toString(36);const r=await sb.from('registros').upsert({col:'jefatura_ventas',id,data:{...o,actualizado:today(),cargadoEn:new Date().toISOString(),creadoPor:actorId()},updated_at:new Date().toISOString()});if(r.error)throw r.error;db.reloadAll();toast('Informe de la Jefatura de Ventas guardado.')}
     catch(err){toast('No se pudo cargar: '+(err.message||err))}};
   document.querySelectorAll('[data-jvdel]').forEach(b=>b.onclick=async()=>{if(!b.dataset.arm){b.dataset.arm=1;b.textContent='Confirmar';return}
     const r=await sb.from('registros').delete().eq('col','jefatura_ventas').eq('id',b.dataset.jvdel);if(r.error)toast('No se pudo quitar: '+r.error.message);else{db.reloadAll();toast('Informe quitado.')}});
@@ -2296,6 +2329,12 @@ function bindVentas(){
     const r=await sb.from('registros').delete().eq('col','aces').eq('id',b.dataset.adel);if(r.error)toast('No se pudo quitar: '+r.error.message);else{db.reloadAll();toast('Informe quitado.')}});
   document.querySelectorAll('[data-pdel]').forEach(b=>b.onclick=async()=>{if(!b.dataset.arm){b.dataset.arm=1;b.textContent='Confirmar';return}
     const r=await sb.from('registros').delete().eq('col','produccion').eq('id',b.dataset.pdel);if(r.error)toast('No se pudo quitar: '+r.error.message);else{db.reloadAll();toast('Informe quitado.')}});
+  Object.keys(UPH).forEach(k=>{if(g(k))g(k).onchange=UPH[k]});
+  document.querySelectorAll('[data-up]').forEach(i=>{const k=i.dataset.up;if(UPH[k])i.onchange=async e=>{const key=Object.keys(REP_UP).find(x=>REP_UP[x][0]===k);if(key)delete REPV[key];await UPH[k](e)}});
+  document.querySelectorAll('[data-vver]').forEach(s=>s.onchange=e=>{const k=s.dataset.vver;if(e.target.value)REPV[k]=e.target.value;else delete REPV[k];render()});
+  document.querySelectorAll('[data-vopenimp]').forEach(b=>b.onclick=()=>{vImp.open=true;render();window.scrollTo({top:0})});
+  document.querySelectorAll('[data-vdelcol]').forEach(b=>b.onclick=async()=>{if(!b.dataset.arm){b.dataset.arm=1;b.textContent='Confirmar: quitar esta versión';return}
+    const r=await sb.from('registros').delete().eq('col',b.dataset.vdelcol).eq('id',b.dataset.vdelid);if(r.error)toast('No se pudo quitar: '+r.error.message);else{Object.keys(REPV).forEach(k=>{if(REPV[k]===b.dataset.vdelid)delete REPV[k]});db.reloadAll();toast('Versión quitada.')}});
   const P0=prodDoc();
   if(P0&&g('vpTrab')){const ms=P0.mes.slice().sort((a,b)=>a.orden-b.orden);
     vStack(g('vpTrab'),ms.map(m=>({x:m.mes,vals:{Trabajos:+m.trabajos}})),['Trabajos'],['var(--cyan)'],r=>r.x,v=>sN(v)+' trabajos');
@@ -2420,6 +2459,7 @@ render();
     db.collection('aces_denominacional').onSnapshot(snap=>{ADEN=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
     db.collection('educacion_aces').onSnapshot(snap=>{EDU=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
     db.collection('upn_material').onSnapshot(snap=>{UPNM=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
+    db.collection('ventas_hist').onSnapshot(snap=>{VHIST=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
     COLS.forEach(c=>db.collection(c).onSnapshot(snap=>{const rows=snap.docs.map(d=>({...d.data(),id:d.id}));if(c==='personal'){PUBP.length=0;PUBP.push(...rows);mergeP();migrate()}else RAW[c]=rows;render()},()=>toast('No se pudieron cargar los datos. Revisa tu conexión.')))};
   sb.auth.onAuthStateChange((ev,sess)=>{const had=!!SESSION;SESSION=sess;if(sess){loadUsers().then(startData)}else{USR=[];USR_READY=false;if(had){COLS.forEach(c=>RAW[c]=[]);db.clear()}loadUsers()}});
   sb.channel('perfiles-cambios').on('postgres_changes',{event:'*',schema:'public',table:'perfiles'},()=>{if(SESSION)loadUsers()}).subscribe();
