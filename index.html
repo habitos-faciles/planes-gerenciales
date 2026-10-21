@@ -1269,6 +1269,7 @@ let JV=[];
 let DIS=[];
 let MANT=[];
 let ADEN=[];
+let EDU=[];
 const af={anio:null,corte:null,canal:'Todos'};
 const A_ORDEN=['Suscripciones UPN','Suscripciones UPS','Biblias','Libros ACES','Libro Misionero','Libro Didáctico - Educación','Plan Lector','Corporativo ACES','Materiales varios','Librería Móvil','Libros Safeliz','Matutinas','Libros Varios','Games Safeliz','Lecciones Inglés'];
 const aRank=c=>{if(c==='Todos')return 99;const i=A_ORDEN.indexOf(c);return i<0?50:i};
@@ -1345,7 +1346,7 @@ const vYearCol=(y,years)=>V_YCOL[(years.length-1-years.indexOf(y))%V_YCOL.length
 
 /* Vista */
 function vNav(hasV){
-  const items=[['rep-eiu','Facturación EIU',hasV],['rep-susc','Suscripciones',SUSC.length||canManage()],['rep-prod','Producción',PROD.length||canManage()],['rep-aces','Facturación ACES',ACES.length||canManage()],['rep-soma','SOMA',SOMA.length||canManage()],['rep-cap','Capellanía',CAP.length||canManage()],['rep-apt','APT',APT.length||canManage()],['rep-jv','Jefatura Ventas EIU',JV.length||canManage()],['rep-dis','Diseño',DIS.length||canManage()],['rep-mant','Mantenimiento',MANT.length||canManage()],['rep-aden','ACES Denominacional',ADEN.length||canManage()]];
+  const items=[['rep-eiu','Facturación EIU',hasV],['rep-susc','Suscripciones',SUSC.length||canManage()],['rep-prod','Producción',PROD.length||canManage()],['rep-aces','Facturación ACES',ACES.length||canManage()],['rep-soma','SOMA',SOMA.length||canManage()],['rep-cap','Capellanía',CAP.length||canManage()],['rep-apt','APT',APT.length||canManage()],['rep-jv','Jefatura Ventas EIU',JV.length||canManage()],['rep-dis','Diseño',DIS.length||canManage()],['rep-mant','Mantenimiento',MANT.length||canManage()],['rep-aden','ACES Denominacional',ADEN.length||canManage()],['rep-edu','Educación ACES',EDU.length||canManage()]];
   return `<nav class="vnav" aria-label="Ir a un reporte">${items.map(([id,l,on])=>`<button type="button" class="vnav-b" data-goto="${id}" ${on?'':'disabled'}>${l}</button>`).join('')}</nav>`;
 }
 function viewVentas(){
@@ -1355,7 +1356,7 @@ function viewVentas(){
    <div class="right">${M.years.length?'<button class="btn" id="vCsv">Exportar CSV</button>':''}${adm?`<button class="btn ${vImp.open?'':'primary'}" id="vImpBtn" aria-pressed="${vImp.open}">${vImp.open?'Cerrar carga de datos':'Cargar o actualizar datos'}</button>`:''}</div></div>`;
   h+=vNav(M.years.length>0);
   if(adm&&vImp.open)h+=viewVImport(M);
-  if(!M.years.length)return h+`<div id="rep-eiu" class="rep-sec"></div><div class="panel empty"><strong>Aún no hay datos de ventas</strong>${adm?'Usa “Cargar o actualizar datos” para pegar el cuadro de AASINET o subir el archivo de datos.':'El administrador todavía no carga los reportes de ventas.'}</div>`+viewSusc()+viewProd()+viewAces()+viewSoma()+viewCap()+viewApt()+viewJv()+viewDis()+viewMant()+viewAden();
+  if(!M.years.length)return h+`<div id="rep-eiu" class="rep-sec"></div><div class="panel empty"><strong>Aún no hay datos de ventas</strong>${adm?'Usa “Cargar o actualizar datos” para pegar el cuadro de AASINET o subir el archivo de datos.':'El administrador todavía no carga los reportes de ventas.'}</div>`+viewSusc()+viewProd()+viewAces()+viewSoma()+viewCap()+viewApt()+viewJv()+viewDis()+viewMant()+viewAden()+viewEdu();
   if(!M.years.includes(vf.anio)){vf.anio=M.years[M.years.length-1];vf.corte=null}
   if(!vf.corte)vf.corte=M.maxMes[vf.anio]||12;
   if(!['Todos',...M.canales].includes(vf.canal))vf.canal='Todos';
@@ -1442,7 +1443,7 @@ function viewVentas(){
   const st=rowsAll.map(k=>({k,s:vStats(M,y,c,k)})).filter(o=>o.s);
   h+=`<div class="panel"><h2 style="font-size:1.05rem">Estadísticos por canal · ${per}</h2><div class="note">Calculados sobre los meses de enero al mes de corte.</div>
    ${st.length?`<div class="tbl vt"><table><thead><tr><th>Canal</th><th class="num">Acumulado</th><th class="num">Part.</th><th class="num">Prom. mensual</th><th class="num">Mediana</th><th class="num">Desv. estándar</th><th class="num">Coef. variación</th><th class="num">Mes más alto</th><th>Mes</th><th class="num">Mes más bajo</th><th>Mes</th><th class="num">Var. vs ${y-1}</th></tr></thead><tbody>${st.map(({k,s})=>`<tr class="${k==='Todos'?'vtot':''}"><td>${esc(vLabel(k))}</td><td class="num">${vN(s.total)}</td><td class="num">${vP1(s.part)}</td><td class="num">${vN(s.prom)}</td><td class="num">${vN(s.med)}</td><td class="num">${vN(s.desv)}</td><td class="num">${vP1(s.cv)}</td><td class="num">${vN(s.max)}</td><td>${s.mesMax}</td><td class="num">${vN(s.min)}</td><td>${s.mesMin}</td><td class="num ${vCls(s.var)}">${vP(s.var)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="note">Sin datos para este periodo.</div>'}</div>`;
-  return h+viewSusc()+viewProd()+viewAces()+viewSoma()+viewCap()+viewApt()+viewJv()+viewDis()+viewMant()+viewAden();
+  return h+viewSusc()+viewProd()+viewAces()+viewSoma()+viewCap()+viewApt()+viewJv()+viewDis()+viewMant()+viewAden()+viewEdu();
 }
 
 /* Carga de datos (solo administradores) */
@@ -1472,6 +1473,7 @@ function viewVImport(M){
   h+=`<div style="border-top:1px solid var(--rule);padding-top:12px;display:flex;flex-direction:column;gap:8px"><h3>Informe de Diseño y corrección</h3><div class="note">Sube el archivo del informe de Diseño (formato JSON). Si ya hay uno del mismo periodo, se reemplaza.${DIS.length?` Cargados: ${DIS.map(s=>`<b>${esc(s.periodo)}</b> <button class="link" data-disdel="${esc(s.id)}">Quitar</button>`).join(' · ')}`:''}</div><div><label class="btn" style="cursor:pointer">Subir informe de Diseño<input id="viDis" type="file" accept=".json,application/json" hidden></label></div></div>`;
   h+=`<div style="border-top:1px solid var(--rule);padding-top:12px;display:flex;flex-direction:column;gap:8px"><h3>Informe de Mantenimiento</h3><div class="note">Sube el archivo del informe de Mantenimiento (formato JSON). Si ya hay uno del mismo periodo, se reemplaza.${MANT.length?` Cargados: ${MANT.map(s=>`<b>${esc(s.periodo)}</b> <button class="link" data-mtdel="${esc(s.id)}">Quitar</button>`).join(' · ')}`:''}</div><div><label class="btn" style="cursor:pointer">Subir informe de Mantenimiento<input id="viMant" type="file" accept=".json,application/json" hidden></label></div></div>`;
   h+=`<div style="border-top:1px solid var(--rule);padding-top:12px;display:flex;flex-direction:column;gap:8px"><h3>Informe Denominacional ACES</h3><div class="note">Sube el archivo del informe Denominacional de ACES (formato JSON). Si ya hay uno del mismo periodo, se reemplaza.${ADEN.length?` Cargados: ${ADEN.map(s=>`<b>${esc(s.periodo)}</b> <button class="link" data-addel="${esc(s.id)}">Quitar</button>`).join(' · ')}`:''}</div><div><label class="btn" style="cursor:pointer">Subir informe Denominacional ACES<input id="viAden" type="file" accept=".json,application/json" hidden></label></div></div>`;
+  h+=`<div style="border-top:1px solid var(--rule);padding-top:12px;display:flex;flex-direction:column;gap:8px"><h3>Informe Educación ACES</h3><div class="note">Sube el archivo del informe de Educación ACES (formato JSON). Si ya hay uno del mismo periodo, se reemplaza.${EDU.length?` Cargados: ${EDU.map(s=>`<b>${esc(s.periodo)}</b> <button class="link" data-edudel="${esc(s.id)}">Quitar</button>`).join(' · ')}`:''}</div><div><label class="btn" style="cursor:pointer">Subir informe Educación ACES<input id="viEdu" type="file" accept=".json,application/json" hidden></label></div></div>`;
   if(M.years.length)h+=`<div class="note">Años cargados: ${M.years.map(x=>`<span style="display:inline-flex;gap:6px;align-items:center;margin-right:12px"><b>${x}</b> (a ${V_MESL[M.maxMes[x]-1]}) <button class="link" data-vdel="${x}">Quitar</button></span>`).join('')}</div>`;
   return h+'</div>';
 }
@@ -2120,6 +2122,39 @@ function viewAden(){
   return h;
 }
 
+/* ===== Informe Educación ACES ===== */
+const eduDoc=()=>EDU.slice().sort((a,b)=>String(b.actualizado||'').localeCompare(String(a.actualizado||'')))[0];
+function viewEdu(){
+  const d=eduDoc();
+  if(!d)return canManage()?`<h3 id="rep-edu" class="rep-sec" style="margin-top:6px">INFORME EDUCACIÓN ACES</h3><div class="panel empty"><strong>Aún no hay informe de Educación ACES</strong>Súbelo desde “Cargar o actualizar datos”.</div>`:'';
+  const li=a=>`<ul class="note" style="margin:0;padding-left:1.1em;line-height:1.6">${(a||[]).map(x=>`<li>${x}</li>`).join('')}</ul>`;
+  const tbl=(cols,rows,tot)=>`<div class="tbl vt"><table><thead><tr>${cols.map(c=>`<th${c[2]?' class="num"':''}>${c[0]}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${cols.map(c=>`<td${c[2]?' class="num"':' style="white-space:normal"'}>${c[1](r)}</td>`).join('')}</tr>`).join('')}${tot||''}</tbody></table></div>`;
+  const bars=(rows)=>{const m2=Math.max(...rows.map(r=>r.v))||1,t=rows.reduce((a,r)=>a+r.v,0);return `<div class="vbars">${rows.map((r,i)=>`<div class="vbar"><span>${esc(r.n)}</span><div class="t"><b style="width:${r.v/m2*100}%;background:${i<3?'var(--cyan)':'var(--ink-2)'};opacity:${i<3?1:.45}"></b></div><span class="val">${sN(r.v)} · ${vP1(t?r.v/t:null)}</span></div>`).join('')}</div>`};
+  const C=(d.crecimiento||[]).slice().sort((a,b)=>a.anio-b.anio),real=C.filter(r=>!r.proyectado),u=real[real.length-1]||{},p=real[real.length-2]||{},py=C.find(r=>r.proyectado);
+  const R=(d.iiee_region||[]).slice().sort((a,b)=>b.total-a.total),S=k=>R.reduce((a,r)=>a+ +r[k],0);
+  let h=`<h2 id="rep-edu" class="rep-sec" style="margin-top:14px">INFORME EDUCACIÓN ACES</h2>
+   <p class="vlead">Gestión de ACES Educación con colegios, ${esc(d.periodo||'')}: colegios captados y clientes, actividades, aliados, equipo, mercado de instituciones educativas y planificación 2027. Responsable: ${esc(d.responsable||'')}. Fuente: ${esc(d.fuente||'')}.</p>
+   <div class="kpis">
+    <div class="kpi"><span class="l">Colegios captados ${u.anio||''}</span><span class="v">${sN(u.captados)}</span><span class="s"><span class="${vCls(vVar(u.captados,p.captados))}">${vP(vVar(u.captados,p.captados))}</span> vs ${p.anio} (${sN(p.captados)})</span></div>
+    <div class="kpi"><span class="l">Colegios clientes ${u.anio||''}</span><span class="v">${sN(u.clientes)}</span><span class="s"><span class="${vCls(vVar(u.clientes,p.clientes))}">${vP(vVar(u.clientes,p.clientes))}</span> vs ${p.anio} (${sN(p.clientes)})</span></div>
+    <div class="kpi"><span class="l">Conversión ${u.anio||''}</span><span class="v">${vP1(u.captados?u.clientes/u.captados:null)}</span><span class="s">clientes sobre captados</span></div>
+    ${py?`<div class="kpi"><span class="l">Proyección ${py.anio}</span><span class="v">≈ ${sN(py.captados)} · ${sN(py.clientes)}</span><span class="s">captados · clientes (pronóstico)</span></div>`:''}
+    <div class="kpi"><span class="l">Equipo</span><span class="v">${(d.equipo||[]).length} personas</span><span class="s">${(d.equipo_proyectado||[]).length} asesores proyectados para 2027</span></div></div>
+   <div class="grid2"><div class="panel"><h2 style="font-size:1.05rem">Colegios captados y clientes por año</h2><div class="note">${esc(d.proyeccion_texto||'')} La barra completa son los colegios captados; la parte azul, los que ya son clientes.</div><div class="legend"><span><i style="background:#b9bec8"></i>Captados sin compra</span><span><i style="background:var(--cyan)"></i>Clientes</span></div><div class="vchart" id="veduCrec"></div>
+     ${tbl([['Año',r=>r.anio+(r.proyectado?' (proy.)':'')],['Captados',r=>(r.proyectado?'≈ ':'')+sN(r.captados),1],['Clientes',r=>(r.proyectado?'≈ ':'')+sN(r.clientes),1],['Conversión',r=>vP1(r.captados?r.clientes/r.captados:null),1]],C)}</div>
+    <div class="panel"><h2 style="font-size:1.05rem">Colegios captados por tipo</h2><div class="note">${sN((d.captados_tipo||[]).reduce((a,r)=>a+r.cantidad,0))} colegios captados.</div>${bars((d.captados_tipo||[]).map(r=>({n:r.tipo,v:+r.cantidad})))}
+     <h2 style="font-size:1.05rem;margin-top:14px">Colegios clientes por zona</h2>${bars((d.clientes_region||[]).map(r=>({n:r.region,v:+r.cantidad})))}</div></div>
+   <div class="panel"><h2 style="font-size:1.05rem">Mercado: instituciones educativas por región</h2><div class="note">MINEDU, actualizado al ${esc(d.iiee_fecha||'')}. ${d.iiee_gestion?`Pública de gestión directa: ${sN(d.iiee_gestion.publica_directa)} · privada: ${sN(d.iiee_gestion.privada)} · pública de gestión privada: ${sN(d.iiee_gestion.publica_gestion_privada)}. `:''}«Religiosas» son las privadas que dependen de una asociación religiosa.</div>
+    ${tbl([['Región',r=>esc(r.region)],['Públicas',r=>sN(r.publicas),1],['Privadas',r=>sN(r.privadas),1],['Total',r=>sN(r.total),1],['% privadas',r=>vP1(r.total?r.privadas/r.total:null),1],['Religiosas',r=>r.religiosas?sN(r.religiosas):'—',1]],R,`<tr class="vtot"><td>Total</td><td class="num">${sN(S('publicas'))}</td><td class="num">${sN(S('privadas'))}</td><td class="num">${sN(S('total'))}</td><td class="num">${vP1(S('privadas')/S('total'))}</td><td class="num">${sN(S('religiosas'))}</td></tr>`)}</div>
+   <div class="grid2"><div class="panel"><h2 style="font-size:1.05rem">Ruta anual de trabajo 2026</h2>${(d.ruta_anual||[]).map(e=>`<div class="note" style="margin:6px 0 2px"><b>${esc(e.etapa)}</b></div>${li(e.items.map(esc))}`).join('')}</div>
+    <div class="panel"><h2 style="font-size:1.05rem">Beneficios para la comunidad educativa</h2><div class="note">Alianza «Un libro abre cinco puertas».</div>${li((d.beneficios||[]).map(esc))}</div></div>
+   <div class="panel"><h2 style="font-size:1.05rem">Acciones destacadas 2026</h2>${li((d.actividades||[]).map(a=>`<b>${esc(a.actividad)}:</b> ${esc(a.detalle)}`))}</div>
+   <div class="grid2"><div class="panel"><h2 style="font-size:1.05rem">Equipo en crecimiento</h2>${tbl([['Nombre',r=>esc(r.nombre)],['Cargo',r=>esc(r.cargo)],['Desde',r=>esc(r.desde)]],d.equipo||[])}<div class="note" style="margin-top:8px"><b>Equipo proyectado 2027:</b> ${(d.equipo_proyectado||[]).map(esc).join(' · ')}</div></div>
+    <div class="panel"><h2 style="font-size:1.05rem">Requerimientos 2027</h2>${li((d.requerimientos_2027||[]).map(esc))}<h2 style="font-size:1.05rem;margin-top:12px">Proyectos nuevos 2027</h2>${li((d.proyectos_2027||[]).map(esc))}</div></div>`;
+  if((d.notas||[]).length)h+=`<div class="panel"><h2 style="font-size:1.05rem">Notas sobre el informe de Educación ACES</h2>${li(d.notas.map(esc))}</div>`;
+  return h;
+}
+
 function bindVentas(){
   const g=id=>document.getElementById(id);
   document.querySelectorAll('[data-goto]').forEach(b=>b.onclick=()=>{const t=g(b.dataset.goto);if(t){vGoto=b.dataset.goto;const nv=document.querySelector('.vnav');t.style.scrollMarginTop=((nv?nv.offsetHeight:56)+8)+'px';t.scrollIntoView({behavior:'smooth',block:'start'})}});
@@ -2167,6 +2202,13 @@ function bindVentas(){
       if(!ok){toast('El archivo no tiene el formato del informe de APT.');return}
       const id='apt-'+vSlug(o.periodo);const r=await sb.from('registros').upsert({col:'apt',id,data:{...o,actualizado:today(),creadoPor:actorId()},updated_at:new Date().toISOString()});if(r.error)throw r.error;db.reloadAll();toast('Informe de APT guardado.')}
     catch(err){toast('No se pudo cargar: '+(err.message||err))}};
+  if(g('viEdu'))g('viEdu').onchange=async e=>{const f=e.target.files[0];if(!f)return;
+    try{const o=JSON.parse(await f.text());const ok=o&&o.periodo&&o.tipo==='educacion_aces'&&Array.isArray(o.crecimiento);
+      if(!ok){toast('El archivo no tiene el formato del informe de Educación ACES.');return}
+      const id='edu-'+vSlug(o.periodo);const r=await sb.from('registros').upsert({col:'educacion_aces',id,data:{...o,actualizado:today(),creadoPor:actorId()},updated_at:new Date().toISOString()});if(r.error)throw r.error;db.reloadAll();toast('Informe de Educación ACES guardado.')}
+    catch(err){toast('No se pudo cargar: '+(err.message||err))}};
+  document.querySelectorAll('[data-edudel]').forEach(b=>b.onclick=async()=>{if(!b.dataset.arm){b.dataset.arm=1;b.textContent='Confirmar';return}
+    const r=await sb.from('registros').delete().eq('col','educacion_aces').eq('id',b.dataset.edudel);if(r.error)toast('No se pudo quitar: '+r.error.message);else{db.reloadAll();toast('Informe quitado.')}});
   if(g('viAden'))g('viAden').onchange=async e=>{const f=e.target.files[0];if(!f)return;
     try{const o=JSON.parse(await f.text());const ok=o&&o.periodo&&o.ventas&&o.tipo==='aces_denominacional';
       if(!ok){toast('El archivo no tiene el formato del informe Denominacional de ACES.');return}
@@ -2232,6 +2274,7 @@ function bindVentas(){
     vStack(g('vmMaq'),(d.maquinas||[]).map(r=>({x:r.corto,n:r.maquina,vals:{Correctivo:+r.correctivo,Preventivo:+r.preventivo,'No especificado':+r.no_especificado}})),['Correctivo','Preventivo','No especificado'],['#d1435b','var(--cyan)','#b9bec8'],r=>r.n,v=>sN(v))}}
   {const d=adenDoc();if(d&&g('vadDen')){const V=d.ventas||{};[['vadDen',V.denominacional],['vadMeg',V.megaferias],['vadMov',V.libreria_movil_sur]].forEach(([id,L])=>{L=L||[];const ys=[...new Set(L.map(r=>+r.anio))].sort(),ms=[...new Set(L.map(r=>+r.orden))].sort((a,b)=>a-b);
     vLines(g(id),[...ys].reverse().map(y=>({n:String(y),c:vYearCol(y,ys),strong:y===ys[ys.length-1],vals:ms.map(m=>{const r=L.find(x=>+x.anio===y&&+x.orden===m);return r?+r.monto:null})})),null,ms.map(m=>V_MES[m-1]),v=>v==null?'—':'≈ '+vS(v))})}}
+  {const d=eduDoc();if(d&&g('veduCrec')){const C=(d.crecimiento||[]).slice().sort((a,b)=>a.anio-b.anio);vStack(g('veduCrec'),C.map(r=>({x:r.proyectado?r.anio+'*':String(r.anio),p:r.proyectado,vals:{Clientes:+r.clientes,'Captados (no clientes)':+r.captados-+r.clientes}})),['Clientes','Captados (no clientes)'],['var(--cyan)','#b9bec8'],r=>r.p?r.x.slice(0,-1)+' (proyección)':r.x,v=>sN(v)+' colegios')}}
 
   const M=vModel();if(!M.years.length||!g('vcAcum'))return;
   const y=vf.anio,c=vf.corte,keys=vf.canal==='Todos'?M.canales:[vf.canal],cols=keys.length>1?keys.map(k=>vColor(k,M)):['var(--cyan)'];
@@ -2325,6 +2368,7 @@ render();
     db.collection('diseno').onSnapshot(snap=>{DIS=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
     db.collection('mantenimiento').onSnapshot(snap=>{MANT=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
     db.collection('aces_denominacional').onSnapshot(snap=>{ADEN=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
+    db.collection('educacion_aces').onSnapshot(snap=>{EDU=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
     COLS.forEach(c=>db.collection(c).onSnapshot(snap=>{const rows=snap.docs.map(d=>({...d.data(),id:d.id}));if(c==='personal'){PUBP.length=0;PUBP.push(...rows);mergeP();migrate()}else RAW[c]=rows;render()},()=>toast('No se pudieron cargar los datos. Revisa tu conexión.')))};
   sb.auth.onAuthStateChange((ev,sess)=>{const had=!!SESSION;SESSION=sess;if(sess){loadUsers().then(startData)}else{USR=[];USR_READY=false;if(had){COLS.forEach(c=>RAW[c]=[]);db.clear()}loadUsers()}});
   sb.channel('perfiles-cambios').on('postgres_changes',{event:'*',schema:'public',table:'perfiles'},()=>{if(SESSION)loadUsers()}).subscribe();
