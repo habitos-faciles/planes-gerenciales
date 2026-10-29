@@ -788,6 +788,11 @@ function bindCal(){
 
 /* ===== Módulo: Clientes y pedidos (ficha «Información del cliente», precio aprobado y requerimientos) ===== */
 RAW.clientes=RAW.clientes||[];S.clientes=S.clientes||[];
+const CLI_CLIENTES=['UPN','APCE','MPN','MICOP','MINOP','ANOP','NT','SEHS NORTE','ASEACE','AEACOP','UPS','APC','MPCS','MCP','MOP','MSOP','MPLT','APS','SEHS SUR','ADRA','CAAS','CGH','CAJ','ACES'];
+const CLI_DEPTOS=['Mayordomía','MipEs','Ministerio Mujer','Ministerio Infantil','Ministerio Adolescente','Ministerio Joven','Educación','Publicaciones','Asoc. Ministerial','Tesorería','Secretaría','SVA','Legales','GTH'];
+function cliSelOtro(name,label,list,val,ro,extra=''){const v=val||'',inL=!v||list.includes(v);
+  return `<label ${extra}>${label}<select name="${name}" data-otro="${name}" ${ro}><option value="">— Elegir —</option>${list.map(o=>`<option ${o===v?'selected':''}>${esc(o)}</option>`).join('')}<option value="__otro" ${inL?'':'selected'}>Otro (escribir)…</option></select>
+   <input name="${name}Otro" value="${inL?'':esc(v)}" placeholder="Escribe el ${label.replace(' *','').toLowerCase()}" ${inL?'hidden':''} ${ro} style="margin-top:6px"></label>`}
 const CLI_TIPOS=['Cotización','Orden','Cotización y Orden'];
 const CLI_EST=['Registrado','Proforma aprobada','Diseño','Corrección','Preprensa','En producción','Posprensa','APT','Entregado','Anulado'];
 function cliNextCode(unidad,fecha){const y=/^\d{4}-/.test(fecha||'')?fecha.slice(0,4):new Date().getFullYear(),pre=`CP-${unidad||'GEN'}-${y}-`;const mx=(RAW.clientes||[]).map(c=>c.codigo||'').filter(c=>c.startsWith(pre)).map(c=>+c.slice(pre.length)||0).reduce((a,b)=>Math.max(a,b),0);return pre+String(mx+1).padStart(4,'0')}
@@ -895,7 +900,7 @@ function openCli(id){
    <label>Asesor comercial<select name="asesor" ${ro}><option value="">—</option>${RAW.personal.filter(p=>p.estado!=='Cesado').map(p=>[p.id,p.nombre+(p.cargo?' — '+p.cargo:'')]).sort((a,b)=>a[1].localeCompare(b[1])).map(([v,l])=>`<option value="${v}" ${v===r.asesor?'selected':''}>${esc(l)}</option>`).join('')}</select></label>
    ${F('fechaIngreso','Fecha de ingreso','date')}${F('horaIngreso','Hora de ingreso','time')}${F('fechaProforma','Fecha recepción de proforma','date')}${F('horaProforma','Hora de recepción','time')}
    ${sec('Ventas · datos del cliente')}
-   ${F('cliente','Cliente *','text','style="grid-column:span 2"')}<label>Departamento / Área<input name="departamento" list="cliDepLst" value="${esc(r.departamento||'')}" placeholder="Ej. Departamento de Educación" ${ro}><datalist id="cliDepLst">${[...new Set((RAW.clientes||[]).map(c=>c.departamento).filter(Boolean))].sort().map(d=>`<option value="${esc(d)}">`).join('')}</datalist></label>${F('ruc','RUC / ID tributario')}
+   ${cliSelOtro('cliente','Cliente *',CLI_CLIENTES,r.cliente,ro,'style="grid-column:span 2"')}${cliSelOtro('departamento','Departamento / Área',CLI_DEPTOS,r.departamento,ro)}${F('ruc','RUC / ID tributario')}
    ${F('responsable','Nombre del responsable')}${F('telefono','Teléfono','tel')}${F('email','E-mail','email','style="grid-column:span 2"')}
    ${sec('Trabajo')}
    ${F('trabajo','Trabajo *','text','style="grid-column:span 2"')}${F('cantidad','Cantidad','number')}${F('formato','Formato')}
@@ -930,9 +935,11 @@ function openCli(id){
 }
 function readCliForm(){const fd=new FormData($('#cliFrm'));const o={...cliEd.r};
   ['proforma','unidad','asesor','fechaIngreso','horaIngreso','fechaProforma','horaProforma','cliente','departamento','ruc','responsable','telefono','email','trabajo','cantidad','formato','tapa','hojas','paginas','encuadernacion','encarte','otros','tipoDoc','diseno','correccion','preprensa','servicio','job','fechaInicio','fechaEntrega','precio','precioIgv','precioFecha','precioAprobo'].forEach(k=>{const v=fd.get(k);if(v!==null)o[k]=String(v).trim()});
+  ['cliente','departamento'].forEach(k=>{if(o[k]==='__otro')o[k]=String(fd.get(k+'Otro')||'').trim()});
   ['cantidad','precio','paginas'].forEach(k=>{o[k]=o[k]===''||o[k]==null?'':+o[k]});['vbAsesor','vbCliente','vbCostos'].forEach(k=>o[k]=!!fd.get(k));return o}
 function bindCliDlg(){
   const dl=$('#cliDlg');
+  document.querySelectorAll('#cliFrm [data-otro]').forEach(s=>s.addEventListener('change',()=>{const i=$('#cliFrm [name='+s.dataset.otro+'Otro]');i.hidden=s.value!=='__otro';if(!i.hidden)i.focus()}));
   $('#cliCancel').onclick=()=>dl.close();
   const pr=$('#cliPr');if(pr)pr.onclick=()=>printCli(cliEd.id);
   const pi=$('#cliPrIni');if(pi)pi.onclick=()=>printCli(cliEd.id,'ini');
@@ -968,7 +975,7 @@ function bindCliDlg(){
     o.dist.forEach(x=>{if(!x.proforma)x.proforma=o.proforma||''});
     const bd=o.dist.find(x=>!x.material||x.cantidad===''||x.cantidad<=0);if(bd){cliErr('En «Distribución de materiales»: cada envío necesita material y una cantidad mayor a 0.');return}
     const miss=[['cliente','Cliente'],['trabajo','Trabajo'],['unidad','Unidad']].filter(([k])=>!o[k]).map(x=>x[1]);
-    if(miss.length){const mk=[['cliente','Cliente'],['trabajo','Trabajo'],['unidad','Unidad']].find(([k])=>!o[k])[0];cliErr('Falta completar: '+miss.join(', ')+'.',mk);return}
+    if(miss.length){let mk=[['cliente','Cliente'],['trabajo','Trabajo'],['unidad','Unidad']].find(([k])=>!o[k])[0];if(mk==='cliente'&&$('#cliFrm [name=cliente]').value==='__otro')mk='clienteOtro';cliErr('Falta completar: '+miss.join(', ')+'.',mk);return}
     if(o.email&&!/^\S+@\S+\.\S+$/.test(o.email)){cliErr('Revisa el e-mail.','email');return}
     const bad=[...o.reqs,...(o.cambios||[])].find(x=>(x.entregado&&!x.solicitado)||(x.entregado&&x.solicitado&&x.entregado<x.solicitado)||(x.limite&&x.solicitado&&x.limite<x.solicitado));
     if(bad){cliErr(`En «${bad.tipo}»: ${!bad.solicitado?'falta la fecha de solicitud':bad.entregado&&bad.entregado<bad.solicitado?'la entrega o atención no puede ser antes de la solicitud':'la fecha límite no puede ser antes de la solicitud'}.`);return}
@@ -1045,7 +1052,7 @@ async function cliExport(){
   catch(e){toast('No se pudo generar el Excel. Revisa tu conexión e inténtalo de nuevo.')}}
 async function cliTemplate(){
   try{const X=await loadXLSX();const u=(myUnitOpts()[0]||['',''])[1];
-    const ej={codigo:'CP-HIST-2025-0001',proforma:'PF-2025-0123',tipoDoc:'Orden',unidad:'',fechaIngreso:'2025-03-10',horaIngreso:'09:30',cliente:'Colegio Ejemplo',departamento:'Departamento de Educación',ruc:'20123456789',responsable:'Nombre Apellido',telefono:'987654321',email:'correo@ejemplo.com',trabajo:'Agenda escolar 2025',cantidad:1000,formato:'A5',tapa:'Tapa dura',hojas:'Bond 75 g a 1 color',paginas:160,encuadernacion:'Wire-o',diseno:'Nuevo',correccion:'Sí',preprensa:'Sí',servicio:'Impresión',job:'2503-0101',fechaInicio:'2025-03-12',fechaEntrega:'2025-04-20',estado:'Entregado',precio:12500,precioIgv:'Incluye IGV',precioFecha:'2025-03-11',precioAprobo:'Gerencia de Ventas',vbAsesor:true,vbCliente:true,vbCostos:true,
+    const ej={codigo:'CP-HIST-2025-0001',proforma:'PF-2025-0123',tipoDoc:'Orden',unidad:'',fechaIngreso:'2025-03-10',horaIngreso:'09:30',cliente:'UPN',departamento:'Educación',ruc:'20123456789',responsable:'Nombre Apellido',telefono:'987654321',email:'correo@ejemplo.com',trabajo:'Agenda escolar 2025',cantidad:1000,formato:'A5',tapa:'Tapa dura',hojas:'Bond 75 g a 1 color',paginas:160,encuadernacion:'Wire-o',diseno:'Nuevo',correccion:'Sí',preprensa:'Sí',servicio:'Impresión',job:'2503-0101',fechaInicio:'2025-03-12',fechaEntrega:'2025-04-20',estado:'Entregado',precio:12500,precioIgv:'Incluye IGV',precioFecha:'2025-03-11',precioAprobo:'Gerencia de Ventas',vbAsesor:true,vbCliente:true,vbCostos:true,
       reqs:[{tipo:'Entrega de texto completo',detalle:'',solicitado:'2025-03-10',limite:'2025-03-15',entregado:'2025-03-14'}],cambios:[{tipo:'Cambio de diseño de tapas',detalle:'Otro color de fondo',solicitado:'2025-03-20',limite:'',entregado:'2025-03-22'}],
       procesos:[{etapa:'Diseño',entrega:'2025-03-24',inicio:'2025-03-12',fin:'2025-03-25',obs:''},{etapa:'En producción',inicio:'2025-03-26',fin:'2025-04-15',obs:''},{etapa:'Entregado',inicio:'2025-04-20',fin:'2025-04-20',obs:''}],
       dist:[{cantidad:1000,material:'Agenda escolar 2025',precio:12.5,proforma:'PF-2025-0123',campo:'Misión Ejemplo',logistico:'Nombre del logístico',direccion:'Av. Ejemplo 123, Lima',agencia:'Shalom'}]};
@@ -1054,7 +1061,7 @@ async function cliTemplate(){
       ['2. Código: si lo dejas vacío, el sistema genera uno al importar. Si quieres registrar requerimientos, cambios, etapas o distribución, escribe un código (por ejemplo CP-HIST-2025-0001) y repítelo en las otras hojas para enlazarlos.'],
       ['3. Si el código ya existe en el sistema, la fila actualiza ese pedido. Si no existe, se crea un pedido nuevo con ese código.'],
       ['4. Fechas en formato dd/mm/aaaa o aaaa-mm-dd. Montos sin «S/».'],['5. Hojas Requerimientos, Cambios, Etapas del estado y Distribución: opcionales. Si un pedido tiene filas en una de esas hojas, reemplazan las que tenía.'],
-      ['6. Borra la fila de ejemplo antes de importar.'],[''],['Etapas válidas: '+CLI_EST.join(', ')],['Requerimientos sugeridos: '+CLI_REQ_TIPOS.join(', ')],['Cambios sugeridos: '+CLI_CAMB_TIPOS.join(', ')]]);
+      ['6. Borra la fila de ejemplo antes de importar.'],[''],['Etapas válidas: '+CLI_EST.join(', ')],['Requerimientos sugeridos: '+CLI_REQ_TIPOS.join(', ')],['Cambios sugeridos: '+CLI_CAMB_TIPOS.join(', ')],['Clientes de la lista: '+CLI_CLIENTES.join(', ')+' (también puedes escribir otro)'],['Departamentos / áreas de la lista: '+CLI_DEPTOS.join(', ')+' (también puedes escribir otro)']]);
     ins['!cols']=[{wch:140}];X.utils.book_append_sheet(wb,ins,'Instrucciones');
     X.writeFile(wb,'plantilla_clientes_pedidos.xlsx')}catch(e){toast('No se pudo generar la plantilla. Revisa tu conexión.')}}
 function cliVal(c,v){if(v instanceof Date&&c[2]==='h')return String(v.getHours()).padStart(2,'0')+':'+String(v.getMinutes()).padStart(2,'0');
