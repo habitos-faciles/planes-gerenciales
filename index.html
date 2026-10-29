@@ -789,6 +789,7 @@ RAW.clientes=RAW.clientes||[];S.clientes=S.clientes||[];
 const CLI_EST=['Registrado','Proforma aprobada','En producción','Entregado','Anulado'];
 const CLI_REQ_DEF=['Entrega de texto completo','Entrega de imágenes','Entrega de material complementario'];
 const CLI_REQ_TIPOS=['Entrega de texto completo','Entrega de imágenes','Entrega de material complementario','Entrega de logotipos','Entrega de artes / diseño del cliente','Aprobación de prueba de color','Aprobación de prueba final','Otro'];
+const CLI_CAMB_TIPOS=['Cambio de número de páginas','Cambio de diseño de tapas','Cambio de formato','Cambio de color de las páginas (de color a blanco y negro)','Cambio de imágenes','No le gustó el diseño','Otros'];
 let cliF={q:'',estado:'',req:''},cliEd=null;
 function scopeClientes(ac){
   if(ac==='all'){S.clientes=RAW.clientes;return}
@@ -796,12 +797,12 @@ function scopeClientes(ac){
   S.clientes=RAW.clientes.filter(r=>sc.includes(r.unidad)||(a.id&&r.creadoPor===a.id)||(a.persona&&r.asesor===a.persona));
 }
 const dDiff=(a,b)=>Math.round((Date.parse(b+'T12:00:00')-Date.parse(a+'T12:00:00'))/864e5);
-function reqInfo(x){const t=today();
+function reqInfo(x,cb){const t=today();const E=cb?'Atendido':'Entregado',e=cb?'atendido':'entregado',w=cb?'esperando atención':'esperando';
   if(!x.solicitado)return {st:'Sin fecha de solicitud',c:'',dias:null,txt:'Asigna la fecha de solicitud'};
   if(x.entregado){const d=dDiff(x.solicitado,x.entregado);const late=x.limite&&x.entregado>x.limite;
-    return {st:late?'Entregado con retraso':'Entregado',c:late?'warn':'ok',dias:d,txt:`Solicitado ${fdate(x.solicitado)} → entregado ${fdate(x.entregado)} · ${d} ${d===1?'día':'días'}`}}
+    return {st:late?E+' con retraso':E,c:late?'warn':'ok',dias:d,txt:`Solicitado ${fdate(x.solicitado)} → ${e} ${fdate(x.entregado)} · ${d} ${d===1?'día':'días'}`}}
   const d=dDiff(x.solicitado,t),late=x.limite&&t>x.limite;
-  return {st:late?'Vencido':'Pendiente',c:late?'bad':'warn',dias:d,txt:`Solicitado ${fdate(x.solicitado)} · ${d} ${d===1?'día':'días'} esperando${x.limite?' · límite '+fdate(x.limite):''}`}}
+  return {st:late?'Vencido':'Pendiente',c:late?'bad':'warn',dias:d,txt:`Solicitado ${fdate(x.solicitado)} · ${d} ${d===1?'día':'días'} ${w}${x.limite?' · límite '+fdate(x.limite):''}`}}
 function cliReqSum(r){const rs=r.reqs||[];const ent=rs.filter(x=>x.entregado).length;const venc=rs.filter(x=>reqInfo(x).st==='Vencido').length;
   const ds=rs.filter(x=>x.entregado&&x.solicitado).map(x=>dDiff(x.solicitado,x.entregado));return {tot:rs.length,ent,pend:rs.length-ent,venc,prom:ds.length?ds.reduce((a,b)=>a+b,0)/ds.length:null,completo:rs.length>0&&ent===rs.length}}
 const rucOk=v=>!v||/^(10|15|16|17|20)\d{9}$/.test(String(v).trim());
@@ -826,7 +827,7 @@ function viewClientes(){
    <div class="kpi"><span class="l">Requerimientos pendientes</span><span class="v" style="${venc?'color:var(--bad)':''}">${pend}</span><span class="s">${venc} vencidos</span></div>
    <div class="kpi"><span class="l">Tiempo promedio de entrega</span><span class="v">${ds.length?(ds.reduce((a,b)=>a+b,0)/ds.length).toLocaleString('es-PE',{maximumFractionDigits:1}):'—'}</span><span class="s">días entre solicitud y entrega del cliente</span></div></div>`;
   if(!list.length)return h+`<div class="panel empty"><strong>${all.length?'Ningún pedido coincide con los filtros':'Aún no hay clientes registrados'}</strong>${readOnly?'':'Usa «+ Nuevo cliente / pedido» para registrar la primera ficha.'}</div>`;
-  h+=`<div class="tbl"><table><thead><tr><th>Proforma / JOB</th><th>Cliente</th><th>Trabajo</th><th class="num">Cantidad</th><th class="num">Precio aprobado</th><th>Requerimientos</th><th>Entrega del trabajo</th><th>Estado</th><th></th></tr></thead><tbody>${list.map(r=>{const s=cliReqSum(r);
+  h+=`<div class="tbl"><table><thead><tr><th>Proforma / JOB</th><th>Cliente</th><th>Trabajo</th><th class="num">Cantidad</th><th class="num">Precio aprobado</th><th>Requerimientos</th><th>Entrega del trabajo / cambios</th><th>Estado</th><th></th></tr></thead><tbody>${list.map(r=>{const s=cliReqSum(r);
     const lateJob=r.fechaEntrega&&r.fechaEntrega<today()&&!['Entregado','Anulado'].includes(r.estado);
     return `<tr><td><strong>${esc(r.proforma||'—')}</strong> ${r.tipoDoc?`<span class="pill">${esc(r.tipoDoc)}</span>`:''}<div class="note">JOB ${esc(r.job||'—')} · ingreso ${fdate(r.fechaIngreso)}</div></td>
      <td><strong>${esc(r.cliente||'—')}</strong><div class="note">RUC ${esc(r.ruc||'—')}${r.responsable?' · '+esc(r.responsable):''}</div></td>
@@ -834,26 +835,28 @@ function viewClientes(){
      <td class="num">${r.cantidad?n(r.cantidad).toLocaleString('es-PE'):'—'}</td>
      <td class="num">${n(r.precio)?money(r.precio):'—'}<div class="note">${r.precioFecha?fdate(r.precioFecha):''}</div></td>
      <td>${s.tot?`${meter(s.ent/s.tot*100)}<div class="note">${s.ent} de ${s.tot} entregados${s.venc?` · <span style="color:var(--bad)">${s.venc} vencidos</span>`:''}</div>`:'<span class="note">Sin requerimientos</span>'}</td>
-     <td>${fdate(r.fechaEntrega)}${lateJob?' <span class="pill bad">Vencida</span>':''}</td>
+     <td>${fdate(r.fechaEntrega)}${lateJob?' <span class="pill bad">Vencida</span>':''}${(r.cambios||[]).length?`<div class="note">${r.cambios.length} ${r.cambios.length===1?'cambio':'cambios'}${r.cambios.filter(x=>!x.entregado).length?` · <span style="color:var(--warn)">${r.cambios.filter(x=>!x.entregado).length} sin atender</span>`:''}</div>`:''}</td>
      <td>${pillFor(r.estado||'Registrado')}</td>
      <td style="white-space:nowrap"><button class="btn small" data-cliopen="${r.id}">${canEditCli(r)?'Abrir / editar':'Ver'}</button> <button class="btn small" data-cliprint="${r.id}">🖨</button></td></tr>`}).join('')}</tbody></table></div>`;
   // requerimientos pendientes
   const pl=list.flatMap(r=>(r.reqs||[]).filter(x=>!x.entregado).map(x=>({r,x,i:reqInfo(x)}))).sort((a,b)=>(b.i.dias??-1)-(a.i.dias??-1));
+  const pc=list.flatMap(r=>(r.cambios||[]).filter(x=>!x.entregado).map(x=>({r,x,i:reqInfo(x,1)}))).sort((a,b)=>(b.i.dias??-1)-(a.i.dias??-1));
   if(pl.length)h+=`<div class="panel"><h3>Requerimientos pendientes de entrega por el cliente</h3><div class="tbl" style="border:0"><table><thead><tr><th>Requerimiento</th><th>Cliente / proforma</th><th>Solicitado</th><th>Fecha límite</th><th class="num">Días esperando</th><th>Estado</th></tr></thead><tbody>${pl.map(({r,x,i})=>`<tr><td>${esc(x.tipo)}${x.detalle?`<div class="note">${esc(x.detalle)}</div>`:''}</td><td>${esc(r.cliente||'—')}<div class="note">Proforma ${esc(r.proforma||'—')}</div></td><td>${fdate(x.solicitado)}</td><td>${fdate(x.limite)}</td><td class="num">${i.dias??'—'}</td><td><span class="pill ${i.c}">${i.st}</span></td></tr>`).join('')}</tbody></table></div></div>`;
+  if(pc.length)h+=`<div class="panel"><h3>Cambios en proceso de aprobación sin atender</h3><div class="tbl" style="border:0"><table><thead><tr><th>Cambio</th><th>Cliente / proforma</th><th>Solicitado</th><th>Fecha límite</th><th class="num">Días esperando</th><th>Estado</th></tr></thead><tbody>${pc.map(({r,x,i})=>`<tr><td>${esc(x.tipo)}${x.detalle?`<div class="note">${esc(x.detalle)}</div>`:''}</td><td>${esc(r.cliente||'—')}<div class="note">Proforma ${esc(r.proforma||'—')}</div></td><td>${fdate(x.solicitado)}</td><td>${fdate(x.limite)}</td><td class="num">${i.dias??'—'}</td><td><span class="pill ${i.c}">${i.st}</span></td></tr>`).join('')}</tbody></table></div></div>`;
   return h;
 }
 function cliRadio(name,opts,v,dis){return `<div style="display:flex;gap:12px;flex-wrap:wrap;font-weight:400;color:var(--ink)">${opts.map(o=>`<label style="flex-direction:row;align-items:center;gap:5px;font-weight:400"><input type="radio" name="${name}" value="${esc(o)}" ${v===o?'checked':''} ${dis}>${esc(o)}</label>`).join('')}</div>`}
-function cliReqRows(){const ro=cliEd.ro?'disabled':'';return (cliEd.r.reqs||[]).map((x,i)=>{const inf=reqInfo(x);return `<div style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1.2fr) repeat(3,minmax(0,1fr)) auto;gap:8px;align-items:end;padding:8px 0;border-bottom:1px solid var(--rule-2)">
-  <label>Requerimiento<select data-rq="${i}:tipo" ${ro}>${CLI_REQ_TIPOS.map(t=>`<option ${t===x.tipo?'selected':''}>${t}</option>`).join('')}</select></label>
-  <label>Detalle<input data-rq="${i}:detalle" value="${esc(x.detalle||'')}" placeholder="Opcional" ${ro}></label>
-  <label>Solicitado el<input type="date" data-rq="${i}:solicitado" value="${esc(x.solicitado||'')}" ${ro}></label>
-  <label>Fecha límite<input type="date" data-rq="${i}:limite" value="${esc(x.limite||'')}" ${ro}></label>
-  <label>Entregado el<input type="date" data-rq="${i}:entregado" value="${esc(x.entregado||'')}" ${ro}></label>
-  ${cliEd.ro?'<span></span>':`<button type="button" class="btn small danger" data-rqdel="${i}" title="Quitar">✕</button>`}
-  <div class="note" style="grid-column:1/-1"><span class="pill ${inf.c}">${inf.st}</span> ${esc(inf.txt)}</div></div>`}).join('')||'<div class="note">Sin requerimientos.</div>'}
+function cliReqRows(key='reqs'){const ro=cliEd.ro?'disabled':'',cb=key==='cambios',T=cb?CLI_CAMB_TIPOS:CLI_REQ_TIPOS;return (cliEd.r[key]||[]).map((x,i)=>{const inf=reqInfo(x,cb);return `<div style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1.2fr) repeat(3,minmax(0,1fr)) auto;gap:8px;align-items:end;padding:8px 0;border-bottom:1px solid var(--rule-2)">
+  <label>${cb?'Cambio':'Requerimiento'}<select data-rq="${key}:${i}:tipo" ${ro}>${T.map(t=>`<option ${t===x.tipo?'selected':''}>${t}</option>`).join('')}</select></label>
+  <label>Detalle<input data-rq="${key}:${i}:detalle" value="${esc(x.detalle||'')}" placeholder="${cb?'Qué pidió cambiar':'Opcional'}" ${ro}></label>
+  <label>Solicitado el<input type="date" data-rq="${key}:${i}:solicitado" value="${esc(x.solicitado||'')}" ${ro}></label>
+  <label>Fecha límite<input type="date" data-rq="${key}:${i}:limite" value="${esc(x.limite||'')}" ${ro}></label>
+  <label>${cb?'Atendido el':'Entregado el'}<input type="date" data-rq="${key}:${i}:entregado" value="${esc(x.entregado||'')}" ${ro}></label>
+  ${cliEd.ro?'<span></span>':`<button type="button" class="btn small danger" data-rqdel="${key}:${i}" title="Quitar">✕</button>`}
+  <div class="note" style="grid-column:1/-1"><span class="pill ${inf.c}">${inf.st}</span> ${esc(inf.txt)}</div></div>`}).join('')||`<div class="note">${cb?'Sin cambios registrados. Agrega uno cuando el cliente pida un cambio durante la aprobación.':'Sin requerimientos.'}</div>`}
 function openCli(id){
   const r=id?{...byId('clientes',id)}:{tipoDoc:'Orden',fechaIngreso:today(),horaIngreso:new Date().toTimeString().slice(0,5),estado:'Registrado',unidad:filterUnit!=='ALL'?fUnit():((myScopeUnits()||[])[0]||''),reqs:CLI_REQ_DEF.map(t=>({tipo:t,detalle:'',solicitado:'',limite:'',entregado:''}))};
-  r.reqs=(r.reqs||[]).map(x=>({...x}));
+  r.reqs=(r.reqs||[]).map(x=>({...x}));r.cambios=(r.cambios||[]).map(x=>({...x}));
   cliEd={id,r,ro:!canEditCli(id?r:null)};const ro=cliEd.ro?'disabled':'';
   let dl=$('#cliDlg');if(!dl){dl=document.createElement('dialog');dl.id='cliDlg';dl.style.width='min(980px,calc(100vw - 24px))';document.body.appendChild(dl)}
   const F=(k,l,type='text',extra='')=>`<label ${extra}>${l}<input name="${k}" type="${type}" value="${esc(r[k]??'')}" ${type==='number'?'step="any"':''} ${ro}></label>`;
@@ -876,13 +879,16 @@ function openCli(id){
    ${sec('Preprensa')}
    <label>Diseño${cliRadio('diseno',['Nuevo','Modificar'],r.diseno,ro)}</label><label>Corrección${cliRadio('correccion',['Sí','No'],r.correccion,ro)}</label>
    <label>Preprensa${cliRadio('preprensa',['Sí','No'],r.preprensa,ro)}</label><label>Servicio de${cliRadio('servicio',['Impresión','Reimpresión'],r.servicio,ro)}</label>
+   ${sec('Entrega de requerimientos del cliente para la elaboración')}
+   <div style="grid-column:1/-1"><div class="note">Registra cuándo se solicitó cada requerimiento al cliente y cuándo lo entregó: el sistema calcula el rango y los días. La fecha límite es opcional y sirve para marcar los vencidos.</div><div id="cliReqs">${cliReqRows()}</div>${cliEd.ro?'':'<button type="button" class="btn small" id="cliReqAdd" style="margin-top:8px">+ Agregar requerimiento</button>'}</div>
+   ${sec('Cambios en proceso de aprobación')}
+   <div style="grid-column:1/-1"><div class="note">Cambios que pide el cliente mientras aprueba el trabajo. Registra cuándo lo pidió y cuándo se atendió; puedes agregar varios del mismo tipo.</div><div id="cliCambs">${cliReqRows('cambios')}</div>${cliEd.ro?'':`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center"><select id="cliCambTipo" aria-label="Tipo de cambio">${CLI_CAMB_TIPOS.map(t=>`<option>${t}</option>`).join('')}</select><button type="button" class="btn small" id="cliCambAdd">+ Agregar cambio</button></div>`}</div>
+   ${sec('Trabajo y entrega')}
    ${F('job','JOB N.º')}${F('fechaEntrega','Fecha de entrega del trabajo','date')}
    <label>Estado<select name="estado" ${ro}>${CLI_EST.map(e=>`<option ${e===(r.estado||'Registrado')?'selected':''}>${e}</option>`).join('')}</select></label><span></span>
    ${sec('Precio aprobado en proforma')}
    ${F('precio','Precio aprobado (S/)','number')}<label>IGV<select name="precioIgv" ${ro}>${['Incluye IGV','Más IGV','Exonerado'].map(o=>`<option ${o===(r.precioIgv||'Incluye IGV')?'selected':''}>${o}</option>`).join('')}</select></label>
    ${F('precioFecha','Fecha de aprobación','date')}${F('precioAprobo','Aprobado por')}
-   ${sec('Entrega de requerimientos del cliente para la elaboración')}
-   <div style="grid-column:1/-1"><div class="note">Registra cuándo se solicitó cada requerimiento al cliente y cuándo lo entregó: el sistema calcula el rango y los días. La fecha límite es opcional y sirve para marcar los vencidos.</div><div id="cliReqs">${cliReqRows()}</div>${cliEd.ro?'':'<button type="button" class="btn small" id="cliReqAdd" style="margin-top:8px">+ Agregar requerimiento</button>'}</div>
    ${sec('Conformidad')}
    <label style="flex-direction:row;gap:6px;align-items:center"><input type="checkbox" name="vbAsesor" ${r.vbAsesor?'checked':''} ${ro}>V.º B.º asesor comercial</label>
    <label style="flex-direction:row;gap:6px;align-items:center"><input type="checkbox" name="vbCliente" ${r.vbCliente?'checked':''} ${ro}>V.º B.º cliente</label>
@@ -898,22 +904,23 @@ function bindCliDlg(){
   const dl=$('#cliDlg');
   $('#cliCancel').onclick=()=>dl.close();
   const pr=$('#cliPr');if(pr)pr.onclick=()=>printCli(cliEd.id);
-  const rr=()=>{$('#cliReqs').innerHTML=cliReqRows();bindReq()};
-  const bindReq=()=>{document.querySelectorAll('[data-rq]').forEach(el=>el.onchange=()=>{const [i,k]=el.dataset.rq.split(':');cliEd.r.reqs[+i][k]=el.value;if(k!=='detalle')rr()});
-    document.querySelectorAll('[data-rqdel]').forEach(b=>b.onclick=()=>{cliEd.r.reqs.splice(+b.dataset.rqdel,1);rr()})};
+  const rr=()=>{$('#cliReqs').innerHTML=cliReqRows('reqs');$('#cliCambs').innerHTML=cliReqRows('cambios');bindReq()};
+  const bindReq=()=>{document.querySelectorAll('[data-rq]').forEach(el=>el.onchange=()=>{const [key,i,k]=el.dataset.rq.split(':');cliEd.r[key][+i][k]=el.value;if(k!=='detalle')rr()});
+    document.querySelectorAll('[data-rqdel]').forEach(b=>b.onclick=()=>{const [key,i]=b.dataset.rqdel.split(':');cliEd.r[key].splice(+i,1);rr()})};
   bindReq();
   const ad=$('#cliReqAdd');if(ad)ad.onclick=()=>{cliEd.r.reqs.push({tipo:'Otro',detalle:'',solicitado:today(),limite:'',entregado:''});rr()};
+  const ac=$('#cliCambAdd');if(ac)ac.onclick=()=>{cliEd.r.cambios.push({tipo:$('#cliCambTipo').value,detalle:'',solicitado:today(),limite:'',entregado:''});rr()};
   const del0=$('#cliDel');if(del0)del0.onclick=async()=>{if(!del0.dataset.arm){del0.dataset.arm=1;del0.textContent='Confirmar eliminación';return}
     try{await del('clientes',cliEd.id);dl.close();toast('Registro eliminado.')}catch(e){dbErr(e)}};
   $('#cliFrm').onsubmit=async e=>{e.preventDefault();if(cliEd.ro)return;
-    document.querySelectorAll('[data-rq$=":detalle"]').forEach(el=>{const [i]=el.dataset.rq.split(':');cliEd.r.reqs[+i].detalle=el.value});
+    document.querySelectorAll('[data-rq$=":detalle"]').forEach(el=>{const [key,i]=el.dataset.rq.split(':');cliEd.r[key][+i].detalle=el.value});
     const o=readCliForm();
     const miss=[['cliente','Cliente'],['trabajo','Trabajo'],['unidad','Unidad']].filter(([k])=>!o[k]).map(x=>x[1]);
     if(miss.length){toast('Completa: '+miss.join(', '));return}
     if(!rucOk(o.ruc)){toast('El RUC debe tener 11 dígitos y empezar con 10, 15, 16, 17 o 20.');return}
     if(o.email&&!/^\S+@\S+\.\S+$/.test(o.email)){toast('Revisa el e-mail.');return}
-    const bad=o.reqs.find(x=>(x.entregado&&!x.solicitado)||(x.entregado&&x.solicitado&&x.entregado<x.solicitado)||(x.limite&&x.solicitado&&x.limite<x.solicitado));
-    if(bad){toast(`En «${bad.tipo}»: ${!bad.solicitado?'falta la fecha de solicitud':bad.entregado&&bad.entregado<bad.solicitado?'la entrega no puede ser antes de la solicitud':'la fecha límite no puede ser antes de la solicitud'}.`);return}
+    const bad=[...o.reqs,...(o.cambios||[])].find(x=>(x.entregado&&!x.solicitado)||(x.entregado&&x.solicitado&&x.entregado<x.solicitado)||(x.limite&&x.solicitado&&x.limite<x.solicitado));
+    if(bad){toast(`En «${bad.tipo}»: ${!bad.solicitado?'falta la fecha de solicitud':bad.entregado&&bad.entregado<bad.solicitado?'la entrega o atención no puede ser antes de la solicitud':'la fecha límite no puede ser antes de la solicitud'}.`);return}
     if(!cliEd.id){o.id=uid();o.creado=new Date().toISOString();o.creadoPor=actorId()}
     o.actualizado=new Date().toISOString();
     try{await put('clientes',o);dl.close();toast('Ficha del cliente guardada.')}catch(err){dbErr(err)}};
@@ -938,9 +945,11 @@ function printCli(id){
    <tr><th>Fecha de ingreso</th><td>${fdate(r.fechaIngreso)} ${esc(r.horaIngreso||'')}</td></tr><tr><th>Fecha recepción de proforma</th><td>${fdate(r.fechaProforma)} ${esc(r.horaProforma||'')}</td></tr></table>
    <h2>Ventas</h2><table>${row('Cliente',r.cliente)}${row('RUC',r.ruc)}${row('Nombre del responsable',r.responsable)}${row('Teléfono / e-mail',[r.telefono,r.email].filter(Boolean).join(' · '))}${row('Asesor comercial',r.asesor?pname(r.asesor):'')}</table>
    <h2>Trabajo</h2><table>${row('Trabajo',r.trabajo)}${row('Cantidad',r.cantidad?n(r.cantidad).toLocaleString('es-PE'):'')}${row('Formato',r.formato)}${row('Tapa',r.tapa)}${row('Hojas',r.hojas)}${row('Encuadernación',r.encuadernacion)}${row('Encarte',r.encarte)}${row('Otros',r.otros)}</table>
-   <h2>Preprensa</h2><table><tr><th>Diseño</th><td>${ck(r.diseno,'Nuevo')} &nbsp; ${ck(r.diseno,'Modificar')}</td></tr><tr><th>Corrección</th><td>${ck(r.correccion,'Sí')} &nbsp; ${ck(r.correccion,'No')}</td></tr><tr><th>Preprensa</th><td>${ck(r.preprensa,'Sí')} &nbsp; ${ck(r.preprensa,'No')}</td></tr><tr><th>Servicio de</th><td>${ck(r.servicio,'Impresión')} &nbsp; ${ck(r.servicio,'Reimpresión')}</td></tr>${row('JOB N.º',r.job)}<tr><th>Fecha de entrega del trabajo</th><td>${fdate(r.fechaEntrega)}</td></tr>${row('Estado',r.estado||'Registrado')}</table>
-   <h2>Precio aprobado en proforma</h2><table><tr><th>Precio aprobado</th><td>${n(r.precio)?money(r.precio)+' ('+esc(r.precioIgv||'')+')':''}</td></tr><tr><th>Fecha de aprobación</th><td>${fdate(r.precioFecha)}</td></tr>${row('Aprobado por',r.precioAprobo)}</table>
+   <h2>Preprensa</h2><table><tr><th>Diseño</th><td>${ck(r.diseno,'Nuevo')} &nbsp; ${ck(r.diseno,'Modificar')}</td></tr><tr><th>Corrección</th><td>${ck(r.correccion,'Sí')} &nbsp; ${ck(r.correccion,'No')}</td></tr><tr><th>Preprensa</th><td>${ck(r.preprensa,'Sí')} &nbsp; ${ck(r.preprensa,'No')}</td></tr><tr><th>Servicio de</th><td>${ck(r.servicio,'Impresión')} &nbsp; ${ck(r.servicio,'Reimpresión')}</td></tr></table>
    <h2>Entrega de requerimientos del cliente (${s.ent} de ${s.tot} entregados)</h2><table class="rq"><tr><th>Requerimiento</th><th>Solicitado</th><th>Fecha límite</th><th>Entregado</th><th>Días</th><th>Estado</th></tr>${(r.reqs||[]).map(x=>{const i=reqInfo(x);return `<tr><td>${esc(x.tipo)}${x.detalle?' — '+esc(x.detalle):''}</td><td>${fdate(x.solicitado)}</td><td>${fdate(x.limite)}</td><td>${fdate(x.entregado)}</td><td>${i.dias??'—'}</td><td>${esc(i.st)}</td></tr>`}).join('')||'<tr><td colspan="6">Sin requerimientos</td></tr>'}</table>
+   <h2>Cambios en proceso de aprobación (${(r.cambios||[]).filter(x=>x.entregado).length} de ${(r.cambios||[]).length} atendidos)</h2><table class="rq"><tr><th>Cambio</th><th>Solicitado</th><th>Fecha límite</th><th>Atendido</th><th>Días</th><th>Estado</th></tr>${(r.cambios||[]).map(x=>{const i=reqInfo(x,1);return `<tr><td>${esc(x.tipo)}${x.detalle?' — '+esc(x.detalle):''}</td><td>${fdate(x.solicitado)}</td><td>${fdate(x.limite)}</td><td>${fdate(x.entregado)}</td><td>${i.dias??'—'}</td><td>${esc(i.st)}</td></tr>`}).join('')||'<tr><td colspan="6">Sin cambios</td></tr>'}</table>
+   <h2>Trabajo y entrega</h2><table>${row('JOB N.º',r.job)}<tr><th>Fecha de entrega del trabajo</th><td>${fdate(r.fechaEntrega)}</td></tr>${row('Estado',r.estado||'Registrado')}</table>
+   <h2>Precio aprobado en proforma</h2><table><tr><th>Precio aprobado</th><td>${n(r.precio)?money(r.precio)+' ('+esc(r.precioIgv||'')+')':''}</td></tr><tr><th>Fecha de aprobación</th><td>${fdate(r.precioFecha)}</td></tr>${row('Aprobado por',r.precioAprobo)}</table>
    <div class="firmas"><div>V.º B.º asesor comercial ${r.vbAsesor?'✓':''}</div><div>Firma área de costos ${r.vbCostos?'✓':''}</div><div>V.º B.º cliente ${r.vbCliente?'✓':''}</div></div>`;
   document.body.appendChild(box);
   const clean=()=>{box.remove();st.remove();window.removeEventListener('afterprint',clean)};window.addEventListener('afterprint',clean);
