@@ -870,11 +870,11 @@ const m2=v=>'S/ '+(+v||0).toLocaleString('es-PE',{minimumFractionDigits:2,maximu
 function cliDistRows(){const ro=cliEd.ro?'disabled':'',L=cliEd.r.dist||[];if(!L.length)return '<div class="note">Sin distribuciones registradas.</div>';
   const I=(i,k,l,t='text',x)=>`<label>${l}<input data-ds="${i}:${k}" type="${t}" ${t==='number'?'step="any" min="0"':''} value="${esc(x[k]??'')}" ${ro}></label>`;
   const tot=L.reduce((a,x)=>a+(+x.cantidad||0)*(+x.precio||0),0),qt=L.reduce((a,x)=>a+(+x.cantidad||0),0);
-  return L.map((x,i)=>`<div style="display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,2fr) minmax(0,.9fr) minmax(0,1fr) minmax(0,1.5fr) auto;gap:8px;align-items:end;padding:8px 0;border-bottom:1px solid var(--rule-2)">
-   ${I(i,'cantidad','Cantidad','number',x)}${I(i,'material','Material','text',x)}${I(i,'precio','Precio (S/)','number',x)}${I(i,'proforma','N.º proforma','text',x)}${I(i,'logistico','Nombre del logístico','text',x)}
+  return L.map((x,i)=>`<div style="display:grid;grid-template-columns:minmax(0,.7fr) minmax(0,1.6fr) minmax(0,.8fr) minmax(0,.9fr) minmax(0,1.3fr) minmax(0,1.3fr) auto;gap:8px;align-items:end;padding:8px 0;border-bottom:1px solid var(--rule-2)">
+   ${I(i,'cantidad','Cantidad','number',x)}${I(i,'material','Material','text',x)}${I(i,'precio','Precio (S/)','number',x)}${I(i,'proforma','N.º proforma','text',x)}<label>Campo / filial<input data-ds="${i}:campo" list="cliCampoLst" value="${esc(x.campo||'')}" placeholder="Ej. Misión del Lago Titicaca" ${ro}></label>${I(i,'logistico','Nombre del logístico','text',x)}
    ${cliEd.ro?'<span></span>':`<button type="button" class="btn small danger" data-dsdel="${i}" title="Quitar">✕</button>`}
-   <label style="grid-column:1/4">Dirección a donde irá<input data-ds="${i}:direccion" value="${esc(x.direccion||'')}" ${ro}></label><label style="grid-column:4/6">Agencia<input data-ds="${i}:agencia" value="${esc(x.agencia||'')}" ${ro}></label>
-   <div class="note" style="grid-column:1/-1">Subtotal: ${m2((+x.cantidad||0)*(+x.precio||0))}</div></div>`).join('')+`<div class="note" style="padding-top:6px"><b>Total distribuido:</b> ${qt.toLocaleString('es-PE')} unidades · ${m2(tot)}</div>`}
+   <label style="grid-column:1/5">Dirección a donde irá<input data-ds="${i}:direccion" value="${esc(x.direccion||'')}" ${ro}></label><label style="grid-column:5/7">Agencia<input data-ds="${i}:agencia" value="${esc(x.agencia||'')}" ${ro}></label>
+   <div class="note" style="grid-column:1/-1">Subtotal: ${m2((+x.cantidad||0)*(+x.precio||0))}</div></div>`).join('')+`<div class="note" style="padding-top:6px"><b>Total distribuido:</b> ${qt.toLocaleString('es-PE')} unidades · ${m2(tot)}</div><datalist id="cliCampoLst">${[...new Set((S.clientes||RAW.clientes||[]).flatMap(c=>(c.dist||[]).map(d=>d.campo)).concat(L.map(d=>d.campo)).filter(Boolean))].sort().map(v=>`<option value="${esc(v)}">`).join('')}</datalist>`}
 function openCli(id){
   const r=id?{...byId('clientes',id)}:{tipoDoc:'Orden',fechaIngreso:today(),horaIngreso:new Date().toTimeString().slice(0,5),estado:'Registrado',unidad:filterUnit!=='ALL'?fUnit():((myScopeUnits()||[])[0]||''),reqs:CLI_REQ_DEF.map(t=>({tipo:t,detalle:'',solicitado:'',limite:'',entregado:''}))};
   r.reqs=(r.reqs||[]).map(x=>({...x}));r.cambios=(r.cambios||[]).map(x=>({...x}));r.dist=(r.dist||[]).map(x=>({...x}));r.procesos=(r.procesos||[]).map(x=>({...x}));if(!r.procesos.length&&id&&r.estado&&r.estado!=='Registrado')r.procesos=[{etapa:r.estado,inicio:'',fin:'',obs:''}];if(!id)r.procesos=[{etapa:'Registrado',inicio:today(),fin:'',obs:''}];
@@ -918,7 +918,7 @@ function openCli(id){
    <label style="flex-direction:row;gap:6px;align-items:center"><input type="checkbox" name="vbCliente" ${r.vbCliente?'checked':''} ${ro}>V.º B.º cliente</label>
    <label style="flex-direction:row;gap:6px;align-items:center"><input type="checkbox" name="vbCostos" ${r.vbCostos?'checked':''} ${ro}>Firma del área de costos</label><span></span>
   </div>
-  <div class="ft"><div>${id&&!cliEd.ro?'<button type="button" class="btn danger" id="cliDel">Eliminar</button>':''} ${id?'<button type="button" class="btn" id="cliPr">🖨 Imprimir ficha</button>':''}</div><div style="display:flex;gap:10px"><button type="button" class="btn" id="cliCancel">${cliEd.ro?'Cerrar':'Cancelar'}</button>${cliEd.ro?'':'<button type="submit" class="btn primary">Guardar</button>'}</div></div></form>`;
+  <div class="ft"><div>${id&&!cliEd.ro?'<button type="button" class="btn danger" id="cliDel">Eliminar</button>':''} ${id?'<button type="button" class="btn" id="cliPr">🖨 Imprimir / PDF</button>':''}</div><div style="display:flex;gap:10px"><button type="button" class="btn" id="cliCancel">${cliEd.ro?'Cerrar':'Cancelar'}</button>${cliEd.ro?'':'<button type="submit" class="btn" data-pdf="1" title="Guarda la ficha y abre el reporte para imprimir o guardar como PDF">🖨 Guardar e imprimir PDF</button><button type="submit" class="btn primary">Guardar</button>'}</div></div></form>`;
   bindCliDlg();dl.showModal();
 }
 function readCliForm(){const fd=new FormData($('#cliFrm'));const o={...cliEd.r};
@@ -943,7 +943,7 @@ function bindCliDlg(){
   const bindDist=()=>{document.querySelectorAll('[data-ds]').forEach(el=>el.onchange=()=>{const [i,k]=el.dataset.ds.split(':');cliEd.r.dist[+i][k]=(k==='cantidad'||k==='precio')?(el.value===''?'':+el.value):el.value;if(k==='cantidad'||k==='precio')rd()});
     document.querySelectorAll('[data-dsdel]').forEach(b=>b.onclick=()=>{cliEd.r.dist.splice(+b.dataset.dsdel,1);rd()})};
   bindDist();
-  const dd=$('#cliDistAdd');if(dd)dd.onclick=()=>{const p=$('#cliFrm [name=proforma]')?.value||cliEd.r.proforma||'';cliEd.r.dist.push({cantidad:'',material:$('#cliFrm [name=trabajo]')?.value||'',precio:'',proforma:p,logistico:'',direccion:'',agencia:''});rd()};
+  const dd=$('#cliDistAdd');if(dd)dd.onclick=()=>{const p=$('#cliFrm [name=proforma]')?.value||cliEd.r.proforma||'';cliEd.r.dist.push({cantidad:'',material:$('#cliFrm [name=trabajo]')?.value||'',precio:'',proforma:p,campo:'',logistico:'',direccion:'',agencia:''});rd()};
   const ac=$('#cliCambAdd');if(ac)ac.onclick=()=>{cliEd.r.cambios.push({tipo:$('#cliCambTipo').value,detalle:'',solicitado:today(),limite:'',entregado:''});rr()};
   const del0=$('#cliDel');if(del0)del0.onclick=async()=>{if(!del0.dataset.arm){del0.dataset.arm=1;del0.textContent='Confirmar eliminación';return}
     try{await del('clientes',cliEd.id);dl.close();toast('Registro eliminado.')}catch(e){dbErr(e)}};
@@ -951,9 +951,10 @@ function bindCliDlg(){
     document.querySelectorAll('[data-rq$=":detalle"]').forEach(el=>{const [key,i]=el.dataset.rq.split(':');cliEd.r[key][+i].detalle=el.value});
     document.querySelectorAll('[data-ps$=":obs"]').forEach(el=>{const [i]=el.dataset.ps.split(':');cliEd.r.procesos[+i].obs=el.value});
     document.querySelectorAll('[data-ds]').forEach(el=>{const [i,k]=el.dataset.ds.split(':');cliEd.r.dist[+i][k]=(k==='cantidad'||k==='precio')?(el.value===''?'':+el.value):el.value});
-    const o=readCliForm();o.dist=(o.dist||[]).filter(x=>['cantidad','material','precio','logistico','direccion','agencia'].some(k=>x[k]!==''&&x[k]!=null));
+    const o=readCliForm();o.dist=(o.dist||[]).filter(x=>['cantidad','material','precio','campo','logistico','direccion','agencia'].some(k=>x[k]!==''&&x[k]!=null));
     o.procesos=(o.procesos||[]);const bp=o.procesos.find(x=>(x.fin&&!x.inicio)||(x.fin&&x.inicio&&x.fin<x.inicio));if(bp){toast(`En la etapa «${bp.etapa}»: ${!bp.inicio?'falta la fecha inicial':'la fecha final no puede ser antes de la inicial'}.`);return}
     o.estado=cliEstado(o.procesos);
+    o.dist.forEach(x=>{if(!x.proforma)x.proforma=o.proforma||''});
     const bd=o.dist.find(x=>!x.material||x.cantidad===''||x.cantidad<=0);if(bd){toast('En «Distribución de materiales»: cada envío necesita material y una cantidad mayor a 0.');return}
     const miss=[['cliente','Cliente'],['trabajo','Trabajo'],['unidad','Unidad']].filter(([k])=>!o[k]).map(x=>x[1]);
     if(miss.length){toast('Completa: '+miss.join(', '));return}
@@ -963,10 +964,11 @@ function bindCliDlg(){
     if(bad){toast(`En «${bad.tipo}»: ${!bad.solicitado?'falta la fecha de solicitud':bad.entregado&&bad.entregado<bad.solicitado?'la entrega o atención no puede ser antes de la solicitud':'la fecha límite no puede ser antes de la solicitud'}.`);return}
     if(!cliEd.id){o.id=uid();o.creado=new Date().toISOString();o.creadoPor=actorId()}
     o.actualizado=new Date().toISOString();
-    try{await put('clientes',o);dl.close();toast('Ficha del cliente guardada.')}catch(err){dbErr(err)}};
+    const wantPdf=!!e.submitter?.dataset?.pdf;
+    try{await put('clientes',o);dl.close();toast(wantPdf?'Ficha guardada. En la ventana de impresión elige «Guardar como PDF» para descargarla.':'Ficha del cliente guardada.');if(wantPdf)printCli(o)}catch(err){dbErr(err)}};
 }
 function printCli(id){
-  const r=byId('clientes',id);if(!r)return;const s=cliReqSum(r);
+  const r=typeof id==='object'?id:byId('clientes',id);if(!r)return;const s=cliReqSum(r);
   const ck=(v,o)=>`<span class="ck">${v===o?'●':'○'}</span> ${o}`;
   const row2=(a,b,c,d)=>`<tr><th>${a}</th><td>${esc(b??'')||'&nbsp;'}</td><th>${c}</th><td>${esc(d??'')||'&nbsp;'}</td></tr>`;
   const row=(l,v)=>`<tr><th>${l}</th><td>${esc(v??'')||'&nbsp;'}</td></tr>`;
@@ -992,10 +994,11 @@ function printCli(id){
    <h2>Precio aprobado en proforma</h2><table class="c4"><tr><th>Precio aprobado</th><td>${n(r.precio)?m2(r.precio)+' ('+esc(r.precioIgv||'')+')':''}</td><th>Fecha de aprobación</th><td>${fdate(r.precioFecha)}</td></tr><tr><th>Aprobado por</th><td colspan="3">${esc(r.precioAprobo||'')}</td></tr></table>
    <h2>Entrega de requerimientos del cliente (${s.ent} de ${s.tot} entregados)</h2><table class="rq"><tr><th>Requerimiento</th><th>Solicitado</th><th>Fecha límite</th><th>Entregado</th><th>Días</th><th>Estado</th></tr>${(r.reqs||[]).map(x=>{const i=reqInfo(x);return `<tr><td>${esc(x.tipo)}${x.detalle?' — '+esc(x.detalle):''}</td><td>${fdate(x.solicitado)}</td><td>${fdate(x.limite)}</td><td>${fdate(x.entregado)}</td><td>${i.dias??'—'}</td><td>${esc(i.st)}</td></tr>`}).join('')||'<tr><td colspan="6">Sin requerimientos</td></tr>'}</table>
    <h2>Cambios en proceso de aprobación (${(r.cambios||[]).filter(x=>x.entregado).length} de ${(r.cambios||[]).length} atendidos)</h2><table class="rq"><tr><th>Cambio</th><th>Solicitado</th><th>Fecha límite</th><th>Atendido</th><th>Días</th><th>Estado</th></tr>${(r.cambios||[]).map(x=>{const i=reqInfo(x,1);return `<tr><td>${esc(x.tipo)}${x.detalle?' — '+esc(x.detalle):''}</td><td>${fdate(x.solicitado)}</td><td>${fdate(x.limite)}</td><td>${fdate(x.entregado)}</td><td>${i.dias??'—'}</td><td>${esc(i.st)}</td></tr>`}).join('')||'<tr><td colspan="6">Sin cambios</td></tr>'}</table>
-   ${(r.dist||[]).length?`<h2>Distribución de materiales</h2><table class="rq"><tr><th>Cant.</th><th>Material</th><th>Precio</th><th>N.º proforma</th><th>Logístico</th><th>Dirección</th><th>Agencia</th></tr>${r.dist.map(x=>`<tr><td>${n(x.cantidad).toLocaleString('es-PE')}</td><td>${esc(x.material||'')}</td><td style="white-space:nowrap">${x.precio!==''?m2(x.precio):''}</td><td>${esc(x.proforma||'')}</td><td>${esc(x.logistico||'')}</td><td>${esc(x.direccion||'')}</td><td>${esc(x.agencia||'')}</td></tr>`).join('')}</table>`:''}
+   ${(r.dist||[]).length?`<h2>Distribución de materiales</h2><table class="rq"><tr><th>Cant.</th><th>Material</th><th>Precio</th><th>N.º proforma</th><th>Campo / filial</th><th>Logístico</th><th>Dirección</th><th>Agencia</th></tr>${r.dist.map(x=>`<tr><td>${n(x.cantidad).toLocaleString('es-PE')}</td><td>${esc(x.material||'')}</td><td style="white-space:nowrap">${x.precio!==''?m2(x.precio):''}</td><td>${esc(x.proforma||'')}</td><td>${esc(x.campo||'')}</td><td>${esc(x.logistico||'')}</td><td>${esc(x.direccion||'')}</td><td>${esc(x.agencia||'')}</td></tr>`).join('')}</table>`:''}
    <div class="firmas"><div>V.º B.º asesor comercial ${r.vbAsesor?'✓':''}</div><div>Firma área de costos ${r.vbCostos?'✓':''}</div><div>V.º B.º cliente ${r.vbCliente?'✓':''}</div></div>`;
   document.body.appendChild(box);
-  const clean=()=>{box.remove();st.remove();window.removeEventListener('afterprint',clean)};window.addEventListener('afterprint',clean);
+  const oldT=document.title;document.title=('Ficha cliente '+[r.proforma,r.cliente].filter(Boolean).join(' - ')).replace(/[\\/:*?"<>|]+/g,' ').slice(0,90);
+  const clean=()=>{box.remove();st.remove();document.title=oldT;window.removeEventListener('afterprint',clean)};window.addEventListener('afterprint',clean);
   setTimeout(()=>window.print(),60);
 }
 function bindClientes(){
