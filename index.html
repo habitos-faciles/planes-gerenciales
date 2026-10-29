@@ -792,12 +792,13 @@ const CLI_TIPOS=['Cotización','Orden','Cotización y Orden'];
 const CLI_EST=['Registrado','Proforma aprobada','Diseño','Corrección','Preprensa','En producción','Posprensa','APT','Entregado','Anulado'];
 function cliNextCode(unidad,fecha){const y=/^\d{4}-/.test(fecha||'')?fecha.slice(0,4):new Date().getFullYear(),pre=`CP-${unidad||'GEN'}-${y}-`;const mx=(RAW.clientes||[]).map(c=>c.codigo||'').filter(c=>c.startsWith(pre)).map(c=>+c.slice(pre.length)||0).reduce((a,b)=>Math.max(a,b),0);return pre+String(mx+1).padStart(4,'0')}
 function cliEstado(L){L=L||[];const s=L.filter(x=>x.inicio);return s.length?s[s.length-1].etapa:(L.length?L[L.length-1].etapa:'Registrado')}
-function procInfo(x){const t=today();if(!x.inicio)return {st:'Sin fecha inicial',c:'',dias:null,txt:x.fin?'Falta la fecha inicial':'Asigna la fecha inicial'};
-  if(x.fin){const d=dDiff(x.inicio,x.fin);return {st:'Terminado',c:'ok',dias:d,txt:`Del ${fdate(x.inicio)} al ${fdate(x.fin)} · ${d} ${d===1?'día':'días'}`}}
-  const d=dDiff(x.inicio,t);return {st:'En proceso',c:'info',dias:d,txt:`Desde el ${fdate(x.inicio)} · ${d} ${d===1?'día':'días'} en proceso`}}
+function procInfo(x){const t=today(),en=x.entrega?` · entrega prevista ${fdate(x.entrega)}`:'';if(!x.inicio)return {st:'Sin fecha inicial',c:'',dias:null,txt:(x.fin?'Falta la fecha inicial':'Asigna la fecha inicial')+en};
+  if(x.fin){const d=dDiff(x.inicio,x.fin),late=x.entrega&&x.fin>x.entrega;return {st:late?'Terminado con retraso':'Terminado',c:late?'warn':'ok',dias:d,txt:`Del ${fdate(x.inicio)} al ${fdate(x.fin)} · ${d} ${d===1?'día':'días'}${late?` · ${dDiff(x.entrega,x.fin)} ${dDiff(x.entrega,x.fin)===1?'día':'días'} después de la entrega prevista`:en}`}}
+  const d=dDiff(x.inicio,t),venc=x.entrega&&t>x.entrega;return {st:venc?'Vencido':'En proceso',c:venc?'bad':'info',dias:d,txt:`Desde el ${fdate(x.inicio)} · ${d} ${d===1?'día':'días'} en proceso${venc?` · la entrega era el ${fdate(x.entrega)}`:en}`}}
 function cliProcRows(){const ro=cliEd.ro?'disabled':'',L=cliEd.r.procesos||[];if(!L.length)return '<div class="note">Sin etapas registradas. Agrega la primera etapa del proceso.</div>';
-  return L.map((x,i)=>{const inf=procInfo(x);return `<div style="display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr) minmax(0,2.4fr) auto;gap:8px;align-items:end;padding:8px 0;border-bottom:1px solid var(--rule-2)">
+  return L.map((x,i)=>{const inf=procInfo(x);return `<div style="display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,2fr) auto;gap:8px;align-items:end;padding:8px 0;border-bottom:1px solid var(--rule-2)">
    <label>Etapa<select data-ps="${i}:etapa" ${ro}>${CLI_EST.map(t=>`<option ${t===x.etapa?'selected':''}>${t}</option>`).join('')}</select></label>
+   <label>Fecha entrega<input type="date" data-ps="${i}:entrega" value="${esc(x.entrega||'')}" ${ro}></label>
    <label>Fecha inicial<input type="date" data-ps="${i}:inicio" value="${esc(x.inicio||'')}" ${ro}></label>
    <label>Fecha final<input type="date" data-ps="${i}:fin" value="${esc(x.fin||'')}" ${ro}></label>
    <label>Observaciones<input data-ps="${i}:obs" value="${esc(x.obs||'')}" placeholder="Opcional" ${ro}></label>
@@ -827,7 +828,7 @@ function viewClientes(){
   const all=S.clientes.filter(r=>inFilter('clientes',r));
   let list=all.filter(r=>(!cliF.estado||(r.estado||'Registrado')===cliF.estado));
   if(cliF.req==='pend')list=list.filter(r=>cliReqSum(r).pend>0);else if(cliF.req==='venc')list=list.filter(r=>cliReqSum(r).venc>0);else if(cliF.req==='ok')list=list.filter(r=>cliReqSum(r).completo);
-  if(cliF.q){const qq=norm(cliF.q);list=list.filter(r=>norm([r.codigo,r.proforma,r.job,r.cliente,r.ruc,r.responsable,r.trabajo].join(' ')).includes(qq))}
+  if(cliF.q){const qq=norm(cliF.q);list=list.filter(r=>norm([r.codigo,r.proforma,r.job,r.cliente,r.departamento,r.ruc,r.responsable,r.trabajo].join(' ')).includes(qq))}
   list=list.slice().sort((a,b)=>String(b.fechaIngreso||b.creado||'').localeCompare(String(a.fechaIngreso||a.creado||'')));cliLastList=list;
   const sums=all.map(cliReqSum),monto=all.reduce((s,r)=>s+n(r.precio),0),aprob=all.filter(r=>n(r.precio)>0).length;
   const pend=sums.reduce((s,x)=>s+x.pend,0),venc=sums.reduce((s,x)=>s+x.venc,0);
@@ -894,8 +895,8 @@ function openCli(id){
    <label>Asesor comercial<select name="asesor" ${ro}><option value="">—</option>${RAW.personal.filter(p=>p.estado!=='Cesado').map(p=>[p.id,p.nombre+(p.cargo?' — '+p.cargo:'')]).sort((a,b)=>a[1].localeCompare(b[1])).map(([v,l])=>`<option value="${v}" ${v===r.asesor?'selected':''}>${esc(l)}</option>`).join('')}</select></label>
    ${F('fechaIngreso','Fecha de ingreso','date')}${F('horaIngreso','Hora de ingreso','time')}${F('fechaProforma','Fecha recepción de proforma','date')}${F('horaProforma','Hora de recepción','time')}
    ${sec('Ventas · datos del cliente')}
-   ${F('cliente','Cliente *','text','style="grid-column:span 2"')}${F('ruc','RUC / ID tributario')}${F('responsable','Nombre del responsable')}
-   ${F('telefono','Teléfono','tel')}${F('email','E-mail','email','style="grid-column:span 2"')}<span></span>
+   ${F('cliente','Cliente *','text','style="grid-column:span 2"')}<label>Departamento / Área<input name="departamento" list="cliDepLst" value="${esc(r.departamento||'')}" placeholder="Ej. Departamento de Educación" ${ro}><datalist id="cliDepLst">${[...new Set((RAW.clientes||[]).map(c=>c.departamento).filter(Boolean))].sort().map(d=>`<option value="${esc(d)}">`).join('')}</datalist></label>${F('ruc','RUC / ID tributario')}
+   ${F('responsable','Nombre del responsable')}${F('telefono','Teléfono','tel')}${F('email','E-mail','email','style="grid-column:span 2"')}
    ${sec('Trabajo')}
    ${F('trabajo','Trabajo *','text','style="grid-column:span 2"')}${F('cantidad','Cantidad','number')}${F('formato','Formato')}
    ${F('tapa','Tapa','text','style="grid-column:span 2"')}${F('hojas','Hojas / interiores')}${F('paginas','N.º de páginas','number')}
@@ -909,7 +910,7 @@ function openCli(id){
    ${F('job','JOB N.º')}${F('fechaInicio','Fecha de inicio','date')}${F('fechaEntrega','Fecha de entrega al cliente','date')}
    <label>Estado actual<span id="cliEstAct" style="padding:9px 0">${pillFor(cliEstado(r.procesos))}</span></label>
    ${F('proforma','N.º proforma')}
-   <div style="grid-column:1/-1"><div class="note" style="font-weight:600;color:var(--ink-2)">Control de procesos del estado</div><div class="note">Registra cada etapa con su fecha inicial, fecha final y observaciones. El estado actual es la última etapa de la lista que tenga fecha inicial; al agregar una etapa nueva, la anterior se cierra con la fecha de hoy si estaba abierta.</div><div id="cliProc">${cliProcRows()}</div>${cliEd.ro?'':`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center"><select id="cliProcEt" aria-label="Etapa">${CLI_EST.map(t=>`<option>${t}</option>`).join('')}</select><button type="button" class="btn small" id="cliProcAdd">+ Agregar etapa</button></div>`}</div>
+   <div style="grid-column:1/-1"><div class="note" style="font-weight:600;color:var(--ink-2)">Control de procesos del estado</div><div class="note">Registra cada etapa con su fecha de entrega (prevista), fecha inicial, fecha final y observaciones. El estado actual es la última etapa de la lista que tenga fecha inicial; al agregar una etapa nueva, la anterior se cierra con la fecha de hoy si estaba abierta.</div><div id="cliProc">${cliProcRows()}</div>${cliEd.ro?'':`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center"><select id="cliProcEt" aria-label="Etapa">${CLI_EST.map(t=>`<option>${t}</option>`).join('')}</select><button type="button" class="btn small" id="cliProcAdd">+ Agregar etapa</button></div>`}</div>
    ${sec('Precio aprobado en proforma')}
    ${F('precio','Precio aprobado (S/)','number')}<label>IGV<select name="precioIgv" ${ro}>${['Incluye IGV','Más IGV','Exonerado'].map(o=>`<option ${o===(r.precioIgv||'Incluye IGV')?'selected':''}>${o}</option>`).join('')}</select></label>
    ${F('precioFecha','Fecha de aprobación','date')}${F('precioAprobo','Aprobado por')}
@@ -928,7 +929,7 @@ function openCli(id){
   bindCliDlg();dl.showModal();
 }
 function readCliForm(){const fd=new FormData($('#cliFrm'));const o={...cliEd.r};
-  ['proforma','unidad','asesor','fechaIngreso','horaIngreso','fechaProforma','horaProforma','cliente','ruc','responsable','telefono','email','trabajo','cantidad','formato','tapa','hojas','paginas','encuadernacion','encarte','otros','tipoDoc','diseno','correccion','preprensa','servicio','job','fechaInicio','fechaEntrega','precio','precioIgv','precioFecha','precioAprobo'].forEach(k=>{const v=fd.get(k);if(v!==null)o[k]=String(v).trim()});
+  ['proforma','unidad','asesor','fechaIngreso','horaIngreso','fechaProforma','horaProforma','cliente','departamento','ruc','responsable','telefono','email','trabajo','cantidad','formato','tapa','hojas','paginas','encuadernacion','encarte','otros','tipoDoc','diseno','correccion','preprensa','servicio','job','fechaInicio','fechaEntrega','precio','precioIgv','precioFecha','precioAprobo'].forEach(k=>{const v=fd.get(k);if(v!==null)o[k]=String(v).trim()});
   ['cantidad','precio','paginas'].forEach(k=>{o[k]=o[k]===''||o[k]==null?'':+o[k]});['vbAsesor','vbCliente','vbCostos'].forEach(k=>o[k]=!!fd.get(k));return o}
 function bindCliDlg(){
   const dl=$('#cliDlg');
@@ -945,7 +946,7 @@ function bindCliDlg(){
   const bindProc=()=>{document.querySelectorAll('[data-ps]').forEach(el=>el.onchange=()=>{const [i,k]=el.dataset.ps.split(':');cliEd.r.procesos[+i][k]=el.value;if(k!=='obs')rp()});
     document.querySelectorAll('[data-psdel]').forEach(b=>b.onclick=()=>{cliEd.r.procesos.splice(+b.dataset.psdel,1);rp()})};
   bindProc();nextEt();
-  const pa=$('#cliProcAdd');if(pa)pa.onclick=()=>{const L=cliEd.r.procesos,prev=L[L.length-1];const d=today();if(prev&&prev.inicio&&!prev.fin&&prev.inicio<=d)prev.fin=d;L.push({etapa:$('#cliProcEt').value,inicio:d,fin:'',obs:''});rp()};
+  const pa=$('#cliProcAdd');if(pa)pa.onclick=()=>{const L=cliEd.r.procesos,prev=L[L.length-1];const d=today();if(prev&&prev.inicio&&!prev.fin&&prev.inicio<=d)prev.fin=d;L.push({etapa:$('#cliProcEt').value,entrega:'',inicio:d,fin:'',obs:''});rp()};
   const rd=()=>{$('#cliDist').innerHTML=cliDistRows();bindDist()};
   const bindDist=()=>{document.querySelectorAll('[data-ds]').forEach(el=>el.onchange=()=>{const [i,k]=el.dataset.ds.split(':');cliEd.r.dist[+i][k]=(k==='cantidad'||k==='precio')?(el.value===''?'':+el.value):el.value;if(k==='cantidad'||k==='precio')rd()});
     document.querySelectorAll('[data-dsdel]').forEach(b=>b.onclick=()=>{cliEd.r.dist.splice(+b.dataset.dsdel,1);rd()})};
@@ -997,12 +998,12 @@ function printCli(id,mode){
    ${r.codigo||(mode==='ini'&&r.proforma)?`<div style="text-align:right;font:700 10pt Arial;margin:-2px 0 3px">${r.codigo?'Código: '+esc(r.codigo):''}${mode==='ini'&&r.proforma?' &nbsp; N.º proforma: '+esc(r.proforma):''}</div>`:''}
    <table class="c4"><tr><th>Tipo</th><td colspan="3">${CLI_TIPOS.map(t=>ck(r.tipoDoc,t)).join(' &nbsp; ')}</td></tr>
    <tr><th>Fecha de ingreso</th><td>${fdate(r.fechaIngreso)} ${esc(r.horaIngreso||'')}</td><th>Recepción de proforma</th><td>${fdate(r.fechaProforma)} ${esc(r.horaProforma||'')}</td></tr></table>
-   <h2>Ventas</h2><table class="c4">${row2('Cliente',r.cliente,'RUC',r.ruc)}${row2('Responsable',r.responsable,'Asesor comercial',r.asesor?pname(r.asesor):(r.asesorTxt||''))}<tr><th>Teléfono / e-mail</th><td colspan="3">${esc([r.telefono,r.email].filter(Boolean).join(' · '))}</td></tr></table>
+   <h2>Ventas</h2><table class="c4">${row2('Cliente',r.cliente,'Departamento / Área',r.departamento)}${row2('RUC / ID tributario',r.ruc,'Responsable',r.responsable)}${row2('Asesor comercial',r.asesor?pname(r.asesor):(r.asesorTxt||''),'Teléfono / e-mail',[r.telefono,r.email].filter(Boolean).join(' · '))}</table>
    <h2>Trabajo</h2><table class="c4">${row2('Trabajo',r.trabajo,'Cantidad',r.cantidad?n(r.cantidad).toLocaleString('es-PE'):'')}${row2('Formato',r.formato,'Tapa',r.tapa)}${row2('Hojas / interiores',r.hojas,'N.º de páginas',r.paginas?n(r.paginas).toLocaleString('es-PE'):'')}${row2('Encuadernación',r.encuadernacion,'Encarte',r.encarte)}<tr><th>Otros</th><td colspan="3">${esc(r.otros||'')}</td></tr></table>
    <h2>Preprensa</h2><table class="c4"><tr><th>Diseño</th><td>${ck(r.diseno,'Nuevo')} &nbsp; ${ck(r.diseno,'Modificar')}</td><th>Corrección</th><td>${ck(r.correccion,'Sí')} &nbsp; ${ck(r.correccion,'No')}</td></tr><tr><th>Preprensa</th><td>${ck(r.preprensa,'Sí')} &nbsp; ${ck(r.preprensa,'No')}</td><th>Servicio de</th><td>${ck(r.servicio,'Impresión')} &nbsp; ${ck(r.servicio,'Reimpresión')}</td></tr></table>
    ${mode==='ini'?'':`
    <h2>Trabajo y entrega</h2><table class="c4"><tr><th>JOB N.º</th><td>${esc(r.job||'')}</td><th>Fecha de inicio</th><td>${fdate(r.fechaInicio)}</td></tr><tr><th>N.º proforma</th><td>${esc(r.proforma||'')}</td><th>Entrega al cliente</th><td>${fdate(r.fechaEntrega)}</td></tr><tr><th>Estado actual</th><td colspan="3">${esc(r.estado||'Registrado')}</td></tr></table>
-   ${(r.procesos||[]).length?`<table class="rq"><tr><th>Etapa del estado</th><th>Fecha inicial</th><th>Fecha final</th><th>Días</th><th>Situación</th><th>Observaciones</th></tr>${r.procesos.map(x=>{const i=procInfo(x);return `<tr><td>${esc(x.etapa)}</td><td>${fdate(x.inicio)}</td><td>${fdate(x.fin)}</td><td>${i.dias??'—'}</td><td>${esc(i.st)}</td><td>${esc(x.obs||'')}</td></tr>`}).join('')}</table>`:''}
+   ${(r.procesos||[]).length?`<table class="rq"><tr><th>Etapa del estado</th><th>Fecha entrega</th><th>Fecha inicial</th><th>Fecha final</th><th>Días</th><th>Situación</th><th>Observaciones</th></tr>${r.procesos.map(x=>{const i=procInfo(x);return `<tr><td>${esc(x.etapa)}</td><td>${fdate(x.entrega)}</td><td>${fdate(x.inicio)}</td><td>${fdate(x.fin)}</td><td>${i.dias??'—'}</td><td>${esc(i.st)}</td><td>${esc(x.obs||'')}</td></tr>`}).join('')}</table>`:''}
    <h2>Precio aprobado en proforma</h2><table class="c4"><tr><th>Precio aprobado</th><td>${n(r.precio)?m2(r.precio)+' ('+esc(r.precioIgv||'')+')':''}</td><th>Fecha de aprobación</th><td>${fdate(r.precioFecha)}</td></tr><tr><th>Aprobado por</th><td colspan="3">${esc(r.precioAprobo||'')}</td></tr></table>
    <h2>Entrega de requerimientos del cliente (${s.ent} de ${s.tot} entregados)</h2><table class="rq"><tr><th>Requerimiento</th><th>Solicitado</th><th>Fecha límite</th><th>Entregado</th><th>Días</th><th>Estado</th></tr>${(r.reqs||[]).map(x=>{const i=reqInfo(x);return `<tr><td>${esc(x.tipo)}${x.detalle?' — '+esc(x.detalle):''}</td><td>${fdate(x.solicitado)}</td><td>${fdate(x.limite)}</td><td>${fdate(x.entregado)}</td><td>${i.dias??'—'}</td><td>${esc(i.st)}</td></tr>`}).join('')||'<tr><td colspan="6">Sin requerimientos</td></tr>'}</table>
    <h2>Cambios en proceso de aprobación (${(r.cambios||[]).filter(x=>x.entregado).length} de ${(r.cambios||[]).length} atendidos)</h2><table class="rq"><tr><th>Cambio</th><th>Solicitado</th><th>Fecha límite</th><th>Atendido</th><th>Días</th><th>Estado</th></tr>${(r.cambios||[]).map(x=>{const i=reqInfo(x,1);return `<tr><td>${esc(x.tipo)}${x.detalle?' — '+esc(x.detalle):''}</td><td>${fdate(x.solicitado)}</td><td>${fdate(x.limite)}</td><td>${fdate(x.entregado)}</td><td>${i.dias??'—'}</td><td>${esc(i.st)}</td></tr>`}).join('')||'<tr><td colspan="6">Sin cambios</td></tr>'}</table>
@@ -1017,7 +1018,7 @@ function printCli(id,mode){
 /* ===== Clientes y pedidos: importar / exportar ===== */
 const CLI_XCOLS=[['codigo','Código'],['proforma','N.º proforma'],['tipoDoc','Tipo (Cotización/Orden/Cotización y Orden)'],['unidad','Unidad'],['asesor','Asesor comercial'],
  ['fechaIngreso','Fecha de ingreso','d'],['horaIngreso','Hora de ingreso','h'],['fechaProforma','Fecha recepción de proforma','d'],['horaProforma','Hora de recepción','h'],
- ['cliente','Cliente'],['ruc','RUC'],['responsable','Nombre del responsable'],['telefono','Teléfono'],['email','E-mail'],
+ ['cliente','Cliente'],['departamento','Departamento / Área'],['ruc','RUC / ID tributario'],['responsable','Nombre del responsable'],['telefono','Teléfono'],['email','E-mail'],
  ['trabajo','Trabajo'],['cantidad','Cantidad','n'],['formato','Formato'],['tapa','Tapa'],['hojas','Hojas / interiores'],['paginas','N.º de páginas','n'],['encuadernacion','Encuadernación'],['encarte','Encarte'],['otros','Otros'],
  ['diseno','Diseño (Nuevo/Modificar)'],['correccion','Corrección (Sí/No)'],['preprensa','Preprensa (Sí/No)'],['servicio','Servicio de (Impresión/Reimpresión)'],
  ['job','JOB N.º'],['fechaInicio','Fecha de inicio','d'],['fechaEntrega','Fecha de entrega al cliente','d'],['estado','Estado actual'],
@@ -1026,7 +1027,7 @@ const CLI_XCOLS=[['codigo','Código'],['proforma','N.º proforma'],['tipoDoc','T
 const CLI_XSUB={
  reqs:{hoja:'Requerimientos',cols:[['tipo','Requerimiento'],['detalle','Detalle'],['solicitado','Solicitado el','d'],['limite','Fecha límite','d'],['entregado','Entregado el','d']]},
  cambios:{hoja:'Cambios',cols:[['tipo','Cambio'],['detalle','Detalle'],['solicitado','Solicitado el','d'],['limite','Fecha límite','d'],['entregado','Atendido el','d']]},
- procesos:{hoja:'Etapas del estado',cols:[['etapa','Etapa'],['inicio','Fecha inicial','d'],['fin','Fecha final','d'],['obs','Observaciones']]},
+ procesos:{hoja:'Etapas del estado',cols:[['etapa','Etapa'],['entrega','Fecha entrega','d'],['inicio','Fecha inicial','d'],['fin','Fecha final','d'],['obs','Observaciones']]},
  dist:{hoja:'Distribución',cols:[['cantidad','Cantidad','n'],['material','Material'],['precio','Precio (S/)','n'],['proforma','N.º proforma'],['campo','Campo / filial'],['logistico','Nombre del logístico'],['direccion','Dirección a donde irá'],['agencia','Agencia']]}};
 let cliLastList=[],cliImp=null;
 const xKey=s=>norm(String(s).replace(/\(.*?\)/g,'')).replace(/[.:º°*]/g,'').replace(/\s+/g,' ').trim();
@@ -1044,9 +1045,9 @@ async function cliExport(){
   catch(e){toast('No se pudo generar el Excel. Revisa tu conexión e inténtalo de nuevo.')}}
 async function cliTemplate(){
   try{const X=await loadXLSX();const u=(myUnitOpts()[0]||['',''])[1];
-    const ej={codigo:'CP-HIST-2025-0001',proforma:'PF-2025-0123',tipoDoc:'Orden',unidad:'',fechaIngreso:'2025-03-10',horaIngreso:'09:30',cliente:'Colegio Ejemplo',ruc:'20123456789',responsable:'Nombre Apellido',telefono:'987654321',email:'correo@ejemplo.com',trabajo:'Agenda escolar 2025',cantidad:1000,formato:'A5',tapa:'Tapa dura',hojas:'Bond 75 g a 1 color',paginas:160,encuadernacion:'Wire-o',diseno:'Nuevo',correccion:'Sí',preprensa:'Sí',servicio:'Impresión',job:'2503-0101',fechaInicio:'2025-03-12',fechaEntrega:'2025-04-20',estado:'Entregado',precio:12500,precioIgv:'Incluye IGV',precioFecha:'2025-03-11',precioAprobo:'Gerencia de Ventas',vbAsesor:true,vbCliente:true,vbCostos:true,
+    const ej={codigo:'CP-HIST-2025-0001',proforma:'PF-2025-0123',tipoDoc:'Orden',unidad:'',fechaIngreso:'2025-03-10',horaIngreso:'09:30',cliente:'Colegio Ejemplo',departamento:'Departamento de Educación',ruc:'20123456789',responsable:'Nombre Apellido',telefono:'987654321',email:'correo@ejemplo.com',trabajo:'Agenda escolar 2025',cantidad:1000,formato:'A5',tapa:'Tapa dura',hojas:'Bond 75 g a 1 color',paginas:160,encuadernacion:'Wire-o',diseno:'Nuevo',correccion:'Sí',preprensa:'Sí',servicio:'Impresión',job:'2503-0101',fechaInicio:'2025-03-12',fechaEntrega:'2025-04-20',estado:'Entregado',precio:12500,precioIgv:'Incluye IGV',precioFecha:'2025-03-11',precioAprobo:'Gerencia de Ventas',vbAsesor:true,vbCliente:true,vbCostos:true,
       reqs:[{tipo:'Entrega de texto completo',detalle:'',solicitado:'2025-03-10',limite:'2025-03-15',entregado:'2025-03-14'}],cambios:[{tipo:'Cambio de diseño de tapas',detalle:'Otro color de fondo',solicitado:'2025-03-20',limite:'',entregado:'2025-03-22'}],
-      procesos:[{etapa:'Diseño',inicio:'2025-03-12',fin:'2025-03-25',obs:''},{etapa:'En producción',inicio:'2025-03-26',fin:'2025-04-15',obs:''},{etapa:'Entregado',inicio:'2025-04-20',fin:'2025-04-20',obs:''}],
+      procesos:[{etapa:'Diseño',entrega:'2025-03-24',inicio:'2025-03-12',fin:'2025-03-25',obs:''},{etapa:'En producción',inicio:'2025-03-26',fin:'2025-04-15',obs:''},{etapa:'Entregado',inicio:'2025-04-20',fin:'2025-04-20',obs:''}],
       dist:[{cantidad:1000,material:'Agenda escolar 2025',precio:12.5,proforma:'PF-2025-0123',campo:'Misión Ejemplo',logistico:'Nombre del logístico',direccion:'Av. Ejemplo 123, Lima',agencia:'Shalom'}]};
     const wb=cliSheetsFor([ej],X);wb.Sheets.Pedidos['D2']={t:'s',v:u};
     const ins=X.utils.aoa_to_sheet([['Cómo llenar esta plantilla'],[''],['1. Hoja «Pedidos»: una fila por cliente / pedido. Obligatorios: Cliente y Trabajo. La Unidad va con su nombre tal como aparece en el sistema.'],
