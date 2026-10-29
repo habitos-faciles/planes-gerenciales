@@ -787,7 +787,7 @@ function bindCal(){
 /* ===== Módulo: Clientes y pedidos (ficha «Información del cliente», precio aprobado y requerimientos) ===== */
 RAW.clientes=RAW.clientes||[];S.clientes=S.clientes||[];
 const CLI_EST=['Registrado','Proforma aprobada','Diseño','Corrección','Preprensa','En producción','Posprensa','APT','Entregado','Anulado'];
-function cliNextCode(unidad){const y=new Date().getFullYear(),pre=`CP-${unidad||'GEN'}-${y}-`;const mx=(RAW.clientes||[]).map(c=>c.codigo||'').filter(c=>c.startsWith(pre)).map(c=>+c.slice(pre.length)||0).reduce((a,b)=>Math.max(a,b),0);return pre+String(mx+1).padStart(4,'0')}
+function cliNextCode(unidad,fecha){const y=/^\d{4}-/.test(fecha||'')?fecha.slice(0,4):new Date().getFullYear(),pre=`CP-${unidad||'GEN'}-${y}-`;const mx=(RAW.clientes||[]).map(c=>c.codigo||'').filter(c=>c.startsWith(pre)).map(c=>+c.slice(pre.length)||0).reduce((a,b)=>Math.max(a,b),0);return pre+String(mx+1).padStart(4,'0')}
 function cliEstado(L){L=L||[];const s=L.filter(x=>x.inicio);return s.length?s[s.length-1].etapa:(L.length?L[L.length-1].etapa:'Registrado')}
 function procInfo(x){const t=today();if(!x.inicio)return {st:'Sin fecha inicial',c:'',dias:null,txt:x.fin?'Falta la fecha inicial':'Asigna la fecha inicial'};
   if(x.fin){const d=dDiff(x.inicio,x.fin);return {st:'Terminado',c:'ok',dias:d,txt:`Del ${fdate(x.inicio)} al ${fdate(x.fin)} · ${d} ${d===1?'día':'días'}`}}
@@ -825,14 +825,14 @@ function viewClientes(){
   let list=all.filter(r=>(!cliF.estado||(r.estado||'Registrado')===cliF.estado));
   if(cliF.req==='pend')list=list.filter(r=>cliReqSum(r).pend>0);else if(cliF.req==='venc')list=list.filter(r=>cliReqSum(r).venc>0);else if(cliF.req==='ok')list=list.filter(r=>cliReqSum(r).completo);
   if(cliF.q){const qq=norm(cliF.q);list=list.filter(r=>norm([r.codigo,r.proforma,r.job,r.cliente,r.ruc,r.responsable,r.trabajo].join(' ')).includes(qq))}
-  list=list.slice().sort((a,b)=>String(b.fechaIngreso||b.creado||'').localeCompare(String(a.fechaIngreso||a.creado||'')));
+  list=list.slice().sort((a,b)=>String(b.fechaIngreso||b.creado||'').localeCompare(String(a.fechaIngreso||a.creado||'')));cliLastList=list;
   const sums=all.map(cliReqSum),monto=all.reduce((s,r)=>s+n(r.precio),0),aprob=all.filter(r=>n(r.precio)>0).length;
   const pend=sums.reduce((s,x)=>s+x.pend,0),venc=sums.reduce((s,x)=>s+x.venc,0);
   const ds=all.flatMap(r=>(r.reqs||[]).filter(x=>x.entregado&&x.solicitado).map(x=>dDiff(x.solicitado,x.entregado)));
   let h=`<div class="bar"><div class="left"><h2>Clientes y pedidos</h2>${unitFilterSel()}</div><div class="right"><input class="search" id="cliQ" placeholder="Buscar código, proforma, JOB, cliente, RUC…" value="${esc(cliF.q)}">
    <select id="cliEst" aria-label="Estado"><option value="">Todos los estados</option>${CLI_EST.map(e=>`<option ${e===cliF.estado?'selected':''}>${e}</option>`).join('')}</select>
    <select id="cliReq" aria-label="Requerimientos"><option value="">Todos los requerimientos</option><option value="pend" ${cliF.req==='pend'?'selected':''}>Con requerimientos pendientes</option><option value="venc" ${cliF.req==='venc'?'selected':''}>Con requerimientos vencidos</option><option value="ok" ${cliF.req==='ok'?'selected':''}>Requerimientos completos</option></select>
-   ${readOnly?'':'<button class="btn primary" id="cliNew">+ Nuevo cliente / pedido</button>'}</div></div>
+   <button class="btn" id="cliExp" title="Descarga en Excel los pedidos de la vista actual">⬇ Exportar</button>${readOnly?'':'<button class="btn" id="cliImp" title="Cargar información pasada desde Excel">⬆ Importar</button><button class="btn primary" id="cliNew">+ Nuevo cliente / pedido</button>'}</div></div>
   <div class="note">Ficha «Información del cliente» para la elaboración de productos: datos del cliente y del trabajo, precio aprobado en la proforma y seguimiento de la entrega de requerimientos (texto, imágenes, material complementario).</div>
   <div class="kpis">
    <div class="kpi"><span class="l">Pedidos registrados</span><span class="v">${all.length}</span><span class="s">${(o=>o+(o===1?' orden':' órdenes'))(all.filter(r=>r.tipoDoc==='Orden').length)} · ${(c=>c+(c===1?' cotización':' cotizaciones'))(all.filter(r=>r.tipoDoc==='Cotización').length)}</span></div>
@@ -968,7 +968,7 @@ function bindCliDlg(){
     if(!cliEd.id){o.id=uid();o.creado=new Date().toISOString();o.creadoPor=actorId()}
     o.actualizado=new Date().toISOString();
     const wantPdf=e.submitter?.dataset?.pdf||'';
-    if(!o.codigo)o.codigo=cliNextCode(o.unidad);
+    if(!o.codigo)o.codigo=cliNextCode(o.unidad,o.fechaIngreso);
     try{await put('clientes',o);dl.close();toast(wantPdf?'Ficha guardada con código '+o.codigo+'. En la ventana de impresión elige «Guardar como PDF» para descargarla.':'Ficha del cliente guardada con código '+o.codigo+'.');if(wantPdf)printCli(o,wantPdf==='ini'?'ini':'')}catch(err){dbErr(err)}};
 }
 function printCli(id,mode){
@@ -991,7 +991,7 @@ function printCli(id,mode){
    ${r.codigo?`<div style="text-align:right;font:700 10pt Arial;margin:-2px 0 3px">Código: ${esc(r.codigo)}</div>`:''}
    <table class="c4"><tr><th>N.º proforma</th><td>${esc(r.proforma||'')}</td><th>Tipo</th><td>${ck(r.tipoDoc,'Cotización')} &nbsp; ${ck(r.tipoDoc,'Orden')}</td></tr>
    <tr><th>Fecha de ingreso</th><td>${fdate(r.fechaIngreso)} ${esc(r.horaIngreso||'')}</td><th>Recepción de proforma</th><td>${fdate(r.fechaProforma)} ${esc(r.horaProforma||'')}</td></tr></table>
-   <h2>Ventas</h2><table class="c4">${row2('Cliente',r.cliente,'RUC',r.ruc)}${row2('Responsable',r.responsable,'Asesor comercial',r.asesor?pname(r.asesor):'')}<tr><th>Teléfono / e-mail</th><td colspan="3">${esc([r.telefono,r.email].filter(Boolean).join(' · '))}</td></tr></table>
+   <h2>Ventas</h2><table class="c4">${row2('Cliente',r.cliente,'RUC',r.ruc)}${row2('Responsable',r.responsable,'Asesor comercial',r.asesor?pname(r.asesor):(r.asesorTxt||''))}<tr><th>Teléfono / e-mail</th><td colspan="3">${esc([r.telefono,r.email].filter(Boolean).join(' · '))}</td></tr></table>
    <h2>Trabajo</h2><table class="c4">${row2('Trabajo',r.trabajo,'Cantidad',r.cantidad?n(r.cantidad).toLocaleString('es-PE'):'')}${row2('Formato',r.formato,'Tapa',r.tapa)}${row2('Hojas',r.hojas,'Encuadernación',r.encuadernacion)}${row2('Encarte',r.encarte,'Otros',r.otros)}</table>
    <h2>Preprensa</h2><table class="c4"><tr><th>Diseño</th><td>${ck(r.diseno,'Nuevo')} &nbsp; ${ck(r.diseno,'Modificar')}</td><th>Corrección</th><td>${ck(r.correccion,'Sí')} &nbsp; ${ck(r.correccion,'No')}</td></tr><tr><th>Preprensa</th><td>${ck(r.preprensa,'Sí')} &nbsp; ${ck(r.preprensa,'No')}</td><th>Servicio de</th><td>${ck(r.servicio,'Impresión')} &nbsp; ${ck(r.servicio,'Reimpresión')}</td></tr></table>
    ${mode==='ini'?'':`
@@ -1008,11 +1008,122 @@ function printCli(id,mode){
   const clean=()=>{box.remove();st.remove();document.title=oldT;window.removeEventListener('afterprint',clean)};window.addEventListener('afterprint',clean);
   setTimeout(()=>window.print(),60);
 }
+/* ===== Clientes y pedidos: importar / exportar ===== */
+const CLI_XCOLS=[['codigo','Código'],['proforma','N.º proforma'],['tipoDoc','Tipo (Cotización/Orden)'],['unidad','Unidad'],['asesor','Asesor comercial'],
+ ['fechaIngreso','Fecha de ingreso','d'],['horaIngreso','Hora de ingreso','h'],['fechaProforma','Fecha recepción de proforma','d'],['horaProforma','Hora de recepción','h'],
+ ['cliente','Cliente'],['ruc','RUC'],['responsable','Nombre del responsable'],['telefono','Teléfono'],['email','E-mail'],
+ ['trabajo','Trabajo'],['cantidad','Cantidad','n'],['formato','Formato'],['tapa','Tapa'],['hojas','Hojas / interiores'],['encuadernacion','Encuadernación'],['encarte','Encarte'],['otros','Otros'],
+ ['diseno','Diseño (Nuevo/Modificar)'],['correccion','Corrección (Sí/No)'],['preprensa','Preprensa (Sí/No)'],['servicio','Servicio de (Impresión/Reimpresión)'],
+ ['job','JOB N.º'],['fechaInicio','Fecha de inicio','d'],['fechaEntrega','Fecha de entrega al cliente','d'],['estado','Estado actual'],
+ ['precio','Precio aprobado (S/)','n'],['precioIgv','IGV (Incluye IGV/Más IGV/Exonerado)'],['precioFecha','Fecha de aprobación','d'],['precioAprobo','Aprobado por'],
+ ['vbAsesor','V.º B.º asesor comercial (Sí/No)','b'],['vbCliente','V.º B.º cliente (Sí/No)','b'],['vbCostos','Firma del área de costos (Sí/No)','b']];
+const CLI_XSUB={
+ reqs:{hoja:'Requerimientos',cols:[['tipo','Requerimiento'],['detalle','Detalle'],['solicitado','Solicitado el','d'],['limite','Fecha límite','d'],['entregado','Entregado el','d']]},
+ cambios:{hoja:'Cambios',cols:[['tipo','Cambio'],['detalle','Detalle'],['solicitado','Solicitado el','d'],['limite','Fecha límite','d'],['entregado','Atendido el','d']]},
+ procesos:{hoja:'Etapas del estado',cols:[['etapa','Etapa'],['inicio','Fecha inicial','d'],['fin','Fecha final','d'],['obs','Observaciones']]},
+ dist:{hoja:'Distribución',cols:[['cantidad','Cantidad','n'],['material','Material'],['precio','Precio (S/)','n'],['proforma','N.º proforma'],['campo','Campo / filial'],['logistico','Nombre del logístico'],['direccion','Dirección a donde irá'],['agencia','Agencia']]}};
+let cliLastList=[],cliImp=null;
+const xKey=s=>norm(String(s).replace(/\(.*?\)/g,'')).replace(/[.:º°*]/g,'').replace(/\s+/g,' ').trim();
+function cliOut(c,v,r){if(c[0]==='unidad')return U[v]?.n||v||'';if(c[0]==='asesor')return v?pname(v):(r.asesorTxt||'');if(c[2]==='b')return v?'Sí':'No';if(c[2]==='d')return v||'';return v??''}
+function cliSheetsFor(list,X){
+  const wb=X.utils.book_new();
+  const ped=[CLI_XCOLS.map(c=>c[1])].concat(list.map(r=>CLI_XCOLS.map(c=>cliOut(c,r[c[0]],r))));
+  const ws=X.utils.aoa_to_sheet(ped);ws['!cols']=CLI_XCOLS.map(c=>({wch:Math.max(12,Math.min(32,c[1].length+2))}));X.utils.book_append_sheet(wb,ws,'Pedidos');
+  Object.entries(CLI_XSUB).forEach(([k,d])=>{const a=[['Código',...d.cols.map(c=>c[1])]];list.forEach(r=>(r[k]||[]).forEach(x=>a.push([r.codigo||'',...d.cols.map(c=>x[c[0]]??'')])));
+    const s=X.utils.aoa_to_sheet(a);s['!cols']=[{wch:20},...d.cols.map(c=>({wch:Math.max(14,c[1].length+4)}))];X.utils.book_append_sheet(wb,s,d.hoja)});
+  return wb}
+async function cliExport(){
+  try{const X=await loadXLSX();const list=cliLastList;if(!list.length){toast('No hay pedidos en la vista actual para exportar.');return}
+    const wb=cliSheetsFor(list,X);X.writeFile(wb,`clientes_pedidos_${today()}.xlsx`);toast(`Exportados ${list.length} ${list.length===1?'pedido':'pedidos'} a Excel.`)}
+  catch(e){toast('No se pudo generar el Excel. Revisa tu conexión e inténtalo de nuevo.')}}
+async function cliTemplate(){
+  try{const X=await loadXLSX();const u=(myUnitOpts()[0]||['',''])[1];
+    const ej={codigo:'CP-HIST-2025-0001',proforma:'PF-2025-0123',tipoDoc:'Orden',unidad:'',fechaIngreso:'2025-03-10',horaIngreso:'09:30',cliente:'Colegio Ejemplo',ruc:'20123456789',responsable:'Nombre Apellido',telefono:'987654321',email:'correo@ejemplo.com',trabajo:'Agenda escolar 2025',cantidad:1000,formato:'A5',tapa:'Tapa dura',hojas:'160 pág.',encuadernacion:'Wire-o',diseno:'Nuevo',correccion:'Sí',preprensa:'Sí',servicio:'Impresión',job:'2503-0101',fechaInicio:'2025-03-12',fechaEntrega:'2025-04-20',estado:'Entregado',precio:12500,precioIgv:'Incluye IGV',precioFecha:'2025-03-11',precioAprobo:'Gerencia de Ventas',vbAsesor:true,vbCliente:true,vbCostos:true,
+      reqs:[{tipo:'Entrega de texto completo',detalle:'',solicitado:'2025-03-10',limite:'2025-03-15',entregado:'2025-03-14'}],cambios:[{tipo:'Cambio de diseño de tapas',detalle:'Otro color de fondo',solicitado:'2025-03-20',limite:'',entregado:'2025-03-22'}],
+      procesos:[{etapa:'Diseño',inicio:'2025-03-12',fin:'2025-03-25',obs:''},{etapa:'En producción',inicio:'2025-03-26',fin:'2025-04-15',obs:''},{etapa:'Entregado',inicio:'2025-04-20',fin:'2025-04-20',obs:''}],
+      dist:[{cantidad:1000,material:'Agenda escolar 2025',precio:12.5,proforma:'PF-2025-0123',campo:'Misión Ejemplo',logistico:'Nombre del logístico',direccion:'Av. Ejemplo 123, Lima',agencia:'Shalom'}]};
+    const wb=cliSheetsFor([ej],X);wb.Sheets.Pedidos['D2']={t:'s',v:u};
+    const ins=X.utils.aoa_to_sheet([['Cómo llenar esta plantilla'],[''],['1. Hoja «Pedidos»: una fila por cliente / pedido. Obligatorios: Cliente y Trabajo. La Unidad va con su nombre tal como aparece en el sistema.'],
+      ['2. Código: si lo dejas vacío, el sistema genera uno al importar. Si quieres registrar requerimientos, cambios, etapas o distribución, escribe un código (por ejemplo CP-HIST-2025-0001) y repítelo en las otras hojas para enlazarlos.'],
+      ['3. Si el código ya existe en el sistema, la fila actualiza ese pedido. Si no existe, se crea un pedido nuevo con ese código.'],
+      ['4. Fechas en formato dd/mm/aaaa o aaaa-mm-dd. Montos sin «S/».'],['5. Hojas Requerimientos, Cambios, Etapas del estado y Distribución: opcionales. Si un pedido tiene filas en una de esas hojas, reemplazan las que tenía.'],
+      ['6. Borra la fila de ejemplo antes de importar.'],[''],['Etapas válidas: '+CLI_EST.join(', ')],['Requerimientos sugeridos: '+CLI_REQ_TIPOS.join(', ')],['Cambios sugeridos: '+CLI_CAMB_TIPOS.join(', ')]]);
+    ins['!cols']=[{wch:140}];X.utils.book_append_sheet(wb,ins,'Instrucciones');
+    X.writeFile(wb,'plantilla_clientes_pedidos.xlsx')}catch(e){toast('No se pudo generar la plantilla. Revisa tu conexión.')}}
+function cliVal(c,v){if(v instanceof Date&&c[2]==='h')return String(v.getHours()).padStart(2,'0')+':'+String(v.getMinutes()).padStart(2,'0');
+  if(c[2]==='d')return toDate(v);if(c[2]==='n')return toNum(v);if(c[2]==='b')return /^(s[ií]|si|x|1|true|ok|✓)$/i.test(String(v??'').trim());
+  if(c[2]==='h'){if(typeof v==='number'&&v<1){const m=Math.round(v*1440);return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')}const m=String(v??'').match(/(\d{1,2}):(\d{2})/);return m?m[1].padStart(2,'0')+':'+m[2]:''}
+  return String(v??'').trim()}
+function cliPick(v,opts){const k=norm(v);if(!k)return '';return opts.find(o=>norm(o)===k)||opts.find(o=>norm(o).startsWith(k))||''}
+function cliSheetRows(X,ws,cols){const g=X.utils.sheet_to_json(ws,{header:1,raw:true,defval:''});if(!g.length)return [];
+  const hd=g[0].map(xKey),idx={};cols.forEach(c=>{const i=hd.findIndex(x=>x===xKey(c[1])||x===norm(c[0]));if(i>=0)idx[c[0]]=i});const ci=hd.indexOf('codigo');
+  return g.slice(1).map((row,i)=>({fila:i+2,codigo:ci>=0?String(row[ci]??'').trim():'',row,idx})).filter(o=>o.row.some(v=>String(v??'').trim()!==''))}
+async function cliReadImport(f){
+  cliImp={file:f.name,rows:[],msg:''};
+  try{const X=await loadXLSX();const wb=X.read(await f.arrayBuffer(),{type:'array',cellDates:true});
+    const sh=n=>wb.Sheets[wb.SheetNames.find(s=>norm(s)===norm(n))];const wp=sh('Pedidos')||wb.Sheets[wb.SheetNames[0]];
+    const ped=cliSheetRows(X,wp,CLI_XCOLS);if(!ped.length){cliImp.msg='La hoja «Pedidos» no tiene filas con datos.';return cliRenderImp()}
+    if(!Object.keys(ped[0].idx).includes('cliente')){cliImp.msg='No encontré la columna «Cliente» en la hoja «Pedidos». Usa la plantilla.';return cliRenderImp()}
+    const subs={};Object.entries(CLI_XSUB).forEach(([k,d])=>{const ws=sh(d.hoja);subs[k]={};if(!ws)return;cliSheetRows(X,ws,d.cols).forEach(o=>{if(!o.codigo)return;const x={};d.cols.forEach(c=>{x[c[0]]=o.idx[c[0]]!=null?cliVal(c,o.row[o.idx[c[0]]]):''});(subs[k][o.codigo]=subs[k][o.codigo]||[]).push(x)})});
+    const units=myUnitOpts(),seen=new Set(),pend=[];
+    cliImp.rows=ped.map(o=>{const r={},warn=[],err=[];CLI_XCOLS.forEach(c=>{if(o.idx[c[0]]!=null)r[c[0]]=cliVal(c,o.row[o.idx[c[0]]])});
+      r.codigo=r.codigo||o.codigo||'';
+      const ut=r.unidad||'';let u=units.find(([v])=>v===String(ut).toUpperCase())||units.find(([,l])=>norm(l)===norm(ut))||units.find(([,l])=>norm(ut)&&norm(l).includes(norm(ut)));
+      if(!ut){u=units.length===1?units[0]:(filterUnit!=='ALL'&&units.find(([v])=>v===fUnit()))||null;if(!u)err.push('falta la unidad')}
+      else if(!u)err.push(`unidad «${ut}» no encontrada o sin permiso`);r.unidad=u?u[0]:'';
+      if(r.asesor){const p=RAW.personal.find(p=>norm(p.nombre)===norm(r.asesor))||RAW.personal.find(p=>norm(p.nombre).includes(norm(r.asesor)));if(p)r.asesor=p.id;else{r.asesorTxt=r.asesor;r.asesor='';warn.push('asesor no encontrado en Personal (se guarda como texto)')}}
+      ['tipoDoc','diseno','correccion','preprensa','servicio','precioIgv','estado'].forEach(k=>{if(r[k]==null||r[k]==='')return;const ops={tipoDoc:['Cotización','Orden'],diseno:['Nuevo','Modificar'],correccion:['Sí','No'],preprensa:['Sí','No'],servicio:['Impresión','Reimpresión'],precioIgv:['Incluye IGV','Más IGV','Exonerado'],estado:CLI_EST}[k];const v=cliPick(r[k],ops);if(!v){warn.push(`«${r[k]}» no es válido en ${k==='tipoDoc'?'Tipo':k}`);delete r[k]}else r[k]=v});
+      if(!r.cliente)err.push('falta el cliente');if(!r.trabajo)err.push('falta el trabajo');
+      if(r.ruc&&!rucOk(r.ruc))warn.push('RUC con formato no válido');
+      if(r.codigo&&seen.has(r.codigo))err.push('código repetido en el archivo');if(r.codigo)seen.add(r.codigo);
+      const ex=r.codigo?RAW.clientes.find(c=>c.codigo===r.codigo):(r.proforma?RAW.clientes.find(c=>!c.codigo&&norm(c.proforma)===norm(r.proforma)&&norm(c.cliente)===norm(r.cliente)):null);
+      if(ex&&!canEditCli(ex))err.push('el pedido existe pero no tienes permiso para editarlo');
+      const ch={};Object.keys(CLI_XSUB).forEach(k=>{if(r.codigo&&subs[k][r.codigo])ch[k]=subs[k][r.codigo].map(x=>k==='procesos'?{...x,etapa:cliPick(x.etapa,CLI_EST)||x.etapa}:x)});
+      return {fila:o.fila,r,ch,ex,warn,err}});
+    const known=new Set(cliImp.rows.map(x=>x.r.codigo).filter(Boolean));
+    Object.entries(subs).forEach(([k,m])=>Object.keys(m).forEach(c=>{if(!known.has(c))pend.push(`${CLI_XSUB[k].hoja}: código ${c} no está en la hoja Pedidos (se ignora)`)}));
+    cliImp.orph=[...new Set(pend)];
+  }catch(e){cliImp.rows=[];cliImp.msg='No se pudo leer el archivo. Usa un Excel (.xlsx) con el formato de la plantilla.'}
+  cliRenderImp()}
+function cliRenderImp(){
+  const b=$('#cliImpBody');if(!b)return;const I=cliImp;if(!I){b.innerHTML='';return}
+  if(I.msg){b.innerHTML=`<div class="note" style="color:var(--bad)">${esc(I.msg)}</div>`;$('#cliImpGo').disabled=true;return}
+  const ok=I.rows.filter(x=>!x.err.length),nw=ok.filter(x=>!x.ex).length,up=ok.length-nw,bad=I.rows.length-ok.length;
+  const cnt=x=>Object.entries(x.ch).map(([k,v])=>`${v.length} ${CLI_XSUB[k].hoja.toLowerCase()}`).join(' · ');
+  b.innerHTML=`<div class="note"><b>${esc(I.file)}</b>: ${I.rows.length} filas · <span style="color:var(--ok)">${nw} nuevos</span> · ${up} actualizan · <span style="color:var(--bad)">${bad} con errores (no se importan)</span></div>
+   ${(I.orph||[]).length?`<div class="note" style="color:var(--warn)">${I.orph.slice(0,5).map(esc).join('<br>')}${I.orph.length>5?'<br>…':''}</div>`:''}
+   <div class="tbl" style="max-height:340px;overflow:auto;margin-top:8px"><table><thead><tr><th class="num">Fila</th><th>Código</th><th>Cliente / trabajo</th><th>Unidad</th><th>Acción</th><th>Detalle</th></tr></thead><tbody>
+   ${I.rows.slice(0,300).map(x=>`<tr><td class="num">${x.fila}</td><td class="mono">${esc(x.r.codigo||'(se genera)')}</td><td>${esc(x.r.cliente||'—')}<div class="note">${esc(x.r.trabajo||'')}</div></td><td>${esc(U[x.r.unidad]?.n||'—')}</td>
+    <td>${x.err.length?'<span class="pill bad">Error</span>':x.ex?'<span class="pill info">Actualiza</span>':'<span class="pill ok">Nuevo</span>'}</td>
+    <td class="note">${x.err.length?`<span style="color:var(--bad)">${esc(x.err.join('; '))}</span>`:''}${x.warn.length?`<div style="color:var(--warn)">${esc(x.warn.join('; '))}</div>`:''}${cnt(x)?`<div>${esc(cnt(x))}</div>`:''}</td></tr>`).join('')}</tbody></table></div>`;
+  const g=$('#cliImpGo');g.disabled=!ok.length;g.textContent=ok.length?`Importar ${ok.length} ${ok.length===1?'registro':'registros'}`:'Nada para importar'}
+function openCliImport(){
+  cliImp=null;let dl=$('#cliImpDlg');if(!dl){dl=document.createElement('dialog');dl.id='cliImpDlg';dl.style.width='min(980px,calc(100vw - 24px))';document.body.appendChild(dl)}
+  dl.innerHTML=`<div class="hd"><h2>Importar clientes / pedidos</h2><div class="note">Carga información pasada desde Excel. Descarga la plantilla, llénala (o usa un archivo exportado desde aquí) y súbela. Antes de guardar verás una vista previa.</div></div>
+   <div class="bd" style="display:block"><div class="bar" style="justify-content:flex-start;gap:8px"><button type="button" class="btn" id="cliTpl">⬇ Descargar plantilla</button><label class="btn primary" for="cliImpFile" style="display:inline-block">Elegir archivo Excel…</label><input id="cliImpFile" type="file" accept=".xlsx,.xls,.ods" hidden></div>
+   <div id="cliImpBody" style="margin-top:10px"><div class="note">Aún no has elegido un archivo.</div></div></div>
+   <div class="ft"><div></div><div style="display:flex;gap:10px"><button type="button" class="btn" id="cliImpX">Cerrar</button><button type="button" class="btn primary" id="cliImpGo" disabled>Importar</button></div></div>`;
+  $('#cliTpl').onclick=cliTemplate;$('#cliImpX').onclick=()=>dl.close();
+  $('#cliImpFile').onchange=e=>{const f=e.target.files[0];if(f){$('#cliImpBody').innerHTML='<div class="note">Leyendo archivo…</div>';cliReadImport(f)}};
+  $('#cliImpGo').onclick=async()=>{const g=$('#cliImpGo');const rows=(cliImp?.rows||[]).filter(x=>!x.err.length);if(!rows.length)return;g.disabled=true;
+    let okN=0,fail=0;const now=new Date().toISOString();
+    for(const [i,x] of rows.entries()){g.textContent=`Importando ${i+1} de ${rows.length}…`;
+      const base=x.ex?{...x.ex}:{id:uid(),creado:now,creadoPor:actorId(),importado:now,reqs:[],cambios:[],procesos:[],dist:[]};
+      const o={...base};Object.entries(x.r).forEach(([k,v])=>{if(v!==''&&v!=null)o[k]=v;else if(!(k in base))o[k]=v});
+      Object.entries(x.ch).forEach(([k,v])=>o[k]=v);
+      if(x.ch.procesos)o.estado=cliEstado(o.procesos);else if(x.r.estado&&!(o.procesos||[]).length)o.procesos=[{etapa:x.r.estado,inicio:'',fin:'',obs:'Importado'}];
+      if(!o.estado)o.estado=cliEstado(o.procesos);
+      if(!o.codigo)o.codigo=cliNextCode(o.unidad,o.fechaIngreso);
+      o.actualizado=now;
+      try{await put('clientes',o);if(!RAW.clientes.some(c=>c.id===o.id))RAW.clientes.push(o);okN++}catch(e){fail++}}
+    dl.close();toast(`Importación terminada: ${okN} ${okN===1?'registro guardado':'registros guardados'}${fail?` · ${fail} con error`:''}.`);render()};
+  dl.showModal()}
 function bindClientes(){
   const qi=$('#cliQ');if(qi)qi.oninput=e=>{cliF.q=e.target.value;const p=e.target.selectionStart;render();const n2=$('#cliQ');n2.focus();try{n2.setSelectionRange(p,p)}catch(_){}};
   const es=$('#cliEst');if(es)es.onchange=e=>{cliF.estado=e.target.value;render()};
   const rq=$('#cliReq');if(rq)rq.onchange=e=>{cliF.req=e.target.value;render()};
   const nb=$('#cliNew');if(nb)nb.onclick=()=>openCli(null);
+  const ex=$('#cliExp');if(ex)ex.onclick=cliExport;const im=$('#cliImp');if(im)im.onclick=openCliImport;
   document.querySelectorAll('[data-cliopen]').forEach(b=>b.onclick=()=>openCli(b.dataset.cliopen));
   document.querySelectorAll('[data-cliprint]').forEach(b=>b.onclick=()=>printCli(b.dataset.cliprint));
 }
