@@ -184,6 +184,8 @@ dialog label.full{grid-column:1/-1}
 .vwrap .vbar{grid-template-columns:minmax(12rem,24rem) 1fr auto}
 .vwrap .vbar>span:first-child{white-space:normal;line-height:1.3}
 @media (max-width:560px){.vwrap .vbar{grid-template-columns:minmax(0,1fr) auto}}
+#cliFrm .cli-bad{outline:2px solid var(--bad);outline-offset:1px}
+.cliMsg[hidden]{display:none!important}
 </style>
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px}img{max-width:100%}[hidden]{display:none!important}</style>
 <script src="config.js?v=2"></script>
@@ -367,7 +369,7 @@ function consolidate(){S.proyectos.forEach(p=>{const as=actsOf(p);p._bud=as.leng
 function proyAvance(p){const as=S.actividades.filter(a=>a.proyecto===p.id);if(!as.length)return p.estado==='Cerrado'?100:0;return as.reduce((s,a)=>s+actAvance(a),0)/as.length}
 function metaAvance(m){const den=n(m.meta)-n(m.base);if(!den)return 0;return (n(m.logrado)-n(m.base))/den*100}
 function riesgoNivel(r){const v={Baja:1,Media:2,Alta:3};return v[r.probabilidad]*v[r.impacto]}
-let toastT;function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,3600)}
+let toastT;function toast(m){const t=$('#toast');const d=[...document.querySelectorAll('dialog[open]')].pop();const host=d||document.body;if(t.parentNode!==host)host.appendChild(t);t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,3600)}
 
 /* ===== Usuarios con clave (Supabase Auth), roles y alcance ===== */
 const ROLES=['Administrador','Responsable de unidad','Usuario'];
@@ -786,6 +788,7 @@ function bindCal(){
 
 /* ===== Módulo: Clientes y pedidos (ficha «Información del cliente», precio aprobado y requerimientos) ===== */
 RAW.clientes=RAW.clientes||[];S.clientes=S.clientes||[];
+const CLI_TIPOS=['Cotización','Orden','Cotización y Orden'];
 const CLI_EST=['Registrado','Proforma aprobada','Diseño','Corrección','Preprensa','En producción','Posprensa','APT','Entregado','Anulado'];
 function cliNextCode(unidad,fecha){const y=/^\d{4}-/.test(fecha||'')?fecha.slice(0,4):new Date().getFullYear(),pre=`CP-${unidad||'GEN'}-${y}-`;const mx=(RAW.clientes||[]).map(c=>c.codigo||'').filter(c=>c.startsWith(pre)).map(c=>+c.slice(pre.length)||0).reduce((a,b)=>Math.max(a,b),0);return pre+String(mx+1).padStart(4,'0')}
 function cliEstado(L){L=L||[];const s=L.filter(x=>x.inicio);return s.length?s[s.length-1].etapa:(L.length?L[L.length-1].etapa:'Registrado')}
@@ -835,7 +838,7 @@ function viewClientes(){
    <button class="btn" id="cliExp" title="Descarga en Excel los pedidos de la vista actual">⬇ Exportar</button>${readOnly?'':'<button class="btn" id="cliImp" title="Cargar información pasada desde Excel">⬆ Importar</button><button class="btn primary" id="cliNew">+ Nuevo cliente / pedido</button>'}</div></div>
   <div class="note">Ficha «Información del cliente» para la elaboración de productos: datos del cliente y del trabajo, precio aprobado en la proforma y seguimiento de la entrega de requerimientos (texto, imágenes, material complementario).</div>
   <div class="kpis">
-   <div class="kpi"><span class="l">Pedidos registrados</span><span class="v">${all.length}</span><span class="s">${(o=>o+(o===1?' orden':' órdenes'))(all.filter(r=>r.tipoDoc==='Orden').length)} · ${(c=>c+(c===1?' cotización':' cotizaciones'))(all.filter(r=>r.tipoDoc==='Cotización').length)}</span></div>
+   <div class="kpi"><span class="l">Pedidos registrados</span><span class="v">${all.length}</span><span class="s">${(o=>o+(o===1?' orden':' órdenes'))(all.filter(r=>/Orden/.test(r.tipoDoc||'')).length)} · ${(c=>c+(c===1?' cotización':' cotizaciones'))(all.filter(r=>/Cotizaci/.test(r.tipoDoc||'')).length)}</span></div>
    <div class="kpi"><span class="l">Precio aprobado en proformas</span><span class="v">${money(monto)}</span><span class="s">${aprob} de ${all.length} con precio aprobado</span></div>
    <div class="kpi"><span class="l">Requerimientos pendientes</span><span class="v" style="${venc?'color:var(--bad)':''}">${pend}</span><span class="s">${venc} vencidos</span></div>
    <div class="kpi"><span class="l">Tiempo promedio de entrega</span><span class="v">${ds.length?(ds.reduce((a,b)=>a+b,0)/ds.length).toLocaleString('es-PE',{maximumFractionDigits:1}):'—'}</span><span class="s">días entre solicitud y entrega del cliente</span></div></div>`;
@@ -883,10 +886,10 @@ function openCli(id){
   let dl=$('#cliDlg');if(!dl){dl=document.createElement('dialog');dl.id='cliDlg';dl.style.width='min(980px,calc(100vw - 24px))';document.body.appendChild(dl)}
   const F=(k,l,type='text',extra='')=>`<label ${extra}>${l}<input name="${k}" type="${type}" value="${esc(r[k]??'')}" ${type==='number'?'step="any"':''} ${ro}></label>`;
   const sec=t=>`<div style="grid-column:1/-1;font:600 .78rem var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);border-bottom:1px solid var(--rule);padding-top:6px">${t}</div>`;
-  dl.innerHTML=`<form id="cliFrm" method="dialog" novalidate><div class="hd"><h2>${id?(cliEd.ro?'Ver':'Editar'):'Nuevo'} cliente / pedido ${r.codigo?`<span class="pill info" style="font:600 .8rem var(--mono);vertical-align:middle">${esc(r.codigo)}</span>`:'<span class="pill" style="font-size:.75rem;vertical-align:middle">El código se genera al guardar</span>'}</h2><div class="note">Información del cliente para la elaboración del producto</div></div>
+  dl.innerHTML=`<form id="cliFrm" method="dialog" novalidate><div class="hd"><h2>${id?(cliEd.ro?'Ver':'Editar'):'Nuevo'} cliente / pedido ${r.codigo?`<span class="pill info" style="font:600 .8rem var(--mono);vertical-align:middle">${esc(r.codigo)}</span>`:'<span class="pill" style="font-size:.75rem;vertical-align:middle">El código se genera al guardar</span>'}</h2><div class="note">Proforma</div></div>
   <div class="bd" style="grid-template-columns:repeat(4,minmax(0,1fr))">
    ${sec('Proforma')}
-   ${F('proforma','N.º proforma')}<label>Tipo${cliRadio('tipoDoc',['Cotización','Orden'],r.tipoDoc,ro)}</label>
+   <label style="grid-column:span 2">Tipo${cliRadio('tipoDoc',CLI_TIPOS,r.tipoDoc,ro)}</label>
    <label>Unidad *<select name="unidad" ${ro}><option value="">—</option>${myUnitOpts().map(([v,l])=>`<option value="${v}" ${v===r.unidad?'selected':''}>${esc(l)}</option>`).join('')}</select></label>
    <label>Asesor comercial<select name="asesor" ${ro}><option value="">—</option>${RAW.personal.filter(p=>p.estado!=='Cesado').map(p=>[p.id,p.nombre+(p.cargo?' — '+p.cargo:'')]).sort((a,b)=>a[1].localeCompare(b[1])).map(([v,l])=>`<option value="${v}" ${v===r.asesor?'selected':''}>${esc(l)}</option>`).join('')}</select></label>
    ${F('fechaIngreso','Fecha de ingreso','date')}${F('horaIngreso','Hora de ingreso','time')}${F('fechaProforma','Fecha recepción de proforma','date')}${F('horaProforma','Hora de recepción','time')}
@@ -901,10 +904,11 @@ function openCli(id){
    ${sec('Preprensa')}
    <label>Diseño${cliRadio('diseno',['Nuevo','Modificar'],r.diseno,ro)}</label><label>Corrección${cliRadio('correccion',['Sí','No'],r.correccion,ro)}</label>
    <label>Preprensa${cliRadio('preprensa',['Sí','No'],r.preprensa,ro)}</label><label>Servicio de${cliRadio('servicio',['Impresión','Reimpresión'],r.servicio,ro)}</label>
-   ${cliEd.ro?(id?'<div style="grid-column:1/-1;display:flex;justify-content:flex-end"><button type="button" class="btn small" id="cliPrIni">🖨 Imprimir registro inicial (proforma a preprensa)</button></div>':''):'<div style="grid-column:1/-1;display:flex;justify-content:flex-end;gap:8px;padding:4px 0;border-bottom:1px dashed var(--rule)"><span class="note" style="margin-right:auto;align-self:center">Puedes guardar aquí el registro inicial y completar las demás secciones después.</span><button type="submit" class="btn small" data-pdf="ini">🖨 Guardar e imprimir registro inicial</button></div>'}
+   ${cliEd.ro?(id?'<div style="grid-column:1/-1;display:flex;justify-content:flex-end"><button type="button" class="btn small" id="cliPrIni">🖨 Imprimir registro inicial (proforma a preprensa)</button></div>':''):'<div style="grid-column:1/-1;display:flex;justify-content:flex-end;gap:8px;padding:4px 0;border-bottom:1px dashed var(--rule)"><span class="note" style="margin-right:auto;align-self:center">Puedes guardar aquí el registro inicial y completar las demás secciones después.<b class="cliMsg" hidden style="display:block;color:var(--bad)"></b></span><button type="submit" class="btn small" data-pdf="ini">🖨 Guardar e imprimir registro inicial</button></div>'}
    ${sec('Trabajo y entrega')}
    ${F('job','JOB N.º')}${F('fechaInicio','Fecha de inicio','date')}${F('fechaEntrega','Fecha de entrega al cliente','date')}
    <label>Estado actual<span id="cliEstAct" style="padding:9px 0">${pillFor(cliEstado(r.procesos))}</span></label>
+   ${F('proforma','N.º proforma')}
    <div style="grid-column:1/-1"><div class="note" style="font-weight:600;color:var(--ink-2)">Control de procesos del estado</div><div class="note">Registra cada etapa con su fecha inicial, fecha final y observaciones. El estado actual es la última etapa de la lista que tenga fecha inicial; al agregar una etapa nueva, la anterior se cierra con la fecha de hoy si estaba abierta.</div><div id="cliProc">${cliProcRows()}</div>${cliEd.ro?'':`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center"><select id="cliProcEt" aria-label="Etapa">${CLI_EST.map(t=>`<option>${t}</option>`).join('')}</select><button type="button" class="btn small" id="cliProcAdd">+ Agregar etapa</button></div>`}</div>
    ${sec('Precio aprobado en proforma')}
    ${F('precio','Precio aprobado (S/)','number')}<label>IGV<select name="precioIgv" ${ro}>${['Incluye IGV','Más IGV','Exonerado'].map(o=>`<option ${o===(r.precioIgv||'Incluye IGV')?'selected':''}>${o}</option>`).join('')}</select></label>
@@ -920,7 +924,7 @@ function openCli(id){
    <label style="flex-direction:row;gap:6px;align-items:center"><input type="checkbox" name="vbCliente" ${r.vbCliente?'checked':''} ${ro}>V.º B.º cliente</label>
    <label style="flex-direction:row;gap:6px;align-items:center"><input type="checkbox" name="vbCostos" ${r.vbCostos?'checked':''} ${ro}>Firma del área de costos</label><span></span>
   </div>
-  <div class="ft"><div>${id&&!cliEd.ro?'<button type="button" class="btn danger" id="cliDel">Eliminar</button>':''} ${id?'<button type="button" class="btn" id="cliPr">🖨 Imprimir ficha completa</button>':''}</div><div style="display:flex;gap:10px"><button type="button" class="btn" id="cliCancel">${cliEd.ro?'Cerrar':'Cancelar'}</button>${cliEd.ro?'':'<button type="submit" class="btn" data-pdf="full" title="Guarda la ficha y abre el reporte completo para imprimir o guardar como PDF">🖨 Guardar e imprimir ficha completa</button><button type="submit" class="btn primary">Guardar</button>'}</div></div></form>`;
+  <div class="ft"><div><b class="cliMsg" hidden style="display:block;color:var(--bad);margin-bottom:6px"></b>${id&&!cliEd.ro?'<button type="button" class="btn danger" id="cliDel">Eliminar</button>':''} ${id?'<button type="button" class="btn" id="cliPr">🖨 Imprimir ficha completa</button>':''}</div><div style="display:flex;gap:10px"><button type="button" class="btn" id="cliCancel">${cliEd.ro?'Cerrar':'Cancelar'}</button>${cliEd.ro?'':'<button type="submit" class="btn" data-pdf="full" title="Guarda la ficha y abre el reporte completo para imprimir o guardar como PDF">🖨 Guardar e imprimir ficha completa</button><button type="submit" class="btn primary">Guardar</button>'}</div></div></form>`;
   bindCliDlg();dl.showModal();
 }
 function readCliForm(){const fd=new FormData($('#cliFrm'));const o={...cliEd.r};
@@ -950,21 +954,24 @@ function bindCliDlg(){
   const ac=$('#cliCambAdd');if(ac)ac.onclick=()=>{cliEd.r.cambios.push({tipo:$('#cliCambTipo').value,detalle:'',solicitado:today(),limite:'',entregado:''});rr()};
   const del0=$('#cliDel');if(del0)del0.onclick=async()=>{if(!del0.dataset.arm){del0.dataset.arm=1;del0.textContent='Confirmar eliminación';return}
     try{await del('clientes',cliEd.id);dl.close();toast('Registro eliminado.')}catch(e){dbErr(e)}};
-  $('#cliFrm').onsubmit=async e=>{e.preventDefault();if(cliEd.ro)return;
+  const cliErr=(m,f)=>{toast(m);document.querySelectorAll('.cliMsg').forEach(x=>{x.textContent='⚠ '+m;x.hidden=false});
+    document.querySelectorAll('#cliFrm .cli-bad').forEach(x=>x.classList.remove('cli-bad'));
+    const el=f&&$('#cliFrm [name='+f+']');if(el){el.classList.add('cli-bad');el.scrollIntoView({block:'center',behavior:'smooth'});setTimeout(()=>el.focus({preventScroll:true}),250);el.addEventListener('input',()=>el.classList.remove('cli-bad'),{once:true});el.addEventListener('change',()=>el.classList.remove('cli-bad'),{once:true})}};
+  $('#cliFrm').onsubmit=async e=>{e.preventDefault();if(cliEd.ro)return;document.querySelectorAll('.cliMsg').forEach(x=>x.hidden=true);
     document.querySelectorAll('[data-rq$=":detalle"]').forEach(el=>{const [key,i]=el.dataset.rq.split(':');cliEd.r[key][+i].detalle=el.value});
     document.querySelectorAll('[data-ps$=":obs"]').forEach(el=>{const [i]=el.dataset.ps.split(':');cliEd.r.procesos[+i].obs=el.value});
     document.querySelectorAll('[data-ds]').forEach(el=>{const [i,k]=el.dataset.ds.split(':');cliEd.r.dist[+i][k]=(k==='cantidad'||k==='precio')?(el.value===''?'':+el.value):el.value});
     const o=readCliForm();o.dist=(o.dist||[]).filter(x=>['cantidad','material','precio','campo','logistico','direccion','agencia'].some(k=>x[k]!==''&&x[k]!=null));
-    o.procesos=(o.procesos||[]);const bp=o.procesos.find(x=>(x.fin&&!x.inicio)||(x.fin&&x.inicio&&x.fin<x.inicio));if(bp){toast(`En la etapa «${bp.etapa}»: ${!bp.inicio?'falta la fecha inicial':'la fecha final no puede ser antes de la inicial'}.`);return}
+    o.procesos=(o.procesos||[]);const bp=o.procesos.find(x=>(x.fin&&!x.inicio)||(x.fin&&x.inicio&&x.fin<x.inicio));if(bp){cliErr(`En la etapa «${bp.etapa}»: ${!bp.inicio?'falta la fecha inicial':'la fecha final no puede ser antes de la inicial'}.`);return}
     o.estado=cliEstado(o.procesos);
     o.dist.forEach(x=>{if(!x.proforma)x.proforma=o.proforma||''});
-    const bd=o.dist.find(x=>!x.material||x.cantidad===''||x.cantidad<=0);if(bd){toast('En «Distribución de materiales»: cada envío necesita material y una cantidad mayor a 0.');return}
+    const bd=o.dist.find(x=>!x.material||x.cantidad===''||x.cantidad<=0);if(bd){cliErr('En «Distribución de materiales»: cada envío necesita material y una cantidad mayor a 0.');return}
     const miss=[['cliente','Cliente'],['trabajo','Trabajo'],['unidad','Unidad']].filter(([k])=>!o[k]).map(x=>x[1]);
-    if(miss.length){toast('Completa: '+miss.join(', '));return}
-    if(!rucOk(o.ruc)){toast('El RUC debe tener 11 dígitos y empezar con 10, 15, 16, 17 o 20.');return}
-    if(o.email&&!/^\S+@\S+\.\S+$/.test(o.email)){toast('Revisa el e-mail.');return}
+    if(miss.length){const mk=[['cliente','Cliente'],['trabajo','Trabajo'],['unidad','Unidad']].find(([k])=>!o[k])[0];cliErr('Falta completar: '+miss.join(', ')+'.',mk);return}
+    if(!rucOk(o.ruc)){cliErr('El RUC debe tener 11 dígitos y empezar con 10, 15, 16, 17 o 20.','ruc');return}
+    if(o.email&&!/^\S+@\S+\.\S+$/.test(o.email)){cliErr('Revisa el e-mail.','email');return}
     const bad=[...o.reqs,...(o.cambios||[])].find(x=>(x.entregado&&!x.solicitado)||(x.entregado&&x.solicitado&&x.entregado<x.solicitado)||(x.limite&&x.solicitado&&x.limite<x.solicitado));
-    if(bad){toast(`En «${bad.tipo}»: ${!bad.solicitado?'falta la fecha de solicitud':bad.entregado&&bad.entregado<bad.solicitado?'la entrega o atención no puede ser antes de la solicitud':'la fecha límite no puede ser antes de la solicitud'}.`);return}
+    if(bad){cliErr(`En «${bad.tipo}»: ${!bad.solicitado?'falta la fecha de solicitud':bad.entregado&&bad.entregado<bad.solicitado?'la entrega o atención no puede ser antes de la solicitud':'la fecha límite no puede ser antes de la solicitud'}.`);return}
     if(!cliEd.id){o.id=uid();o.creado=new Date().toISOString();o.creadoPor=actorId()}
     o.actualizado=new Date().toISOString();
     const wantPdf=e.submitter?.dataset?.pdf||'';
@@ -987,15 +994,15 @@ function printCli(id,mode){
     #cliPrintBox .rq th{width:auto}#cliPrintBox .c4 th{width:19%}#cliPrintBox .c4 td{width:31%}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}`;
   document.head.appendChild(st);
   const box=document.createElement('div');box.id='cliPrintBox';
-  box.innerHTML=`<h1>INFORMACIÓN DEL CLIENTE</h1><div class="sub">Editorial · Planes Gerenciales · ${esc(U[r.unidad]?.n||'')} · Impreso el ${fdate(today())}${mode==='ini'?' · Registro inicial (proforma a preprensa)':''}</div>
-   ${r.codigo?`<div style="text-align:right;font:700 10pt Arial;margin:-2px 0 3px">Código: ${esc(r.codigo)}</div>`:''}
-   <table class="c4"><tr><th>N.º proforma</th><td>${esc(r.proforma||'')}</td><th>Tipo</th><td>${ck(r.tipoDoc,'Cotización')} &nbsp; ${ck(r.tipoDoc,'Orden')}</td></tr>
+  box.innerHTML=`<h1>PROFORMA</h1><div class="sub">Editorial · Planes Gerenciales · ${esc(U[r.unidad]?.n||'')} · Impreso el ${fdate(today())}${mode==='ini'?' · Registro inicial (proforma a preprensa)':''}</div>
+   ${r.codigo||(mode==='ini'&&r.proforma)?`<div style="text-align:right;font:700 10pt Arial;margin:-2px 0 3px">${r.codigo?'Código: '+esc(r.codigo):''}${mode==='ini'&&r.proforma?' &nbsp; N.º proforma: '+esc(r.proforma):''}</div>`:''}
+   <table class="c4"><tr><th>Tipo</th><td colspan="3">${CLI_TIPOS.map(t=>ck(r.tipoDoc,t)).join(' &nbsp; ')}</td></tr>
    <tr><th>Fecha de ingreso</th><td>${fdate(r.fechaIngreso)} ${esc(r.horaIngreso||'')}</td><th>Recepción de proforma</th><td>${fdate(r.fechaProforma)} ${esc(r.horaProforma||'')}</td></tr></table>
    <h2>Ventas</h2><table class="c4">${row2('Cliente',r.cliente,'RUC',r.ruc)}${row2('Responsable',r.responsable,'Asesor comercial',r.asesor?pname(r.asesor):(r.asesorTxt||''))}<tr><th>Teléfono / e-mail</th><td colspan="3">${esc([r.telefono,r.email].filter(Boolean).join(' · '))}</td></tr></table>
    <h2>Trabajo</h2><table class="c4">${row2('Trabajo',r.trabajo,'Cantidad',r.cantidad?n(r.cantidad).toLocaleString('es-PE'):'')}${row2('Formato',r.formato,'Tapa',r.tapa)}${row2('Hojas / interiores',r.hojas,'N.º de páginas',r.paginas?n(r.paginas).toLocaleString('es-PE'):'')}${row2('Encuadernación',r.encuadernacion,'Encarte',r.encarte)}<tr><th>Otros</th><td colspan="3">${esc(r.otros||'')}</td></tr></table>
    <h2>Preprensa</h2><table class="c4"><tr><th>Diseño</th><td>${ck(r.diseno,'Nuevo')} &nbsp; ${ck(r.diseno,'Modificar')}</td><th>Corrección</th><td>${ck(r.correccion,'Sí')} &nbsp; ${ck(r.correccion,'No')}</td></tr><tr><th>Preprensa</th><td>${ck(r.preprensa,'Sí')} &nbsp; ${ck(r.preprensa,'No')}</td><th>Servicio de</th><td>${ck(r.servicio,'Impresión')} &nbsp; ${ck(r.servicio,'Reimpresión')}</td></tr></table>
    ${mode==='ini'?'':`
-   <h2>Trabajo y entrega</h2><table class="c4"><tr><th>JOB N.º</th><td>${esc(r.job||'')}</td><th>Estado actual</th><td>${esc(r.estado||'Registrado')}</td></tr><tr><th>Fecha de inicio</th><td>${fdate(r.fechaInicio)}</td><th>Entrega al cliente</th><td>${fdate(r.fechaEntrega)}</td></tr></table>
+   <h2>Trabajo y entrega</h2><table class="c4"><tr><th>JOB N.º</th><td>${esc(r.job||'')}</td><th>Fecha de inicio</th><td>${fdate(r.fechaInicio)}</td></tr><tr><th>N.º proforma</th><td>${esc(r.proforma||'')}</td><th>Entrega al cliente</th><td>${fdate(r.fechaEntrega)}</td></tr><tr><th>Estado actual</th><td colspan="3">${esc(r.estado||'Registrado')}</td></tr></table>
    ${(r.procesos||[]).length?`<table class="rq"><tr><th>Etapa del estado</th><th>Fecha inicial</th><th>Fecha final</th><th>Días</th><th>Situación</th><th>Observaciones</th></tr>${r.procesos.map(x=>{const i=procInfo(x);return `<tr><td>${esc(x.etapa)}</td><td>${fdate(x.inicio)}</td><td>${fdate(x.fin)}</td><td>${i.dias??'—'}</td><td>${esc(i.st)}</td><td>${esc(x.obs||'')}</td></tr>`}).join('')}</table>`:''}
    <h2>Precio aprobado en proforma</h2><table class="c4"><tr><th>Precio aprobado</th><td>${n(r.precio)?m2(r.precio)+' ('+esc(r.precioIgv||'')+')':''}</td><th>Fecha de aprobación</th><td>${fdate(r.precioFecha)}</td></tr><tr><th>Aprobado por</th><td colspan="3">${esc(r.precioAprobo||'')}</td></tr></table>
    <h2>Entrega de requerimientos del cliente (${s.ent} de ${s.tot} entregados)</h2><table class="rq"><tr><th>Requerimiento</th><th>Solicitado</th><th>Fecha límite</th><th>Entregado</th><th>Días</th><th>Estado</th></tr>${(r.reqs||[]).map(x=>{const i=reqInfo(x);return `<tr><td>${esc(x.tipo)}${x.detalle?' — '+esc(x.detalle):''}</td><td>${fdate(x.solicitado)}</td><td>${fdate(x.limite)}</td><td>${fdate(x.entregado)}</td><td>${i.dias??'—'}</td><td>${esc(i.st)}</td></tr>`}).join('')||'<tr><td colspan="6">Sin requerimientos</td></tr>'}</table>
@@ -1009,7 +1016,7 @@ function printCli(id,mode){
   setTimeout(()=>window.print(),60);
 }
 /* ===== Clientes y pedidos: importar / exportar ===== */
-const CLI_XCOLS=[['codigo','Código'],['proforma','N.º proforma'],['tipoDoc','Tipo (Cotización/Orden)'],['unidad','Unidad'],['asesor','Asesor comercial'],
+const CLI_XCOLS=[['codigo','Código'],['proforma','N.º proforma'],['tipoDoc','Tipo (Cotización/Orden/Cotización y Orden)'],['unidad','Unidad'],['asesor','Asesor comercial'],
  ['fechaIngreso','Fecha de ingreso','d'],['horaIngreso','Hora de ingreso','h'],['fechaProforma','Fecha recepción de proforma','d'],['horaProforma','Hora de recepción','h'],
  ['cliente','Cliente'],['ruc','RUC'],['responsable','Nombre del responsable'],['telefono','Teléfono'],['email','E-mail'],
  ['trabajo','Trabajo'],['cantidad','Cantidad','n'],['formato','Formato'],['tapa','Tapa'],['hojas','Hojas / interiores'],['paginas','N.º de páginas','n'],['encuadernacion','Encuadernación'],['encarte','Encarte'],['otros','Otros'],
@@ -1072,7 +1079,7 @@ async function cliReadImport(f){
       if(!ut){u=units.length===1?units[0]:(filterUnit!=='ALL'&&units.find(([v])=>v===fUnit()))||null;if(!u)err.push('falta la unidad')}
       else if(!u)err.push(`unidad «${ut}» no encontrada o sin permiso`);r.unidad=u?u[0]:'';
       if(r.asesor){const p=RAW.personal.find(p=>norm(p.nombre)===norm(r.asesor))||RAW.personal.find(p=>norm(p.nombre).includes(norm(r.asesor)));if(p)r.asesor=p.id;else{r.asesorTxt=r.asesor;r.asesor='';warn.push('asesor no encontrado en Personal (se guarda como texto)')}}
-      ['tipoDoc','diseno','correccion','preprensa','servicio','precioIgv','estado'].forEach(k=>{if(r[k]==null||r[k]==='')return;const ops={tipoDoc:['Cotización','Orden'],diseno:['Nuevo','Modificar'],correccion:['Sí','No'],preprensa:['Sí','No'],servicio:['Impresión','Reimpresión'],precioIgv:['Incluye IGV','Más IGV','Exonerado'],estado:CLI_EST}[k];const v=cliPick(r[k],ops);if(!v){warn.push(`«${r[k]}» no es válido en ${k==='tipoDoc'?'Tipo':k}`);delete r[k]}else r[k]=v});
+      ['tipoDoc','diseno','correccion','preprensa','servicio','precioIgv','estado'].forEach(k=>{if(r[k]==null||r[k]==='')return;const ops={tipoDoc:CLI_TIPOS,diseno:['Nuevo','Modificar'],correccion:['Sí','No'],preprensa:['Sí','No'],servicio:['Impresión','Reimpresión'],precioIgv:['Incluye IGV','Más IGV','Exonerado'],estado:CLI_EST}[k];const v=cliPick(r[k],ops);if(!v){warn.push(`«${r[k]}» no es válido en ${k==='tipoDoc'?'Tipo':k}`);delete r[k]}else r[k]=v});
       if(!r.cliente)err.push('falta el cliente');if(!r.trabajo)err.push('falta el trabajo');
       if(r.ruc&&!rucOk(r.ruc))warn.push('RUC con formato no válido');
       if(r.codigo&&seen.has(r.codigo))err.push('código repetido en el archivo');if(r.codigo)seen.add(r.codigo);
