@@ -787,6 +787,7 @@ function bindCal(){
 /* ===== Módulo: Clientes y pedidos (ficha «Información del cliente», precio aprobado y requerimientos) ===== */
 RAW.clientes=RAW.clientes||[];S.clientes=S.clientes||[];
 const CLI_EST=['Registrado','Proforma aprobada','Diseño','Corrección','Preprensa','En producción','Posprensa','APT','Entregado','Anulado'];
+function cliNextCode(unidad){const y=new Date().getFullYear(),pre=`CP-${unidad||'GEN'}-${y}-`;const mx=(RAW.clientes||[]).map(c=>c.codigo||'').filter(c=>c.startsWith(pre)).map(c=>+c.slice(pre.length)||0).reduce((a,b)=>Math.max(a,b),0);return pre+String(mx+1).padStart(4,'0')}
 function cliEstado(L){L=L||[];const s=L.filter(x=>x.inicio);return s.length?s[s.length-1].etapa:(L.length?L[L.length-1].etapa:'Registrado')}
 function procInfo(x){const t=today();if(!x.inicio)return {st:'Sin fecha inicial',c:'',dias:null,txt:x.fin?'Falta la fecha inicial':'Asigna la fecha inicial'};
   if(x.fin){const d=dDiff(x.inicio,x.fin);return {st:'Terminado',c:'ok',dias:d,txt:`Del ${fdate(x.inicio)} al ${fdate(x.fin)} · ${d} ${d===1?'día':'días'}`}}
@@ -823,12 +824,12 @@ function viewClientes(){
   const all=S.clientes.filter(r=>inFilter('clientes',r));
   let list=all.filter(r=>(!cliF.estado||(r.estado||'Registrado')===cliF.estado));
   if(cliF.req==='pend')list=list.filter(r=>cliReqSum(r).pend>0);else if(cliF.req==='venc')list=list.filter(r=>cliReqSum(r).venc>0);else if(cliF.req==='ok')list=list.filter(r=>cliReqSum(r).completo);
-  if(cliF.q){const qq=norm(cliF.q);list=list.filter(r=>norm([r.proforma,r.job,r.cliente,r.ruc,r.responsable,r.trabajo].join(' ')).includes(qq))}
+  if(cliF.q){const qq=norm(cliF.q);list=list.filter(r=>norm([r.codigo,r.proforma,r.job,r.cliente,r.ruc,r.responsable,r.trabajo].join(' ')).includes(qq))}
   list=list.slice().sort((a,b)=>String(b.fechaIngreso||b.creado||'').localeCompare(String(a.fechaIngreso||a.creado||'')));
   const sums=all.map(cliReqSum),monto=all.reduce((s,r)=>s+n(r.precio),0),aprob=all.filter(r=>n(r.precio)>0).length;
   const pend=sums.reduce((s,x)=>s+x.pend,0),venc=sums.reduce((s,x)=>s+x.venc,0);
   const ds=all.flatMap(r=>(r.reqs||[]).filter(x=>x.entregado&&x.solicitado).map(x=>dDiff(x.solicitado,x.entregado)));
-  let h=`<div class="bar"><div class="left"><h2>Clientes y pedidos</h2>${unitFilterSel()}</div><div class="right"><input class="search" id="cliQ" placeholder="Buscar proforma, JOB, cliente, RUC…" value="${esc(cliF.q)}">
+  let h=`<div class="bar"><div class="left"><h2>Clientes y pedidos</h2>${unitFilterSel()}</div><div class="right"><input class="search" id="cliQ" placeholder="Buscar código, proforma, JOB, cliente, RUC…" value="${esc(cliF.q)}">
    <select id="cliEst" aria-label="Estado"><option value="">Todos los estados</option>${CLI_EST.map(e=>`<option ${e===cliF.estado?'selected':''}>${e}</option>`).join('')}</select>
    <select id="cliReq" aria-label="Requerimientos"><option value="">Todos los requerimientos</option><option value="pend" ${cliF.req==='pend'?'selected':''}>Con requerimientos pendientes</option><option value="venc" ${cliF.req==='venc'?'selected':''}>Con requerimientos vencidos</option><option value="ok" ${cliF.req==='ok'?'selected':''}>Requerimientos completos</option></select>
    ${readOnly?'':'<button class="btn primary" id="cliNew">+ Nuevo cliente / pedido</button>'}</div></div>
@@ -839,9 +840,9 @@ function viewClientes(){
    <div class="kpi"><span class="l">Requerimientos pendientes</span><span class="v" style="${venc?'color:var(--bad)':''}">${pend}</span><span class="s">${venc} vencidos</span></div>
    <div class="kpi"><span class="l">Tiempo promedio de entrega</span><span class="v">${ds.length?(ds.reduce((a,b)=>a+b,0)/ds.length).toLocaleString('es-PE',{maximumFractionDigits:1}):'—'}</span><span class="s">días entre solicitud y entrega del cliente</span></div></div>`;
   if(!list.length)return h+`<div class="panel empty"><strong>${all.length?'Ningún pedido coincide con los filtros':'Aún no hay clientes registrados'}</strong>${readOnly?'':'Usa «+ Nuevo cliente / pedido» para registrar la primera ficha.'}</div>`;
-  h+=`<div class="tbl"><table><thead><tr><th>Proforma / JOB</th><th>Cliente</th><th>Trabajo</th><th class="num">Cantidad</th><th class="num">Precio aprobado</th><th>Requerimientos</th><th>Entrega al cliente / cambios</th><th>Estado</th><th></th></tr></thead><tbody>${list.map(r=>{const s=cliReqSum(r);
+  h+=`<div class="tbl"><table><thead><tr><th>Código / proforma</th><th>Cliente</th><th>Trabajo</th><th class="num">Cantidad</th><th class="num">Precio aprobado</th><th>Requerimientos</th><th>Entrega al cliente / cambios</th><th>Estado</th><th></th></tr></thead><tbody>${list.map(r=>{const s=cliReqSum(r);
     const lateJob=r.fechaEntrega&&r.fechaEntrega<today()&&!['Entregado','Anulado'].includes(r.estado);
-    return `<tr><td><strong>${esc(r.proforma||'—')}</strong> ${r.tipoDoc?`<span class="pill">${esc(r.tipoDoc)}</span>`:''}<div class="note">JOB ${esc(r.job||'—')} · ingreso ${fdate(r.fechaIngreso)}</div></td>
+    return `<tr><td><strong class="mono">${esc(r.codigo||'Sin código')}</strong> ${r.tipoDoc?`<span class="pill">${esc(r.tipoDoc)}</span>`:''}<div class="note">Proforma ${esc(r.proforma||'—')} · JOB ${esc(r.job||'—')} · ingreso ${fdate(r.fechaIngreso)}</div></td>
      <td><strong>${esc(r.cliente||'—')}</strong><div class="note">RUC ${esc(r.ruc||'—')}${r.responsable?' · '+esc(r.responsable):''}</div></td>
      <td>${esc(r.trabajo||'—')}<div class="note">${[r.formato,r.encuadernacion].filter(Boolean).map(esc).join(' · ')}</div></td>
      <td class="num">${r.cantidad?n(r.cantidad).toLocaleString('es-PE'):'—'}</td>
@@ -882,7 +883,7 @@ function openCli(id){
   let dl=$('#cliDlg');if(!dl){dl=document.createElement('dialog');dl.id='cliDlg';dl.style.width='min(980px,calc(100vw - 24px))';document.body.appendChild(dl)}
   const F=(k,l,type='text',extra='')=>`<label ${extra}>${l}<input name="${k}" type="${type}" value="${esc(r[k]??'')}" ${type==='number'?'step="any"':''} ${ro}></label>`;
   const sec=t=>`<div style="grid-column:1/-1;font:600 .78rem var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);border-bottom:1px solid var(--rule);padding-top:6px">${t}</div>`;
-  dl.innerHTML=`<form id="cliFrm" method="dialog" novalidate><div class="hd"><h2>${id?(cliEd.ro?'Ver':'Editar'):'Nuevo'} cliente / pedido</h2><div class="note">Información del cliente para la elaboración del producto</div></div>
+  dl.innerHTML=`<form id="cliFrm" method="dialog" novalidate><div class="hd"><h2>${id?(cliEd.ro?'Ver':'Editar'):'Nuevo'} cliente / pedido ${r.codigo?`<span class="pill info" style="font:600 .8rem var(--mono);vertical-align:middle">${esc(r.codigo)}</span>`:'<span class="pill" style="font-size:.75rem;vertical-align:middle">El código se genera al guardar</span>'}</h2><div class="note">Información del cliente para la elaboración del producto</div></div>
   <div class="bd" style="grid-template-columns:repeat(4,minmax(0,1fr))">
    ${sec('Proforma')}
    ${F('proforma','N.º proforma')}<label>Tipo${cliRadio('tipoDoc',['Cotización','Orden'],r.tipoDoc,ro)}</label>
@@ -900,6 +901,7 @@ function openCli(id){
    ${sec('Preprensa')}
    <label>Diseño${cliRadio('diseno',['Nuevo','Modificar'],r.diseno,ro)}</label><label>Corrección${cliRadio('correccion',['Sí','No'],r.correccion,ro)}</label>
    <label>Preprensa${cliRadio('preprensa',['Sí','No'],r.preprensa,ro)}</label><label>Servicio de${cliRadio('servicio',['Impresión','Reimpresión'],r.servicio,ro)}</label>
+   ${cliEd.ro?(id?'<div style="grid-column:1/-1;display:flex;justify-content:flex-end"><button type="button" class="btn small" id="cliPrIni">🖨 Imprimir registro inicial (proforma a preprensa)</button></div>':''):'<div style="grid-column:1/-1;display:flex;justify-content:flex-end;gap:8px;padding:4px 0;border-bottom:1px dashed var(--rule)"><span class="note" style="margin-right:auto;align-self:center">Puedes guardar aquí el registro inicial y completar las demás secciones después.</span><button type="submit" class="btn small" data-pdf="ini">🖨 Guardar e imprimir registro inicial</button></div>'}
    ${sec('Trabajo y entrega')}
    ${F('job','JOB N.º')}${F('fechaInicio','Fecha de inicio','date')}${F('fechaEntrega','Fecha de entrega al cliente','date')}
    <label>Estado actual<span id="cliEstAct" style="padding:9px 0">${pillFor(cliEstado(r.procesos))}</span></label>
@@ -918,7 +920,7 @@ function openCli(id){
    <label style="flex-direction:row;gap:6px;align-items:center"><input type="checkbox" name="vbCliente" ${r.vbCliente?'checked':''} ${ro}>V.º B.º cliente</label>
    <label style="flex-direction:row;gap:6px;align-items:center"><input type="checkbox" name="vbCostos" ${r.vbCostos?'checked':''} ${ro}>Firma del área de costos</label><span></span>
   </div>
-  <div class="ft"><div>${id&&!cliEd.ro?'<button type="button" class="btn danger" id="cliDel">Eliminar</button>':''} ${id?'<button type="button" class="btn" id="cliPr">🖨 Imprimir / PDF</button>':''}</div><div style="display:flex;gap:10px"><button type="button" class="btn" id="cliCancel">${cliEd.ro?'Cerrar':'Cancelar'}</button>${cliEd.ro?'':'<button type="submit" class="btn" data-pdf="1" title="Guarda la ficha y abre el reporte para imprimir o guardar como PDF">🖨 Guardar e imprimir PDF</button><button type="submit" class="btn primary">Guardar</button>'}</div></div></form>`;
+  <div class="ft"><div>${id&&!cliEd.ro?'<button type="button" class="btn danger" id="cliDel">Eliminar</button>':''} ${id?'<button type="button" class="btn" id="cliPr">🖨 Imprimir ficha completa</button>':''}</div><div style="display:flex;gap:10px"><button type="button" class="btn" id="cliCancel">${cliEd.ro?'Cerrar':'Cancelar'}</button>${cliEd.ro?'':'<button type="submit" class="btn" data-pdf="full" title="Guarda la ficha y abre el reporte completo para imprimir o guardar como PDF">🖨 Guardar e imprimir ficha completa</button><button type="submit" class="btn primary">Guardar</button>'}</div></div></form>`;
   bindCliDlg();dl.showModal();
 }
 function readCliForm(){const fd=new FormData($('#cliFrm'));const o={...cliEd.r};
@@ -928,6 +930,7 @@ function bindCliDlg(){
   const dl=$('#cliDlg');
   $('#cliCancel').onclick=()=>dl.close();
   const pr=$('#cliPr');if(pr)pr.onclick=()=>printCli(cliEd.id);
+  const pi=$('#cliPrIni');if(pi)pi.onclick=()=>printCli(cliEd.id,'ini');
   const rr=()=>{$('#cliReqs').innerHTML=cliReqRows('reqs');$('#cliCambs').innerHTML=cliReqRows('cambios');bindReq()};
   const bindReq=()=>{document.querySelectorAll('[data-rq]').forEach(el=>el.onchange=()=>{const [key,i,k]=el.dataset.rq.split(':');cliEd.r[key][+i][k]=el.value;if(k!=='detalle')rr()});
     document.querySelectorAll('[data-rqdel]').forEach(b=>b.onclick=()=>{const [key,i]=b.dataset.rqdel.split(':');cliEd.r[key].splice(+i,1);rr()})};
@@ -964,10 +967,11 @@ function bindCliDlg(){
     if(bad){toast(`En «${bad.tipo}»: ${!bad.solicitado?'falta la fecha de solicitud':bad.entregado&&bad.entregado<bad.solicitado?'la entrega o atención no puede ser antes de la solicitud':'la fecha límite no puede ser antes de la solicitud'}.`);return}
     if(!cliEd.id){o.id=uid();o.creado=new Date().toISOString();o.creadoPor=actorId()}
     o.actualizado=new Date().toISOString();
-    const wantPdf=!!e.submitter?.dataset?.pdf;
-    try{await put('clientes',o);dl.close();toast(wantPdf?'Ficha guardada. En la ventana de impresión elige «Guardar como PDF» para descargarla.':'Ficha del cliente guardada.');if(wantPdf)printCli(o)}catch(err){dbErr(err)}};
+    const wantPdf=e.submitter?.dataset?.pdf||'';
+    if(!o.codigo)o.codigo=cliNextCode(o.unidad);
+    try{await put('clientes',o);dl.close();toast(wantPdf?'Ficha guardada con código '+o.codigo+'. En la ventana de impresión elige «Guardar como PDF» para descargarla.':'Ficha del cliente guardada con código '+o.codigo+'.');if(wantPdf)printCli(o,wantPdf==='ini'?'ini':'')}catch(err){dbErr(err)}};
 }
-function printCli(id){
+function printCli(id,mode){
   const r=typeof id==='object'?id:byId('clientes',id);if(!r)return;const s=cliReqSum(r);
   const ck=(v,o)=>`<span class="ck">${v===o?'●':'○'}</span> ${o}`;
   const row2=(a,b,c,d)=>`<tr><th>${a}</th><td>${esc(b??'')||'&nbsp;'}</td><th>${c}</th><td>${esc(d??'')||'&nbsp;'}</td></tr>`;
@@ -983,21 +987,24 @@ function printCli(id){
     #cliPrintBox .rq th{width:auto}#cliPrintBox .c4 th{width:19%}#cliPrintBox .c4 td{width:31%}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}`;
   document.head.appendChild(st);
   const box=document.createElement('div');box.id='cliPrintBox';
-  box.innerHTML=`<h1>INFORMACIÓN DEL CLIENTE</h1><div class="sub">Editorial · Planes Gerenciales · ${esc(U[r.unidad]?.n||'')} · Impreso el ${fdate(today())}</div>
+  box.innerHTML=`<h1>INFORMACIÓN DEL CLIENTE</h1><div class="sub">Editorial · Planes Gerenciales · ${esc(U[r.unidad]?.n||'')} · Impreso el ${fdate(today())}${mode==='ini'?' · Registro inicial (proforma a preprensa)':''}</div>
+   ${r.codigo?`<div style="text-align:right;font:700 10pt Arial;margin:-2px 0 3px">Código: ${esc(r.codigo)}</div>`:''}
    <table class="c4"><tr><th>N.º proforma</th><td>${esc(r.proforma||'')}</td><th>Tipo</th><td>${ck(r.tipoDoc,'Cotización')} &nbsp; ${ck(r.tipoDoc,'Orden')}</td></tr>
    <tr><th>Fecha de ingreso</th><td>${fdate(r.fechaIngreso)} ${esc(r.horaIngreso||'')}</td><th>Recepción de proforma</th><td>${fdate(r.fechaProforma)} ${esc(r.horaProforma||'')}</td></tr></table>
    <h2>Ventas</h2><table class="c4">${row2('Cliente',r.cliente,'RUC',r.ruc)}${row2('Responsable',r.responsable,'Asesor comercial',r.asesor?pname(r.asesor):'')}<tr><th>Teléfono / e-mail</th><td colspan="3">${esc([r.telefono,r.email].filter(Boolean).join(' · '))}</td></tr></table>
    <h2>Trabajo</h2><table class="c4">${row2('Trabajo',r.trabajo,'Cantidad',r.cantidad?n(r.cantidad).toLocaleString('es-PE'):'')}${row2('Formato',r.formato,'Tapa',r.tapa)}${row2('Hojas',r.hojas,'Encuadernación',r.encuadernacion)}${row2('Encarte',r.encarte,'Otros',r.otros)}</table>
    <h2>Preprensa</h2><table class="c4"><tr><th>Diseño</th><td>${ck(r.diseno,'Nuevo')} &nbsp; ${ck(r.diseno,'Modificar')}</td><th>Corrección</th><td>${ck(r.correccion,'Sí')} &nbsp; ${ck(r.correccion,'No')}</td></tr><tr><th>Preprensa</th><td>${ck(r.preprensa,'Sí')} &nbsp; ${ck(r.preprensa,'No')}</td><th>Servicio de</th><td>${ck(r.servicio,'Impresión')} &nbsp; ${ck(r.servicio,'Reimpresión')}</td></tr></table>
+   ${mode==='ini'?'':`
    <h2>Trabajo y entrega</h2><table class="c4"><tr><th>JOB N.º</th><td>${esc(r.job||'')}</td><th>Estado actual</th><td>${esc(r.estado||'Registrado')}</td></tr><tr><th>Fecha de inicio</th><td>${fdate(r.fechaInicio)}</td><th>Entrega al cliente</th><td>${fdate(r.fechaEntrega)}</td></tr></table>
    ${(r.procesos||[]).length?`<table class="rq"><tr><th>Etapa del estado</th><th>Fecha inicial</th><th>Fecha final</th><th>Días</th><th>Situación</th><th>Observaciones</th></tr>${r.procesos.map(x=>{const i=procInfo(x);return `<tr><td>${esc(x.etapa)}</td><td>${fdate(x.inicio)}</td><td>${fdate(x.fin)}</td><td>${i.dias??'—'}</td><td>${esc(i.st)}</td><td>${esc(x.obs||'')}</td></tr>`}).join('')}</table>`:''}
    <h2>Precio aprobado en proforma</h2><table class="c4"><tr><th>Precio aprobado</th><td>${n(r.precio)?m2(r.precio)+' ('+esc(r.precioIgv||'')+')':''}</td><th>Fecha de aprobación</th><td>${fdate(r.precioFecha)}</td></tr><tr><th>Aprobado por</th><td colspan="3">${esc(r.precioAprobo||'')}</td></tr></table>
    <h2>Entrega de requerimientos del cliente (${s.ent} de ${s.tot} entregados)</h2><table class="rq"><tr><th>Requerimiento</th><th>Solicitado</th><th>Fecha límite</th><th>Entregado</th><th>Días</th><th>Estado</th></tr>${(r.reqs||[]).map(x=>{const i=reqInfo(x);return `<tr><td>${esc(x.tipo)}${x.detalle?' — '+esc(x.detalle):''}</td><td>${fdate(x.solicitado)}</td><td>${fdate(x.limite)}</td><td>${fdate(x.entregado)}</td><td>${i.dias??'—'}</td><td>${esc(i.st)}</td></tr>`}).join('')||'<tr><td colspan="6">Sin requerimientos</td></tr>'}</table>
    <h2>Cambios en proceso de aprobación (${(r.cambios||[]).filter(x=>x.entregado).length} de ${(r.cambios||[]).length} atendidos)</h2><table class="rq"><tr><th>Cambio</th><th>Solicitado</th><th>Fecha límite</th><th>Atendido</th><th>Días</th><th>Estado</th></tr>${(r.cambios||[]).map(x=>{const i=reqInfo(x,1);return `<tr><td>${esc(x.tipo)}${x.detalle?' — '+esc(x.detalle):''}</td><td>${fdate(x.solicitado)}</td><td>${fdate(x.limite)}</td><td>${fdate(x.entregado)}</td><td>${i.dias??'—'}</td><td>${esc(i.st)}</td></tr>`}).join('')||'<tr><td colspan="6">Sin cambios</td></tr>'}</table>
    ${(r.dist||[]).length?`<h2>Distribución de materiales</h2><table class="rq"><tr><th>Cant.</th><th>Material</th><th>Precio</th><th>N.º proforma</th><th>Campo / filial</th><th>Logístico</th><th>Dirección</th><th>Agencia</th></tr>${r.dist.map(x=>`<tr><td>${n(x.cantidad).toLocaleString('es-PE')}</td><td>${esc(x.material||'')}</td><td style="white-space:nowrap">${x.precio!==''?m2(x.precio):''}</td><td>${esc(x.proforma||'')}</td><td>${esc(x.campo||'')}</td><td>${esc(x.logistico||'')}</td><td>${esc(x.direccion||'')}</td><td>${esc(x.agencia||'')}</td></tr>`).join('')}</table>`:''}
+   `}
    <div class="firmas"><div>V.º B.º asesor comercial ${r.vbAsesor?'✓':''}</div><div>Firma área de costos ${r.vbCostos?'✓':''}</div><div>V.º B.º cliente ${r.vbCliente?'✓':''}</div></div>`;
   document.body.appendChild(box);
-  const oldT=document.title;document.title=('Ficha cliente '+[r.proforma,r.cliente].filter(Boolean).join(' - ')).replace(/[\\/:*?"<>|]+/g,' ').slice(0,90);
+  const oldT=document.title;document.title=((mode==='ini'?'Registro inicial ':'Ficha cliente ')+[r.codigo,r.proforma,r.cliente].filter(Boolean).join(' - ')).replace(/[\\/:*?"<>|]+/g,' ').slice(0,90);
   const clean=()=>{box.remove();st.remove();document.title=oldT;window.removeEventListener('afterprint',clean)};window.addEventListener('afterprint',clean);
   setTimeout(()=>window.print(),60);
 }
