@@ -851,7 +851,7 @@ function viewClientes(){
   let list=all.filter(r=>(!cliF.estado||(r.estado||'Registrado')===cliF.estado)&&(!cliF.asesor||cliAsesorKeys(r).includes(cliF.asesor)));
   if(cliF.req==='pend')list=list.filter(r=>cliReqSum(r).pend>0);else if(cliF.req==='venc')list=list.filter(r=>cliReqSum(r).venc>0);else if(cliF.req==='ok')list=list.filter(r=>cliReqSum(r).completo);
   if(cliF.q){const qq=norm(cliF.q);list=list.filter(r=>norm([r.codigo,r.proforma,r.job,r.cliente,r.departamento,r.ruc,r.responsable,r.trabajo].join(' ')).includes(qq))}
-  list=list.slice().sort((a,b)=>String(b.fechaIngreso||b.creado||'').localeCompare(String(a.fechaIngreso||a.creado||'')));cliLastList=list;
+  list=list.slice().sort((a,b)=>{const fa=cliFechaVig(a),fb=cliFechaVig(b);if(fa&&!fb)return -1;if(fb&&!fa)return 1;return fb.localeCompare(fa)||String(b.fechaIngreso||b.creado||'').localeCompare(String(a.fechaIngreso||a.creado||''))});cliLastList=list;
   const sums=all.map(cliReqSum),monto=all.reduce((s,r)=>s+n(r.precio),0),aprob=all.filter(r=>n(r.precio)>0).length;
   const pend=sums.reduce((s,x)=>s+x.pend,0),venc=sums.reduce((s,x)=>s+x.venc,0);
   const ds=all.flatMap(r=>(r.reqs||[]).filter(x=>x.entregado&&x.solicitado).map(x=>dDiff(x.solicitado,x.entregado)));
