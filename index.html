@@ -793,6 +793,19 @@ const CLI_DEPTOS=['Mayordomía','MipEs','Ministerio Mujer','Ministerio Infantil'
 function cliSelOtro(name,label,list,val,ro,extra=''){const v=val||'',inL=!v||list.includes(v);
   return `<label ${extra}>${label}<select name="${name}" data-otro="${name}" ${ro}><option value="">— Elegir —</option>${list.map(o=>`<option ${o===v?'selected':''}>${esc(o)}</option>`).join('')}<option value="__otro" ${inL?'':'selected'}>Otro (escribir)…</option></select>
    <input name="${name}Otro" value="${inL?'':esc(v)}" placeholder="Escribe el ${label.replace(' *','').toLowerCase()}" ${inL?'hidden':''} ${ro} style="margin-top:6px"></label>`}
+const CLI_REPROG_MOT=['Retraso del cliente','Cambios solicitados por el cliente','Retraso en producción','Otro'];
+function cliFechaVig(r){const L=(r.reprog||[]).filter(x=>x.fecha);return L.length?L[L.length-1].fecha:(r.fechaEntrega||'')}
+function cliReprogRows(){const ro=cliEd.ro?'disabled':'',L=cliEd.r.reprog||[];if(!L.length)return '';
+  const orig=$('#cliFrm [name=fechaEntrega]')?.value??cliEd.r.fechaEntrega;let prev=orig;
+  return L.map((x,i)=>{const d=prev&&x.fecha?dDiff(prev,x.fecha):null;prev=x.fecha||prev;return `<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) minmax(0,2fr) minmax(0,1fr) auto;gap:8px;align-items:end;padding:8px 0;border-bottom:1px solid var(--rule-2)">
+   <label>Nueva fecha de entrega ${i+1}<input type="date" data-rp="${i}:fecha" value="${esc(x.fecha||'')}" ${ro}></label>
+   <label>Motivo<select data-rp="${i}:motivo" ${ro}>${CLI_REPROG_MOT.map(m=>`<option ${m===x.motivo?'selected':''}>${m}</option>`).join('')}</select></label>
+   <label>Detalle<input data-rp="${i}:detalle" value="${esc(x.detalle||'')}" placeholder="Ej. el cliente entregó tarde las imágenes" ${ro}></label>
+   <label>Registrado el<input type="date" data-rp="${i}:registrado" value="${esc(x.registrado||'')}" ${ro}></label>
+   ${cliEd.ro?'<span></span>':`<button type="button" class="btn small danger" data-rpdel="${i}" title="Quitar">✕</button>`}
+   ${d!=null?`<div class="note" style="grid-column:1/-1">${d>0?`<span class="pill warn">+${d} ${d===1?'día':'días'}</span> respecto a la fecha anterior`:d<0?`<span class="pill ok">${d} días</span> (se adelantó)`:'Misma fecha que la anterior'}</div>`:''}</div>`}).join('')}
+function cliReprogSum(){const r=cliEd.r,o=$('#cliFrm [name=fechaEntrega]')?.value??r.fechaEntrega,L=(r.reprog||[]).filter(x=>x.fecha);if(!L.length)return o?`Fecha vigente: <b>${fdate(o)}</b> (original)`:'';
+  const v=L[L.length-1].fecha,d=o?dDiff(o,v):null;return `Fecha vigente: <b>${fdate(v)}</b> · reprogramada ${L.length} ${L.length===1?'vez':'veces'}${d!=null?` · ${d>=0?'+':''}${d} ${Math.abs(d)===1?'día':'días'} respecto a la original (${fdate(o)})`:''}`}
 const CLI_TIPOS=['Cotización','Orden','Cotización y Orden'];
 const CLI_EST=['Registrado','Proforma aprobada','Diseño','Corrección','Preprensa','En producción','Posprensa','APT','Entregado','Anulado'];
 function cliNextCode(unidad,fecha){const y=/^\d{4}-/.test(fecha||'')?fecha.slice(0,4):new Date().getFullYear(),pre=`CP-${unidad||'GEN'}-${y}-`;const mx=(RAW.clientes||[]).map(c=>c.codigo||'').filter(c=>c.startsWith(pre)).map(c=>+c.slice(pre.length)||0).reduce((a,b)=>Math.max(a,b),0);return pre+String(mx+1).padStart(4,'0')}
@@ -812,7 +825,11 @@ function cliProcRows(){const ro=cliEd.ro?'disabled':'',L=cliEd.r.procesos||[];if
 const CLI_REQ_DEF=['Entrega de texto completo','Entrega de imágenes','Entrega de material complementario'];
 const CLI_REQ_TIPOS=['Entrega de texto completo','Entrega de imágenes','Entrega de material complementario','Entrega de logotipos','Entrega de artes / diseño del cliente','Aprobación de prueba de color','Aprobación de prueba final','Otro'];
 const CLI_CAMB_TIPOS=['Cambio de número de páginas','Cambio de diseño de tapas','Cambio de formato','Cambio de color de las páginas (de color a blanco y negro)','Cambio de imágenes','No le gustó el diseño','Otros'];
-let cliF={q:'',estado:'',req:''},cliEd=null;
+let cliF={q:'',estado:'',req:'',asesor:''},cliEd=null;
+function cliAsesorKeys(r){const k=new Set();if(r.asesor)k.add('p:'+r.asesor);else if(r.asesorTxt)k.add('t:'+norm(r.asesorTxt));
+  const cr=r.creadoPor&&(typeof USR!=='undefined'?USR:[]).find(u=>u.id===r.creadoPor);if(cr?.persona)k.add('p:'+cr.persona);if(!k.size)k.add('none');return [...k]}
+function cliAsesorOpts(all){const m=new Map();all.forEach(r=>cliAsesorKeys(r).forEach(k=>{if(m.has(k))return;m.set(k,k==='none'?'Sin asesor':k.startsWith('p:')?pname(k.slice(2)):r.asesorTxt||k.slice(2))}));
+  return [...m].sort((a,b)=>a[0]==='none'?1:b[0]==='none'?-1:a[1].localeCompare(b[1]))}
 function scopeClientes(ac){
   if(ac==='all'){S.clientes=RAW.clientes;return}
   const a=myAcc()||{},sc=myScopeUnits()||[];
@@ -831,7 +848,7 @@ const rucOk=v=>true; // se acepta cualquier RUC o ID tributario (incluye empresa
 const canEditCli=r=>!readOnly&&(canManage()||!r||!r.unidad||(myScopeUnits()||[]).includes(r.unidad)||r.creadoPor===actorId());
 function viewClientes(){
   const all=S.clientes.filter(r=>inFilter('clientes',r));
-  let list=all.filter(r=>(!cliF.estado||(r.estado||'Registrado')===cliF.estado));
+  let list=all.filter(r=>(!cliF.estado||(r.estado||'Registrado')===cliF.estado)&&(!cliF.asesor||cliAsesorKeys(r).includes(cliF.asesor)));
   if(cliF.req==='pend')list=list.filter(r=>cliReqSum(r).pend>0);else if(cliF.req==='venc')list=list.filter(r=>cliReqSum(r).venc>0);else if(cliF.req==='ok')list=list.filter(r=>cliReqSum(r).completo);
   if(cliF.q){const qq=norm(cliF.q);list=list.filter(r=>norm([r.codigo,r.proforma,r.job,r.cliente,r.departamento,r.ruc,r.responsable,r.trabajo].join(' ')).includes(qq))}
   list=list.slice().sort((a,b)=>String(b.fechaIngreso||b.creado||'').localeCompare(String(a.fechaIngreso||a.creado||'')));cliLastList=list;
@@ -839,6 +856,7 @@ function viewClientes(){
   const pend=sums.reduce((s,x)=>s+x.pend,0),venc=sums.reduce((s,x)=>s+x.venc,0);
   const ds=all.flatMap(r=>(r.reqs||[]).filter(x=>x.entregado&&x.solicitado).map(x=>dDiff(x.solicitado,x.entregado)));
   let h=`<div class="bar"><div class="left"><h2>Clientes y pedidos</h2>${unitFilterSel()}</div><div class="right"><input class="search" id="cliQ" placeholder="Buscar código, proforma, JOB, cliente, RUC…" value="${esc(cliF.q)}">
+   <select id="cliAse" aria-label="Asesor comercial"><option value="">Todos los asesores</option>${cliAsesorOpts(all).map(([k,l])=>`<option value="${esc(k)}" ${k===cliF.asesor?'selected':''}>${esc(l)}</option>`).join('')}</select>
    <select id="cliEst" aria-label="Estado"><option value="">Todos los estados</option>${CLI_EST.map(e=>`<option ${e===cliF.estado?'selected':''}>${e}</option>`).join('')}</select>
    <select id="cliReq" aria-label="Requerimientos"><option value="">Todos los requerimientos</option><option value="pend" ${cliF.req==='pend'?'selected':''}>Con requerimientos pendientes</option><option value="venc" ${cliF.req==='venc'?'selected':''}>Con requerimientos vencidos</option><option value="ok" ${cliF.req==='ok'?'selected':''}>Requerimientos completos</option></select>
    <button class="btn" id="cliExp" title="Descarga en Excel los pedidos de la vista actual">⬇ Exportar</button>${readOnly?'':'<button class="btn" id="cliImp" title="Cargar información pasada desde Excel">⬆ Importar</button><button class="btn primary" id="cliNew">+ Nuevo cliente / pedido</button>'}</div></div>
@@ -849,15 +867,16 @@ function viewClientes(){
    <div class="kpi"><span class="l">Requerimientos pendientes</span><span class="v" style="${venc?'color:var(--bad)':''}">${pend}</span><span class="s">${venc} vencidos</span></div>
    <div class="kpi"><span class="l">Tiempo promedio de entrega</span><span class="v">${ds.length?(ds.reduce((a,b)=>a+b,0)/ds.length).toLocaleString('es-PE',{maximumFractionDigits:1}):'—'}</span><span class="s">días entre solicitud y entrega del cliente</span></div></div>`;
   if(!list.length)return h+`<div class="panel empty"><strong>${all.length?'Ningún pedido coincide con los filtros':'Aún no hay clientes registrados'}</strong>${readOnly?'':'Usa «+ Nuevo cliente / pedido» para registrar la primera ficha.'}</div>`;
-  h+=`<div class="tbl"><table><thead><tr><th>Código / proforma</th><th>Cliente</th><th>Trabajo</th><th class="num">Cantidad</th><th class="num">Precio aprobado</th><th>Requerimientos</th><th>Entrega al cliente / cambios</th><th>Estado</th><th></th></tr></thead><tbody>${list.map(r=>{const s=cliReqSum(r);
-    const lateJob=r.fechaEntrega&&r.fechaEntrega<today()&&!['Entregado','Anulado'].includes(r.estado);
+  h+=`<div class="tbl"><table><thead><tr><th>Código / proforma</th><th>Cliente</th><th>Trabajo</th><th>Entrega al cliente</th><th class="num">Cantidad</th><th class="num">Precio aprobado</th><th>Requerimientos</th><th>Cambios</th><th>Estado</th><th></th></tr></thead><tbody>${list.map(r=>{const s=cliReqSum(r);
+    const fv=cliFechaVig(r),nrp=(r.reprog||[]).filter(x=>x.fecha).length,lateJob=fv&&fv<today()&&!['Entregado','Anulado'].includes(r.estado);
     return `<tr><td><strong class="mono">${esc(r.codigo||'Sin código')}</strong> ${r.tipoDoc?`<span class="pill">${esc(r.tipoDoc)}</span>`:''}<div class="note">Proforma ${esc(r.proforma||'—')} · JOB ${esc(r.job||'—')} · ingreso ${fdate(r.fechaIngreso)}</div></td>
      <td><strong>${esc(r.cliente||'—')}</strong><div class="note">RUC ${esc(r.ruc||'—')}${r.responsable?' · '+esc(r.responsable):''}</div></td>
      <td>${esc(r.trabajo||'—')}<div class="note">${[r.formato,r.encuadernacion].filter(Boolean).map(esc).join(' · ')}</div></td>
+     <td style="white-space:nowrap">${fv?`<strong>${fdate(fv)}</strong>`:'—'}${lateJob?' <span class="pill bad">Vencida</span>':''}${nrp?`<div class="note" style="white-space:normal">Reprogramada ${nrp} ${nrp===1?'vez':'veces'} · original ${fdate(r.fechaEntrega)}</div>`:''}</td>
      <td class="num">${r.cantidad?n(r.cantidad).toLocaleString('es-PE'):'—'}</td>
      <td class="num">${n(r.precio)?money(r.precio):'—'}<div class="note">${r.precioFecha?fdate(r.precioFecha):''}</div></td>
      <td>${s.tot?`${meter(s.ent/s.tot*100)}<div class="note">${s.ent} de ${s.tot} entregados${s.venc?` · <span style="color:var(--bad)">${s.venc} vencidos</span>`:''}</div>`:'<span class="note">Sin requerimientos</span>'}</td>
-     <td>${fdate(r.fechaEntrega)}${lateJob?' <span class="pill bad">Vencida</span>':''}${(r.cambios||[]).length?`<div class="note">${r.cambios.length} ${r.cambios.length===1?'cambio':'cambios'}${r.cambios.filter(x=>!x.entregado).length?` · <span style="color:var(--warn)">${r.cambios.filter(x=>!x.entregado).length} sin atender</span>`:''}</div>`:''}</td>
+     <td>${(r.cambios||[]).length?`<div class="note">${r.cambios.length} ${r.cambios.length===1?'cambio':'cambios'}${r.cambios.filter(x=>!x.entregado).length?` · <span style="color:var(--warn)">${r.cambios.filter(x=>!x.entregado).length} sin atender</span>`:''}</div>`:'<span class="note">—</span>'}</td>
      <td>${pillFor(r.estado||'Registrado')}</td>
      <td style="white-space:nowrap"><button class="btn small" data-cliopen="${r.id}">${canEditCli(r)?'Abrir / editar':'Ver'}</button> <button class="btn small" data-cliprint="${r.id}">🖨</button></td></tr>`}).join('')}</tbody></table></div>`;
   // requerimientos pendientes
@@ -887,7 +906,7 @@ function cliDistRows(){const ro=cliEd.ro?'disabled':'',L=cliEd.r.dist||[];if(!L.
    <div class="note" style="grid-column:1/-1">Subtotal: ${m2((+x.cantidad||0)*(+x.precio||0))}</div></div>`).join('')+`<div class="note" style="padding-top:6px"><b>Total distribuido:</b> ${qt.toLocaleString('es-PE')} unidades · ${m2(tot)}</div><datalist id="cliCampoLst">${[...new Set((S.clientes||RAW.clientes||[]).flatMap(c=>(c.dist||[]).map(d=>d.campo)).concat(L.map(d=>d.campo)).filter(Boolean))].sort().map(v=>`<option value="${esc(v)}">`).join('')}</datalist>`}
 function openCli(id){
   const r=id?{...byId('clientes',id)}:{tipoDoc:'Orden',fechaIngreso:today(),horaIngreso:new Date().toTimeString().slice(0,5),estado:'Registrado',unidad:filterUnit!=='ALL'?fUnit():((myScopeUnits()||[])[0]||''),reqs:CLI_REQ_DEF.map(t=>({tipo:t,detalle:'',solicitado:'',limite:'',entregado:''}))};
-  r.reqs=(r.reqs||[]).map(x=>({...x}));r.cambios=(r.cambios||[]).map(x=>({...x}));r.dist=(r.dist||[]).map(x=>({...x}));r.procesos=(r.procesos||[]).map(x=>({...x}));if(!r.procesos.length&&id&&r.estado&&r.estado!=='Registrado')r.procesos=[{etapa:r.estado,inicio:'',fin:'',obs:''}];if(!id)r.procesos=[{etapa:'Registrado',inicio:today(),fin:'',obs:''}];
+  r.reqs=(r.reqs||[]).map(x=>({...x}));r.cambios=(r.cambios||[]).map(x=>({...x}));r.dist=(r.dist||[]).map(x=>({...x}));r.procesos=(r.procesos||[]).map(x=>({...x}));r.reprog=(r.reprog||[]).map(x=>({...x}));if(!r.procesos.length&&id&&r.estado&&r.estado!=='Registrado')r.procesos=[{etapa:r.estado,inicio:'',fin:'',obs:''}];if(!id)r.procesos=[{etapa:'Registrado',inicio:today(),fin:'',obs:''}];
   cliEd={id,r,ro:!canEditCli(id?r:null)};const ro=cliEd.ro?'disabled':'';
   let dl=$('#cliDlg');if(!dl){dl=document.createElement('dialog');dl.id='cliDlg';dl.style.width='min(980px,calc(100vw - 24px))';document.body.appendChild(dl)}
   const F=(k,l,type='text',extra='')=>`<label ${extra}>${l}<input name="${k}" type="${type}" value="${esc(r[k]??'')}" ${type==='number'?'step="any"':''} ${ro}></label>`;
@@ -912,9 +931,11 @@ function openCli(id){
    <label>Preprensa${cliRadio('preprensa',['Sí','No'],r.preprensa,ro)}</label><label>Servicio de${cliRadio('servicio',['Impresión','Reimpresión'],r.servicio,ro)}</label>
    ${cliEd.ro?(id?'<div style="grid-column:1/-1;display:flex;justify-content:flex-end"><button type="button" class="btn small" id="cliPrIni">🖨 Imprimir registro inicial (proforma a preprensa)</button></div>':''):'<div style="grid-column:1/-1;display:flex;justify-content:flex-end;gap:8px;padding:4px 0;border-bottom:1px dashed var(--rule)"><span class="note" style="margin-right:auto;align-self:center">Puedes guardar aquí el registro inicial y completar las demás secciones después.<b class="cliMsg" hidden style="display:block;color:var(--bad)"></b></span><button type="submit" class="btn small" data-pdf="ini">🖨 Guardar e imprimir registro inicial</button></div>'}
    ${sec('Trabajo y entrega')}
-   ${F('job','JOB N.º')}${F('fechaInicio','Fecha de inicio','date')}${F('fechaEntrega','Fecha de entrega al cliente','date')}
+   ${F('job','JOB N.º')}${F('fechaInicio','Fecha de inicio','date')}${F('fechaEntrega','Fecha de entrega al cliente (original)','date')}
    <label>Estado actual<span id="cliEstAct" style="padding:9px 0">${pillFor(cliEstado(r.procesos))}</span></label>
    ${F('proforma','N.º proforma')}
+   <div style="grid-column:1/-1"><div class="note" style="font-weight:600;color:var(--ink-2)">Nuevas fechas de entrega al cliente</div><div class="note">Si la entrega se mueve (por ejemplo por retraso del cliente), agrega aquí la nueva fecha con su motivo. La fecha original se conserva y la última registrada es la fecha vigente.</div>
+    <div id="cliReprog">${cliReprogRows()}</div><div class="note" id="cliReprogSum" style="margin-top:6px">${cliReprogSum()}</div>${cliEd.ro?'':'<button type="button" class="btn small" id="cliReprogAdd" style="margin-top:8px">+ Agregar nueva fecha de entrega</button>'}</div>
    <div style="grid-column:1/-1"><div class="note" style="font-weight:600;color:var(--ink-2)">Control de procesos del estado</div><div class="note">Registra cada etapa con su fecha de entrega (prevista), fecha inicial, fecha final y observaciones. El estado actual es la última etapa de la lista que tenga fecha inicial; al agregar una etapa nueva, la anterior se cierra con la fecha de hoy si estaba abierta.</div><div id="cliProc">${cliProcRows()}</div>${cliEd.ro?'':`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center"><select id="cliProcEt" aria-label="Etapa">${CLI_EST.map(t=>`<option>${t}</option>`).join('')}</select><button type="button" class="btn small" id="cliProcAdd">+ Agregar etapa</button></div>`}</div>
    ${sec('Precio aprobado en proforma')}
    ${F('precio','Precio aprobado (S/)','number')}<label>IGV<select name="precioIgv" ${ro}>${['Incluye IGV','Más IGV','Exonerado'].map(o=>`<option ${o===(r.precioIgv||'Incluye IGV')?'selected':''}>${o}</option>`).join('')}</select></label>
@@ -954,6 +975,11 @@ function bindCliDlg(){
     document.querySelectorAll('[data-psdel]').forEach(b=>b.onclick=()=>{cliEd.r.procesos.splice(+b.dataset.psdel,1);rp()})};
   bindProc();nextEt();
   const pa=$('#cliProcAdd');if(pa)pa.onclick=()=>{const L=cliEd.r.procesos,prev=L[L.length-1];const d=today();if(prev&&prev.inicio&&!prev.fin&&prev.inicio<=d)prev.fin=d;L.push({etapa:$('#cliProcEt').value,entrega:'',inicio:d,fin:'',obs:''});rp()};
+  const rrp=()=>{$('#cliReprog').innerHTML=cliReprogRows();$('#cliReprogSum').innerHTML=cliReprogSum();bindRp()};
+  const bindRp=()=>{document.querySelectorAll('[data-rp]').forEach(el=>el.onchange=()=>{const [i,k]=el.dataset.rp.split(':');cliEd.r.reprog[+i][k]=el.value;if(k==='fecha')rrp()});
+    document.querySelectorAll('[data-rpdel]').forEach(b=>b.onclick=()=>{cliEd.r.reprog.splice(+b.dataset.rpdel,1);rrp()})};
+  bindRp();const fe=$('#cliFrm [name=fechaEntrega]');if(fe)fe.addEventListener('change',rrp);
+  const rpa=$('#cliReprogAdd');if(rpa)rpa.onclick=()=>{cliEd.r.reprog.push({fecha:'',motivo:'Retraso del cliente',detalle:'',registrado:today()});rrp();const ins=document.querySelectorAll('[data-rp$=":fecha"]');ins[ins.length-1]?.focus()};
   const rd=()=>{$('#cliDist').innerHTML=cliDistRows();bindDist()};
   const bindDist=()=>{document.querySelectorAll('[data-ds]').forEach(el=>el.onchange=()=>{const [i,k]=el.dataset.ds.split(':');cliEd.r.dist[+i][k]=(k==='cantidad'||k==='precio')?(el.value===''?'':+el.value):el.value;if(k==='cantidad'||k==='precio')rd()});
     document.querySelectorAll('[data-dsdel]').forEach(b=>b.onclick=()=>{cliEd.r.dist.splice(+b.dataset.dsdel,1);rd()})};
@@ -967,11 +993,14 @@ function bindCliDlg(){
     const el=f&&$('#cliFrm [name='+f+']');if(el){el.classList.add('cli-bad');el.scrollIntoView({block:'center',behavior:'smooth'});setTimeout(()=>el.focus({preventScroll:true}),250);el.addEventListener('input',()=>el.classList.remove('cli-bad'),{once:true});el.addEventListener('change',()=>el.classList.remove('cli-bad'),{once:true})}};
   $('#cliFrm').onsubmit=async e=>{e.preventDefault();if(cliEd.ro)return;document.querySelectorAll('.cliMsg').forEach(x=>x.hidden=true);
     document.querySelectorAll('[data-rq$=":detalle"]').forEach(el=>{const [key,i]=el.dataset.rq.split(':');cliEd.r[key][+i].detalle=el.value});
+    document.querySelectorAll('[data-rp$=":detalle"]').forEach(el=>{const [i]=el.dataset.rp.split(':');cliEd.r.reprog[+i].detalle=el.value});
     document.querySelectorAll('[data-ps$=":obs"]').forEach(el=>{const [i]=el.dataset.ps.split(':');cliEd.r.procesos[+i].obs=el.value});
     document.querySelectorAll('[data-ds]').forEach(el=>{const [i,k]=el.dataset.ds.split(':');cliEd.r.dist[+i][k]=(k==='cantidad'||k==='precio')?(el.value===''?'':+el.value):el.value});
     const o=readCliForm();o.dist=(o.dist||[]).filter(x=>['cantidad','material','precio','campo','logistico','direccion','agencia'].some(k=>x[k]!==''&&x[k]!=null));
     o.procesos=(o.procesos||[]);const bp=o.procesos.find(x=>(x.fin&&!x.inicio)||(x.fin&&x.inicio&&x.fin<x.inicio));if(bp){cliErr(`En la etapa «${bp.etapa}»: ${!bp.inicio?'falta la fecha inicial':'la fecha final no puede ser antes de la inicial'}.`);return}
     o.estado=cliEstado(o.procesos);
+    o.reprog=(o.reprog||[]).filter(x=>x.fecha||x.detalle);const brp=o.reprog.find(x=>!x.fecha);if(brp){cliErr('En «Nuevas fechas de entrega»: falta la nueva fecha en una de las filas.');return}
+    if(o.reprog.length&&!o.fechaEntrega){cliErr('Registra primero la fecha de entrega al cliente original.','fechaEntrega');return}
     o.dist.forEach(x=>{if(!x.proforma)x.proforma=o.proforma||''});
     const bd=o.dist.find(x=>!x.material||x.cantidad===''||x.cantidad<=0);if(bd){cliErr('En «Distribución de materiales»: cada envío necesita material y una cantidad mayor a 0.');return}
     const miss=[['cliente','Cliente'],['trabajo','Trabajo'],['unidad','Unidad']].filter(([k])=>!o[k]).map(x=>x[1]);
@@ -995,9 +1024,9 @@ function printCli(id,mode){
    @media screen{#cliPrintBox{display:none}}
    @media print{body>*:not(#cliPrintBox){display:none!important}#cliPrintBox{display:block;font:8pt/1.2 Arial,Helvetica,sans-serif;color:#111}
     #cliPrintBox h1{text-align:center;font-size:14pt;margin:0 0 1px}#cliPrintBox .sub{text-align:center;color:#555;font-size:7.5pt;margin-bottom:5px}
-    #cliPrintBox table{width:100%;border-collapse:collapse;margin:0 0 4px}#cliPrintBox th,#cliPrintBox td{border:1px solid #888;padding:2px 5px;text-align:left;vertical-align:top}
+    #cliPrintBox table{width:100%;border-collapse:collapse;margin:0 0 4px}#cliPrintBox th,#cliPrintBox td{border:1px solid #888;padding:1.5px 4px;text-align:left;vertical-align:top}
     #cliPrintBox th{background:#eceff2;width:28%;font-weight:600}#cliPrintBox h2{font-size:8.5pt;margin:5px 0 2px;text-transform:uppercase;letter-spacing:.05em}
-    #cliPrintBox .ck{font-size:11pt}#cliPrintBox .firmas{display:flex;justify-content:space-around;margin-top:22px}#cliPrintBox .firmas div{border-top:1px solid #333;width:30%;text-align:center;padding-top:4px;font-size:8.5pt}
+    #cliPrintBox .ck{font-size:11pt}#cliPrintBox .firmas{display:flex;justify-content:space-around;margin-top:16px;break-inside:avoid}#cliPrintBox .firmas div{border-top:1px solid #333;width:30%;text-align:center;padding-top:4px;font-size:8.5pt}
     #cliPrintBox .rq th{width:auto}#cliPrintBox .c4 th{width:19%}#cliPrintBox .c4 td{width:31%}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}`;
   document.head.appendChild(st);
   const box=document.createElement('div');box.id='cliPrintBox';
@@ -1009,11 +1038,12 @@ function printCli(id,mode){
    <h2>Trabajo</h2><table class="c4">${row2('Trabajo',r.trabajo,'Cantidad',r.cantidad?n(r.cantidad).toLocaleString('es-PE'):'')}${row2('Formato',r.formato,'Tapa',r.tapa)}${row2('Hojas / interiores',r.hojas,'N.º de páginas',r.paginas?n(r.paginas).toLocaleString('es-PE'):'')}${row2('Encuadernación',r.encuadernacion,'Encarte',r.encarte)}<tr><th>Otros</th><td colspan="3">${esc(r.otros||'')}</td></tr></table>
    <h2>Preprensa</h2><table class="c4"><tr><th>Diseño</th><td>${ck(r.diseno,'Nuevo')} &nbsp; ${ck(r.diseno,'Modificar')}</td><th>Corrección</th><td>${ck(r.correccion,'Sí')} &nbsp; ${ck(r.correccion,'No')}</td></tr><tr><th>Preprensa</th><td>${ck(r.preprensa,'Sí')} &nbsp; ${ck(r.preprensa,'No')}</td><th>Servicio de</th><td>${ck(r.servicio,'Impresión')} &nbsp; ${ck(r.servicio,'Reimpresión')}</td></tr></table>
    ${mode==='ini'?'':`
-   <h2>Trabajo y entrega</h2><table class="c4"><tr><th>JOB N.º</th><td>${esc(r.job||'')}</td><th>Fecha de inicio</th><td>${fdate(r.fechaInicio)}</td></tr><tr><th>N.º proforma</th><td>${esc(r.proforma||'')}</td><th>Entrega al cliente</th><td>${fdate(r.fechaEntrega)}</td></tr><tr><th>Estado actual</th><td colspan="3">${esc(r.estado||'Registrado')}</td></tr></table>
+   <h2>Trabajo y entrega</h2><table class="c4"><tr><th>JOB N.º</th><td>${esc(r.job||'')}</td><th>Fecha de inicio</th><td>${fdate(r.fechaInicio)}</td></tr><tr><th>N.º proforma</th><td>${esc(r.proforma||'')}</td><th>Entrega al cliente</th><td>${fdate(cliFechaVig(r))}${(r.reprog||[]).length?` <span style="color:#666">(original ${fdate(r.fechaEntrega)})</span>`:''}</td></tr><tr><th>Estado actual</th><td colspan="3">${esc(r.estado||'Registrado')}</td></tr></table>
+   ${(r.reprog||[]).length?`<table class="rq"><tr><th>N.º</th><th>Nueva fecha de entrega</th><th>Motivo</th><th>Detalle</th><th>Registrado el</th></tr>${r.reprog.map((x,i)=>`<tr><td>${i+1}</td><td>${fdate(x.fecha)}</td><td>${esc(x.motivo||'')}</td><td>${esc(x.detalle||'')}</td><td>${fdate(x.registrado)}</td></tr>`).join('')}</table>`:''}
    ${(r.procesos||[]).length?`<table class="rq"><tr><th>Etapa del estado</th><th>Fecha entrega</th><th>Fecha inicial</th><th>Fecha final</th><th>Días</th><th>Situación</th><th>Observaciones</th></tr>${r.procesos.map(x=>{const i=procInfo(x);return `<tr><td>${esc(x.etapa)}</td><td>${fdate(x.entrega)}</td><td>${fdate(x.inicio)}</td><td>${fdate(x.fin)}</td><td>${i.dias??'—'}</td><td>${esc(i.st)}</td><td>${esc(x.obs||'')}</td></tr>`}).join('')}</table>`:''}
    <h2>Precio aprobado en proforma</h2><table class="c4"><tr><th>Precio aprobado</th><td>${n(r.precio)?m2(r.precio)+' ('+esc(r.precioIgv||'')+')':''}</td><th>Fecha de aprobación</th><td>${fdate(r.precioFecha)}</td></tr><tr><th>Aprobado por</th><td colspan="3">${esc(r.precioAprobo||'')}</td></tr></table>
    <h2>Entrega de requerimientos del cliente (${s.ent} de ${s.tot} entregados)</h2><table class="rq"><tr><th>Requerimiento</th><th>Solicitado</th><th>Fecha límite</th><th>Entregado</th><th>Días</th><th>Estado</th></tr>${(r.reqs||[]).map(x=>{const i=reqInfo(x);return `<tr><td>${esc(x.tipo)}${x.detalle?' — '+esc(x.detalle):''}</td><td>${fdate(x.solicitado)}</td><td>${fdate(x.limite)}</td><td>${fdate(x.entregado)}</td><td>${i.dias??'—'}</td><td>${esc(i.st)}</td></tr>`}).join('')||'<tr><td colspan="6">Sin requerimientos</td></tr>'}</table>
-   <h2>Cambios en proceso de aprobación (${(r.cambios||[]).filter(x=>x.entregado).length} de ${(r.cambios||[]).length} atendidos)</h2><table class="rq"><tr><th>Cambio</th><th>Solicitado</th><th>Fecha límite</th><th>Atendido</th><th>Días</th><th>Estado</th></tr>${(r.cambios||[]).map(x=>{const i=reqInfo(x,1);return `<tr><td>${esc(x.tipo)}${x.detalle?' — '+esc(x.detalle):''}</td><td>${fdate(x.solicitado)}</td><td>${fdate(x.limite)}</td><td>${fdate(x.entregado)}</td><td>${i.dias??'—'}</td><td>${esc(i.st)}</td></tr>`}).join('')||'<tr><td colspan="6">Sin cambios</td></tr>'}</table>
+   ${(r.cambios||[]).length?`<h2>Cambios en proceso de aprobación (${(r.cambios||[]).filter(x=>x.entregado).length} de ${(r.cambios||[]).length} atendidos)</h2><table class="rq"><tr><th>Cambio</th><th>Solicitado</th><th>Fecha límite</th><th>Atendido</th><th>Días</th><th>Estado</th></tr>${(r.cambios||[]).map(x=>{const i=reqInfo(x,1);return `<tr><td>${esc(x.tipo)}${x.detalle?' — '+esc(x.detalle):''}</td><td>${fdate(x.solicitado)}</td><td>${fdate(x.limite)}</td><td>${fdate(x.entregado)}</td><td>${i.dias??'—'}</td><td>${esc(i.st)}</td></tr>`}).join('')}</table>`:'<h2>Cambios en proceso de aprobación: sin cambios</h2>'}
    ${(r.dist||[]).length?`<h2>Distribución de materiales</h2><table class="rq"><tr><th>Cant.</th><th>Material</th><th>Precio</th><th>N.º proforma</th><th>Campo / filial</th><th>Logístico</th><th>Dirección</th><th>Agencia</th></tr>${r.dist.map(x=>`<tr><td>${n(x.cantidad).toLocaleString('es-PE')}</td><td>${esc(x.material||'')}</td><td style="white-space:nowrap">${x.precio!==''?m2(x.precio):''}</td><td>${esc(x.proforma||'')}</td><td>${esc(x.campo||'')}</td><td>${esc(x.logistico||'')}</td><td>${esc(x.direccion||'')}</td><td>${esc(x.agencia||'')}</td></tr>`).join('')}</table>`:''}
    `}
    <div class="firmas"><div>V.º B.º asesor comercial ${r.vbAsesor?'✓':''}</div><div>Firma área de costos ${r.vbCostos?'✓':''}</div><div>V.º B.º cliente ${r.vbCliente?'✓':''}</div></div>`;
@@ -1028,12 +1058,13 @@ const CLI_XCOLS=[['codigo','Código'],['proforma','N.º proforma'],['tipoDoc','T
  ['cliente','Cliente'],['departamento','Departamento / Área'],['ruc','RUC / ID tributario'],['responsable','Nombre del responsable'],['telefono','Teléfono'],['email','E-mail'],
  ['trabajo','Trabajo'],['cantidad','Cantidad','n'],['formato','Formato'],['tapa','Tapa'],['hojas','Hojas / interiores'],['paginas','N.º de páginas','n'],['encuadernacion','Encuadernación'],['encarte','Encarte'],['otros','Otros'],
  ['diseno','Diseño (Nuevo/Modificar)'],['correccion','Corrección (Sí/No)'],['preprensa','Preprensa (Sí/No)'],['servicio','Servicio de (Impresión/Reimpresión)'],
- ['job','JOB N.º'],['fechaInicio','Fecha de inicio','d'],['fechaEntrega','Fecha de entrega al cliente','d'],['estado','Estado actual'],
+ ['job','JOB N.º'],['fechaInicio','Fecha de inicio','d'],['fechaEntrega','Fecha de entrega al cliente (original)','d'],['estado','Estado actual'],
  ['precio','Precio aprobado (S/)','n'],['precioIgv','IGV (Incluye IGV/Más IGV/Exonerado)'],['precioFecha','Fecha de aprobación','d'],['precioAprobo','Aprobado por'],
  ['vbAsesor','V.º B.º asesor comercial (Sí/No)','b'],['vbCliente','V.º B.º cliente (Sí/No)','b'],['vbCostos','Firma del área de costos (Sí/No)','b']];
 const CLI_XSUB={
  reqs:{hoja:'Requerimientos',cols:[['tipo','Requerimiento'],['detalle','Detalle'],['solicitado','Solicitado el','d'],['limite','Fecha límite','d'],['entregado','Entregado el','d']]},
  cambios:{hoja:'Cambios',cols:[['tipo','Cambio'],['detalle','Detalle'],['solicitado','Solicitado el','d'],['limite','Fecha límite','d'],['entregado','Atendido el','d']]},
+ reprog:{hoja:'Nuevas fechas de entrega',cols:[['fecha','Nueva fecha de entrega','d'],['motivo','Motivo'],['detalle','Detalle'],['registrado','Registrado el','d']]},
  procesos:{hoja:'Etapas del estado',cols:[['etapa','Etapa'],['entrega','Fecha entrega','d'],['inicio','Fecha inicial','d'],['fin','Fecha final','d'],['obs','Observaciones']]},
  dist:{hoja:'Distribución',cols:[['cantidad','Cantidad','n'],['material','Material'],['precio','Precio (S/)','n'],['proforma','N.º proforma'],['campo','Campo / filial'],['logistico','Nombre del logístico'],['direccion','Dirección a donde irá'],['agencia','Agencia']]}};
 let cliLastList=[],cliImp=null;
@@ -1052,15 +1083,16 @@ async function cliExport(){
   catch(e){toast('No se pudo generar el Excel. Revisa tu conexión e inténtalo de nuevo.')}}
 async function cliTemplate(){
   try{const X=await loadXLSX();const u=(myUnitOpts()[0]||['',''])[1];
-    const ej={codigo:'CP-HIST-2025-0001',proforma:'PF-2025-0123',tipoDoc:'Orden',unidad:'',fechaIngreso:'2025-03-10',horaIngreso:'09:30',cliente:'UPN',departamento:'Educación',ruc:'20123456789',responsable:'Nombre Apellido',telefono:'987654321',email:'correo@ejemplo.com',trabajo:'Agenda escolar 2025',cantidad:1000,formato:'A5',tapa:'Tapa dura',hojas:'Bond 75 g a 1 color',paginas:160,encuadernacion:'Wire-o',diseno:'Nuevo',correccion:'Sí',preprensa:'Sí',servicio:'Impresión',job:'2503-0101',fechaInicio:'2025-03-12',fechaEntrega:'2025-04-20',estado:'Entregado',precio:12500,precioIgv:'Incluye IGV',precioFecha:'2025-03-11',precioAprobo:'Gerencia de Ventas',vbAsesor:true,vbCliente:true,vbCostos:true,
+    const ej={codigo:'CP-HIST-2025-0001',proforma:'PF-2025-0123',tipoDoc:'Orden',unidad:'',fechaIngreso:'2025-03-10',horaIngreso:'09:30',cliente:'UPN',departamento:'Educación',ruc:'20123456789',responsable:'Nombre Apellido',telefono:'987654321',email:'correo@ejemplo.com',trabajo:'Agenda escolar 2025',cantidad:1000,formato:'A5',tapa:'Tapa dura',hojas:'Bond 75 g a 1 color',paginas:160,encuadernacion:'Wire-o',diseno:'Nuevo',correccion:'Sí',preprensa:'Sí',servicio:'Impresión',job:'2503-0101',fechaInicio:'2025-03-12',fechaEntrega:'2025-04-10',estado:'Entregado',precio:12500,precioIgv:'Incluye IGV',precioFecha:'2025-03-11',precioAprobo:'Gerencia de Ventas',vbAsesor:true,vbCliente:true,vbCostos:true,
       reqs:[{tipo:'Entrega de texto completo',detalle:'',solicitado:'2025-03-10',limite:'2025-03-15',entregado:'2025-03-14'}],cambios:[{tipo:'Cambio de diseño de tapas',detalle:'Otro color de fondo',solicitado:'2025-03-20',limite:'',entregado:'2025-03-22'}],
       procesos:[{etapa:'Diseño',entrega:'2025-03-24',inicio:'2025-03-12',fin:'2025-03-25',obs:''},{etapa:'En producción',inicio:'2025-03-26',fin:'2025-04-15',obs:''},{etapa:'Entregado',inicio:'2025-04-20',fin:'2025-04-20',obs:''}],
+      reprog:[{fecha:'2025-04-20',motivo:'Retraso del cliente',detalle:'Entregó tarde las imágenes',registrado:'2025-03-28'}],
       dist:[{cantidad:1000,material:'Agenda escolar 2025',precio:12.5,proforma:'PF-2025-0123',campo:'Misión Ejemplo',logistico:'Nombre del logístico',direccion:'Av. Ejemplo 123, Lima',agencia:'Shalom'}]};
     const wb=cliSheetsFor([ej],X);wb.Sheets.Pedidos['D2']={t:'s',v:u};
     const ins=X.utils.aoa_to_sheet([['Cómo llenar esta plantilla'],[''],['1. Hoja «Pedidos»: una fila por cliente / pedido. Obligatorios: Cliente y Trabajo. La Unidad va con su nombre tal como aparece en el sistema.'],
       ['2. Código: si lo dejas vacío, el sistema genera uno al importar. Si quieres registrar requerimientos, cambios, etapas o distribución, escribe un código (por ejemplo CP-HIST-2025-0001) y repítelo en las otras hojas para enlazarlos.'],
       ['3. Si el código ya existe en el sistema, la fila actualiza ese pedido. Si no existe, se crea un pedido nuevo con ese código.'],
-      ['4. Fechas en formato dd/mm/aaaa o aaaa-mm-dd. Montos sin «S/».'],['5. Hojas Requerimientos, Cambios, Etapas del estado y Distribución: opcionales. Si un pedido tiene filas en una de esas hojas, reemplazan las que tenía.'],
+      ['4. Fechas en formato dd/mm/aaaa o aaaa-mm-dd. Montos sin «S/».'],['5. Hojas Requerimientos, Cambios, Nuevas fechas de entrega, Etapas del estado y Distribución: opcionales. Si un pedido tiene filas en una de esas hojas, reemplazan las que tenía.'],
       ['6. Borra la fila de ejemplo antes de importar.'],[''],['Etapas válidas: '+CLI_EST.join(', ')],['Requerimientos sugeridos: '+CLI_REQ_TIPOS.join(', ')],['Cambios sugeridos: '+CLI_CAMB_TIPOS.join(', ')],['Clientes de la lista: '+CLI_CLIENTES.join(', ')+' (también puedes escribir otro)'],['Departamentos / áreas de la lista: '+CLI_DEPTOS.join(', ')+' (también puedes escribir otro)']]);
     ins['!cols']=[{wch:140}];X.utils.book_append_sheet(wb,ins,'Instrucciones');
     X.writeFile(wb,'plantilla_clientes_pedidos.xlsx')}catch(e){toast('No se pudo generar la plantilla. Revisa tu conexión.')}}
@@ -1121,7 +1153,7 @@ function openCliImport(){
   $('#cliImpGo').onclick=async()=>{const g=$('#cliImpGo');const rows=(cliImp?.rows||[]).filter(x=>!x.err.length);if(!rows.length)return;g.disabled=true;
     let okN=0,fail=0;const now=new Date().toISOString();
     for(const [i,x] of rows.entries()){g.textContent=`Importando ${i+1} de ${rows.length}…`;
-      const base=x.ex?{...x.ex}:{id:uid(),creado:now,creadoPor:actorId(),importado:now,reqs:[],cambios:[],procesos:[],dist:[]};
+      const base=x.ex?{...x.ex}:{id:uid(),creado:now,creadoPor:actorId(),importado:now,reqs:[],cambios:[],procesos:[],dist:[],reprog:[]};
       const o={...base};Object.entries(x.r).forEach(([k,v])=>{if(v!==''&&v!=null)o[k]=v;else if(!(k in base))o[k]=v});
       Object.entries(x.ch).forEach(([k,v])=>o[k]=v);
       if(x.ch.procesos)o.estado=cliEstado(o.procesos);else if(x.r.estado&&!(o.procesos||[]).length)o.procesos=[{etapa:x.r.estado,inicio:'',fin:'',obs:'Importado'}];
@@ -1134,6 +1166,7 @@ function openCliImport(){
 function bindClientes(){
   const qi=$('#cliQ');if(qi)qi.oninput=e=>{cliF.q=e.target.value;const p=e.target.selectionStart;render();const n2=$('#cliQ');n2.focus();try{n2.setSelectionRange(p,p)}catch(_){}};
   const es=$('#cliEst');if(es)es.onchange=e=>{cliF.estado=e.target.value;render()};
+  const as=$('#cliAse');if(as)as.onchange=e=>{cliF.asesor=e.target.value;render()};
   const rq=$('#cliReq');if(rq)rq.onchange=e=>{cliF.req=e.target.value;render()};
   const nb=$('#cliNew');if(nb)nb.onclick=()=>openCli(null);
   const ex=$('#cliExp');if(ex)ex.onclick=cliExport;const im=$('#cliImp');if(im)im.onclick=openCliImport;
