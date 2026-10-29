@@ -821,7 +821,7 @@ function reqInfo(x,cb){const t=today();const E=cb?'Atendido':'Entregado',e=cb?'a
   return {st:late?'Vencido':'Pendiente',c:late?'bad':'warn',dias:d,txt:`Solicitado ${fdate(x.solicitado)} · ${d} ${d===1?'día':'días'} ${w}${x.limite?' · límite '+fdate(x.limite):''}`}}
 function cliReqSum(r){const rs=r.reqs||[];const ent=rs.filter(x=>x.entregado).length;const venc=rs.filter(x=>reqInfo(x).st==='Vencido').length;
   const ds=rs.filter(x=>x.entregado&&x.solicitado).map(x=>dDiff(x.solicitado,x.entregado));return {tot:rs.length,ent,pend:rs.length-ent,venc,prom:ds.length?ds.reduce((a,b)=>a+b,0)/ds.length:null,completo:rs.length>0&&ent===rs.length}}
-const rucOk=v=>!v||/^(10|15|16|17|20)\d{9}$/.test(String(v).trim());
+const rucOk=v=>true; // se acepta cualquier RUC o ID tributario (incluye empresas del extranjero)
 const canEditCli=r=>!readOnly&&(canManage()||!r||!r.unidad||(myScopeUnits()||[]).includes(r.unidad)||r.creadoPor===actorId());
 function viewClientes(){
   const all=S.clientes.filter(r=>inFilter('clientes',r));
@@ -894,7 +894,7 @@ function openCli(id){
    <label>Asesor comercial<select name="asesor" ${ro}><option value="">—</option>${RAW.personal.filter(p=>p.estado!=='Cesado').map(p=>[p.id,p.nombre+(p.cargo?' — '+p.cargo:'')]).sort((a,b)=>a[1].localeCompare(b[1])).map(([v,l])=>`<option value="${v}" ${v===r.asesor?'selected':''}>${esc(l)}</option>`).join('')}</select></label>
    ${F('fechaIngreso','Fecha de ingreso','date')}${F('horaIngreso','Hora de ingreso','time')}${F('fechaProforma','Fecha recepción de proforma','date')}${F('horaProforma','Hora de recepción','time')}
    ${sec('Ventas · datos del cliente')}
-   ${F('cliente','Cliente *','text','style="grid-column:span 2"')}${F('ruc','RUC (11 dígitos)')}${F('responsable','Nombre del responsable')}
+   ${F('cliente','Cliente *','text','style="grid-column:span 2"')}${F('ruc','RUC / ID tributario')}${F('responsable','Nombre del responsable')}
    ${F('telefono','Teléfono','tel')}${F('email','E-mail','email','style="grid-column:span 2"')}<span></span>
    ${sec('Trabajo')}
    ${F('trabajo','Trabajo *','text','style="grid-column:span 2"')}${F('cantidad','Cantidad','number')}${F('formato','Formato')}
@@ -968,7 +968,6 @@ function bindCliDlg(){
     const bd=o.dist.find(x=>!x.material||x.cantidad===''||x.cantidad<=0);if(bd){cliErr('En «Distribución de materiales»: cada envío necesita material y una cantidad mayor a 0.');return}
     const miss=[['cliente','Cliente'],['trabajo','Trabajo'],['unidad','Unidad']].filter(([k])=>!o[k]).map(x=>x[1]);
     if(miss.length){const mk=[['cliente','Cliente'],['trabajo','Trabajo'],['unidad','Unidad']].find(([k])=>!o[k])[0];cliErr('Falta completar: '+miss.join(', ')+'.',mk);return}
-    if(!rucOk(o.ruc)){cliErr('El RUC debe tener 11 dígitos y empezar con 10, 15, 16, 17 o 20.','ruc');return}
     if(o.email&&!/^\S+@\S+\.\S+$/.test(o.email)){cliErr('Revisa el e-mail.','email');return}
     const bad=[...o.reqs,...(o.cambios||[])].find(x=>(x.entregado&&!x.solicitado)||(x.entregado&&x.solicitado&&x.entregado<x.solicitado)||(x.limite&&x.solicitado&&x.limite<x.solicitado));
     if(bad){cliErr(`En «${bad.tipo}»: ${!bad.solicitado?'falta la fecha de solicitud':bad.entregado&&bad.entregado<bad.solicitado?'la entrega o atención no puede ser antes de la solicitud':'la fecha límite no puede ser antes de la solicitud'}.`);return}
@@ -1081,7 +1080,6 @@ async function cliReadImport(f){
       if(r.asesor){const p=RAW.personal.find(p=>norm(p.nombre)===norm(r.asesor))||RAW.personal.find(p=>norm(p.nombre).includes(norm(r.asesor)));if(p)r.asesor=p.id;else{r.asesorTxt=r.asesor;r.asesor='';warn.push('asesor no encontrado en Personal (se guarda como texto)')}}
       ['tipoDoc','diseno','correccion','preprensa','servicio','precioIgv','estado'].forEach(k=>{if(r[k]==null||r[k]==='')return;const ops={tipoDoc:CLI_TIPOS,diseno:['Nuevo','Modificar'],correccion:['Sí','No'],preprensa:['Sí','No'],servicio:['Impresión','Reimpresión'],precioIgv:['Incluye IGV','Más IGV','Exonerado'],estado:CLI_EST}[k];const v=cliPick(r[k],ops);if(!v){warn.push(`«${r[k]}» no es válido en ${k==='tipoDoc'?'Tipo':k}`);delete r[k]}else r[k]=v});
       if(!r.cliente)err.push('falta el cliente');if(!r.trabajo)err.push('falta el trabajo');
-      if(r.ruc&&!rucOk(r.ruc))warn.push('RUC con formato no válido');
       if(r.codigo&&seen.has(r.codigo))err.push('código repetido en el archivo');if(r.codigo)seen.add(r.codigo);
       const ex=r.codigo?RAW.clientes.find(c=>c.codigo===r.codigo):(r.proforma?RAW.clientes.find(c=>!c.codigo&&norm(c.proforma)===norm(r.proforma)&&norm(c.cliente)===norm(r.cliente)):null);
       if(ex&&!canEditCli(ex))err.push('el pedido existe pero no tienes permiso para editarlo');
