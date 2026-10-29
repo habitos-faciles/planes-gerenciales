@@ -186,6 +186,19 @@ dialog label.full{grid-column:1/-1}
 @media (max-width:560px){.vwrap .vbar{grid-template-columns:minmax(0,1fr) auto}}
 #cliFrm .cli-bad{outline:2px solid var(--bad);outline-offset:1px}
 .cliMsg[hidden]{display:none!important}
+
+.cc-head,.cc-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+.cc-head div{font:600 .72rem var(--body);text-transform:uppercase;letter-spacing:.05em;color:var(--ink-2);padding:4px 6px}
+.cc-grid{border-top:1px solid var(--rule);border-left:1px solid var(--rule)}
+.cc-day{min-height:96px;border-right:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:4px;display:flex;flex-direction:column;gap:3px;min-width:0}
+.cc-day.out{background:color-mix(in srgb,var(--ink) 4%,transparent);opacity:.65}.cc-day.today .cc-n{background:var(--ink);color:var(--bg,#fff);border-radius:10px;padding:0 6px}
+.cc-n{font:600 .75rem var(--mono);align-self:flex-start}
+.cc-ev{all:unset;cursor:pointer;display:block;font-size:.72rem;line-height:1.25;padding:3px 5px;border-radius:5px;border-left:3px solid var(--rule);background:color-mix(in srgb,var(--ink) 6%,transparent);overflow:hidden;overflow-wrap:anywhere}
+.cc-ev span{display:block;color:var(--ink-2);font-size:.66rem}.cc-ev.ok{border-left-color:var(--ok)}.cc-ev.bad{border-left-color:var(--bad)}.cc-ev.warn{border-left-color:var(--warn)}
+.cc-ev:hover,.cc-ev:focus-visible{outline:2px solid var(--ink-2)}
+.cc-list{width:100%;border-collapse:collapse;margin-top:10px;font-size:.82rem}.cc-list th,.cc-list td{border-bottom:1px solid var(--rule-2,var(--rule));padding:5px 6px;text-align:left;vertical-align:top}
+@media print{.cc-day{border-color:#999}.cc-grid{border-color:#999}.cc-ev{background:#f2f2f2;color:#111}.cc-list th,.cc-list td{border:1px solid #999}}
+@media (max-width:700px){.cc-day{min-height:64px}.cc-ev b{display:none}}
 </style>
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px}img{max-width:100%}[hidden]{display:none!important}</style>
 <script src="config.js?v=2"></script>
@@ -859,7 +872,7 @@ function viewClientes(){
    <select id="cliAse" aria-label="Asesor comercial"><option value="">Todos los asesores</option>${cliAsesorOpts(all).map(([k,l])=>`<option value="${esc(k)}" ${k===cliF.asesor?'selected':''}>${esc(l)}</option>`).join('')}</select>
    <select id="cliEst" aria-label="Estado"><option value="">Todos los estados</option>${CLI_EST.map(e=>`<option ${e===cliF.estado?'selected':''}>${e}</option>`).join('')}</select>
    <select id="cliReq" aria-label="Requerimientos"><option value="">Todos los requerimientos</option><option value="pend" ${cliF.req==='pend'?'selected':''}>Con requerimientos pendientes</option><option value="venc" ${cliF.req==='venc'?'selected':''}>Con requerimientos vencidos</option><option value="ok" ${cliF.req==='ok'?'selected':''}>Requerimientos completos</option></select>
-   <button class="btn" id="cliExp" title="Descarga en Excel los pedidos de la vista actual">⬇ Exportar</button>${readOnly?'':'<button class="btn" id="cliImp" title="Cargar información pasada desde Excel">⬆ Importar</button><button class="btn primary" id="cliNew">+ Nuevo cliente / pedido</button>'}</div></div>
+   <button class="btn" id="cliExp" title="Descarga en Excel los pedidos de la vista actual">⬇ Exportar</button>${readOnly?'':'<button class="btn" id="cliImp" title="Cargar información pasada desde Excel">⬆ Importar</button><button class="btn primary" id="cliNew">+ Nuevo cliente / pedido</button><button class="btn" id="cliCal" title="Calendario con la fecha vigente de entrega al cliente de la lista filtrada">📅 Calendario de entregas</button>'}</div></div>
   <div class="note">Ficha «Información del cliente» para la elaboración de productos: datos del cliente y del trabajo, precio aprobado en la proforma y seguimiento de la entrega de requerimientos (texto, imágenes, material complementario).</div>
   <div class="kpis">
    <div class="kpi"><span class="l">Pedidos registrados</span><span class="v">${all.length}</span><span class="s">${(o=>o+(o===1?' orden':' órdenes'))(all.filter(r=>/Orden/.test(r.tipoDoc||'')).length)} · ${(c=>c+(c===1?' cotización':' cotizaciones'))(all.filter(r=>/Cotizaci/.test(r.tipoDoc||'')).length)}</span></div>
@@ -1165,12 +1178,49 @@ function openCliImport(){
       try{await put('clientes',o);if(!RAW.clientes.some(c=>c.id===o.id))RAW.clientes.push(o);okN++}catch(e){fail++}}
     dl.close();toast(`Importación terminada: ${okN} ${okN===1?'registro guardado':'registros guardados'}${fail?` · ${fail} con error`:''}.`);render()};
   dl.showModal()}
+/* ===== Calendario de entregas al cliente (lista filtrada) ===== */
+let cliCalM=null;
+const CLI_MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','setiembre','octubre','noviembre','diciembre'];
+function cliCalEvents(){return cliLastList.map(r=>({r,f:cliFechaVig(r)})).filter(x=>x.f).map(x=>{const r=x.r,ent=r.entregaConf==='Entregado'||r.estado==='Entregado';
+  const st=r.estado==='Anulado'?['Anulado','']:ent?['Entregado','ok']:x.f<today()?['Vencida','bad']:['Pendiente','warn'];return {...x,st,nrp:(r.reprog||[]).filter(y=>y.fecha).length}})}
+function cliCalHtml(forPrint){
+  const ev=cliCalEvents();const [y,m]=cliCalM;const first=new Date(y,m,1),start=new Date(y,m,1-first.getDay()),t=today();
+  const key=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const byDay={};ev.forEach(e=>(byDay[e.f]=byDay[e.f]||[]).push(e));
+  const inMonth=ev.filter(e=>e.f.startsWith(`${y}-${String(m+1).padStart(2,'0')}`)).sort((a,b)=>a.f.localeCompare(b.f));
+  let cells='';for(let i=0;i<42;i++){const d=new Date(start);d.setDate(start.getDate()+i);if(i>=35&&d.getMonth()!==m)break;const k=key(d),L=byDay[k]||[],out=d.getMonth()!==m;
+    cells+=`<div class="cc-day${out?' out':''}${k===t?' today':''}"><div class="cc-n">${d.getDate()}</div>${L.map(e=>`<button type="button" class="cc-ev ${e.st[1]}" ${forPrint?'':`data-calopen="${e.r.id}"`} title="${esc((e.r.codigo||'')+' · '+(e.r.cliente||'')+' · '+(e.r.trabajo||''))}"><b>${esc(e.r.cliente||'—')}</b> ${esc(e.r.trabajo||'')}<span>${[e.r.codigo,e.nrp?'reprog. '+e.nrp:'',e.st[0]].filter(Boolean).map(esc).join(' · ')}</span></button>`).join('')}</div>`}
+  const cnt=s=>inMonth.filter(e=>e.st[0]===s).length;
+  return `<div class="cc-head">${['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].map(d=>`<div>${d}</div>`).join('')}</div><div class="cc-grid">${cells}</div>
+   <div class="note" style="margin-top:8px">${inMonth.length} ${inMonth.length===1?'entrega':'entregas'} en ${CLI_MESES[m]} de ${y}: ${[['Entregado','entregada'],['Pendiente','pendiente'],['Vencida','vencida'],['Anulado','anulada']].filter(([s],i)=>i<3||cnt(s)).map(([s,w])=>cnt(s)+' '+w+(cnt(s)===1?'':'s')).join(' · ')}. Se usa la última fecha de entrega registrada (fecha vigente).</div>
+   ${inMonth.length?`<table class="cc-list"><thead><tr><th>Fecha</th><th>Código</th><th>Cliente</th><th>Trabajo</th><th>Asesor</th><th>Entrega</th></tr></thead><tbody>${inMonth.map(e=>`<tr><td>${fdate(e.f)}${e.nrp?`<div class="note">original ${fdate(e.r.fechaEntrega)}</div>`:''}</td><td class="mono">${esc(e.r.codigo||'—')}</td><td>${esc(e.r.cliente||'—')}${e.r.departamento?`<div class="note">${esc(e.r.departamento)}</div>`:''}</td><td>${esc(e.r.trabajo||'')}</td><td>${esc(e.r.asesor?pname(e.r.asesor):(e.r.asesorTxt||'—'))}</td><td><span class="pill ${e.st[1]}">${e.st[0]}</span></td></tr>`).join('')}</tbody></table>`:''}`}
+function openCliCal(){
+  const ev=cliCalEvents();if(!cliCalM){const t=today(),nx=ev.map(e=>e.f).filter(f=>f>=t).sort()[0]||ev.map(e=>e.f).sort().pop()||t;cliCalM=[+nx.slice(0,4),+nx.slice(5,7)-1]}
+  let dl=$('#cliCalDlg');if(!dl){dl=document.createElement('dialog');dl.id='cliCalDlg';dl.style.width='min(1180px,calc(100vw - 24px))';document.body.appendChild(dl)}
+  const draw=()=>{const [y,m]=cliCalM;dl.innerHTML=`<div class="hd" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div><h2>Calendario de entregas al cliente</h2><div class="note">${cliLastList.length} pedidos de la lista filtrada · ${ev.length} con fecha de entrega</div></div>
+    <div style="display:flex;gap:6px;align-items:center"><button type="button" class="btn small" id="ccPrev">◀</button><strong style="min-width:150px;text-align:center;text-transform:capitalize">${CLI_MESES[m]} ${y}</strong><button type="button" class="btn small" id="ccNext">▶</button><button type="button" class="btn small" id="ccHoy">Hoy</button></div></div>
+    <div class="bd" style="display:block">${cliCalHtml()}</div>
+    <div class="ft"><div class="note"><span class="pill warn">Pendiente</span> <span class="pill bad">Vencida</span> <span class="pill ok">Entregado</span> · clic en un pedido para abrirlo</div><div style="display:flex;gap:10px"><button type="button" class="btn" id="ccPrint">🖨 Imprimir mes</button><button type="button" class="btn primary" id="ccX">Cerrar</button></div></div>`;
+    $('#ccPrev').onclick=()=>{cliCalM=m?[y,m-1]:[y-1,11];draw()};$('#ccNext').onclick=()=>{cliCalM=m<11?[y,m+1]:[y+1,0];draw()};
+    $('#ccHoy').onclick=()=>{const t=today();cliCalM=[+t.slice(0,4),+t.slice(5,7)-1];draw()};$('#ccX').onclick=()=>dl.close();$('#ccPrint').onclick=printCliCal;
+    dl.querySelectorAll('[data-calopen]').forEach(b=>b.onclick=()=>{dl.close();openCli(b.dataset.calopen)})};
+  draw();if(!dl.open)dl.showModal()}
+function printCliCal(){const [y,m]=cliCalM;
+  document.getElementById('ccPrintBox')?.remove();document.getElementById('ccPrintCss')?.remove();
+  const st=document.createElement('style');st.id='ccPrintCss';st.textContent=`@page{size:A4 landscape;margin:8mm}@media screen{#ccPrintBox{display:none}}
+   @media print{body>*:not(#ccPrintBox){display:none!important}#ccPrintBox{display:block;font:8pt/1.25 Arial,Helvetica,sans-serif;color:#111}#ccPrintBox h1{font-size:14pt;margin:0 0 2px}#ccPrintBox .sub{color:#555;margin-bottom:6px}
+   #ccPrintBox .cc-day{min-height:70px}#ccPrintBox .cc-list{page-break-before:always}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}`;
+  document.head.appendChild(st);const box=document.createElement('div');box.id='ccPrintBox';
+  box.innerHTML=`<h1>Calendario de entregas al cliente · ${CLI_MESES[m][0].toUpperCase()+CLI_MESES[m].slice(1)} ${y}</h1><div class="sub">Editorial · Planes Gerenciales · Clientes y pedidos · Impreso el ${fdate(today())}</div>${cliCalHtml(true)}`;
+  document.body.appendChild(box);const oldT=document.title;document.title=`Calendario de entregas ${CLI_MESES[m]} ${y}`;
+  const clean=()=>{box.remove();st.remove();document.title=oldT;window.removeEventListener('afterprint',clean)};window.addEventListener('afterprint',clean);setTimeout(()=>window.print(),60)}
 function bindClientes(){
   const qi=$('#cliQ');if(qi)qi.oninput=e=>{cliF.q=e.target.value;const p=e.target.selectionStart;render();const n2=$('#cliQ');n2.focus();try{n2.setSelectionRange(p,p)}catch(_){}};
   const es=$('#cliEst');if(es)es.onchange=e=>{cliF.estado=e.target.value;render()};
   const as=$('#cliAse');if(as)as.onchange=e=>{cliF.asesor=e.target.value;render()};
   const rq=$('#cliReq');if(rq)rq.onchange=e=>{cliF.req=e.target.value;render()};
   const nb=$('#cliNew');if(nb)nb.onclick=()=>openCli(null);
+  const cc=$('#cliCal');if(cc)cc.onclick=openCliCal;
   const ex=$('#cliExp');if(ex)ex.onclick=cliExport;const im=$('#cliImp');if(im)im.onclick=openCliImport;
   document.querySelectorAll('[data-cliopen]').forEach(b=>b.onclick=()=>openCli(b.dataset.cliopen));
   document.querySelectorAll('[data-cliprint]').forEach(b=>b.onclick=()=>printCli(b.dataset.cliprint));
