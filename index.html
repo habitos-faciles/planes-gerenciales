@@ -204,6 +204,9 @@ dialog label.full{grid-column:1/-1}
 .cr-tabs button{all:unset;cursor:pointer;padding:8px 14px;font:600 .9rem var(--body);color:var(--ink-2);border-bottom:2px solid transparent;margin-bottom:-1px}
 .cr-tabs button.on{color:var(--ink);border-bottom-color:var(--cyan)}.cr-tabs button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 .cr-sec{margin-top:14px}.cr-sec h3{margin:0 0 4px}.cr-mx td,.cr-mx th{white-space:nowrap}
+
+.cc-ev.act{background:var(--cyan-soft);border-left-color:var(--cyan)}.cc-ev.act.ok{border-left-color:var(--ok)}.cc-ev.act.bad{border-left-color:var(--bad)}.cc-ev.cxl{text-decoration:line-through;opacity:.6}
+@media print{.cc-ev.act{background:#e6f4f9}}
 </style>
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px}img{max-width:100%}[hidden]{display:none!important}</style>
 <script src="config.js?v=2"></script>
@@ -805,7 +808,7 @@ function bindCal(){
 }
 
 /* ===== Módulo: Ventas EIU — clientes y pedidos (ficha «Información del cliente», precio aprobado y requerimientos) ===== */
-RAW.clientes=RAW.clientes||[];S.clientes=S.clientes||[];
+RAW.clientes=RAW.clientes||[];S.clientes=S.clientes||[];RAW.cliAct=RAW.cliAct||[];S.cliAct=S.cliAct||[];
 const CLI_CLIENTES=['UPN','APCE','MPN','MICOP','MINOP','ANOP','NT','SEHS NORTE','ASEACE','AEACOP','UPS','APC','MPCS','MCP','MOP','MSOP','MPLT','APS','SEHS SUR','ADRA','CAAS','CGH','CAJ','ACES'];
 const CLI_DEPTOS=['Mayordomía','MipEs','Ministerio Mujer','Ministerio Infantil','Ministerio Adolescente','Ministerio Joven','Educación','Publicaciones','Asoc. Ministerial','Tesorería','Secretaría','SVA','Legales','GTH'];
 function cliSelOtro(name,label,list,val,ro,extra=''){const v=val||'',inL=!v||list.includes(v);
@@ -849,9 +852,10 @@ function cliAsesorKeys(r){const k=new Set();if(r.asesor)k.add('p:'+r.asesor);els
 function cliAsesorOpts(all){const m=new Map();all.forEach(r=>cliAsesorKeys(r).forEach(k=>{if(m.has(k))return;m.set(k,k==='none'?'Sin asesor':k.startsWith('p:')?pname(k.slice(2)):r.asesorTxt||k.slice(2))}));
   return [...m].sort((a,b)=>a[0]==='none'?1:b[0]==='none'?-1:a[1].localeCompare(b[1]))}
 function scopeClientes(ac){
-  if(ac==='all'){S.clientes=RAW.clientes;return}
+  if(ac==='all'){S.clientes=RAW.clientes;S.cliAct=RAW.cliAct||[];return}
   const a=myAcc()||{},sc=myScopeUnits()||[];
   S.clientes=RAW.clientes.filter(r=>sc.includes(r.unidad)||(a.id&&r.creadoPor===a.id)||(a.persona&&r.asesor===a.persona));
+  S.cliAct=(RAW.cliAct||[]).filter(r=>sc.includes(r.unidad)||(a.id&&r.creadoPor===a.id)||(a.persona&&r.responsable===a.persona));
 }
 const dDiff=(a,b)=>Math.round((Date.parse(b+'T12:00:00')-Date.parse(a+'T12:00:00'))/864e5);
 function reqInfo(x,cb){const t=today();const E=cb?'Atendido':'Entregado',e=cb?'atendido':'entregado',w=cb?'esperando atención':'esperando';
@@ -874,17 +878,18 @@ function viewClientes(){
   const pend=sums.reduce((s,x)=>s+x.pend,0),venc=sums.reduce((s,x)=>s+x.venc,0);
   const ds=all.flatMap(r=>(r.reqs||[]).filter(x=>x.entregado&&x.solicitado).map(x=>dDiff(x.solicitado,x.entregado)));
   let h=`<div class="bar"><div class="left"><h2>Ventas EIU</h2>${unitFilterSel()}</div><div class="right"><input class="search" id="cliQ" placeholder="Buscar código, proforma, JOB, cliente, RUC…" value="${esc(cliF.q)}">
-   <select id="cliAse" aria-label="Asesor comercial"><option value="">Todos los asesores</option>${cliAsesorOpts(all).map(([k,l])=>`<option value="${esc(k)}" ${k===cliF.asesor?'selected':''}>${esc(l)}</option>`).join('')}</select>
+   <select id="cliAse" aria-label="Asesor comercial"><option value="">Todos los asesores</option>${cliAsesorOpts(all.concat((S.cliAct||[]).filter(a=>a.responsable||a.responsableTxt).map(a=>({asesor:a.responsable,asesorTxt:a.responsableTxt})))).map(([k,l])=>`<option value="${esc(k)}" ${k===cliF.asesor?'selected':''}>${esc(l)}</option>`).join('')}</select>
    <select id="cliEst" aria-label="Estado"><option value="">Todos los estados</option>${CLI_EST.map(e=>`<option ${e===cliF.estado?'selected':''}>${e}</option>`).join('')}</select>
    <select id="cliReq" aria-label="Requerimientos"><option value="">Todos los requerimientos</option><option value="pend" ${cliF.req==='pend'?'selected':''}>Con requerimientos pendientes</option><option value="venc" ${cliF.req==='venc'?'selected':''}>Con requerimientos vencidos</option><option value="ok" ${cliF.req==='ok'?'selected':''}>Requerimientos completos</option></select>
-   <button class="btn" id="cliExp" title="Descarga en Excel los pedidos de la vista actual">⬇ Exportar</button>${readOnly?'':'<button class="btn" id="cliImp" title="Cargar información pasada desde Excel">⬆ Importar</button><button class="btn primary" id="cliNew">+ Nuevo cliente / pedido</button><button class="btn" id="cliCal" title="Calendario con la fecha vigente de entrega al cliente de la lista filtrada">📅 Calendario de entregas</button>'}</div></div>
+   <button class="btn" id="cliExp" title="Descarga en Excel los pedidos de la vista actual">⬇ Exportar</button>${readOnly?'':'<button class="btn" id="cliImp" title="Cargar información pasada desde Excel">⬆ Importar</button><button class="btn primary" id="cliNew">+ Nuevo cliente / pedido</button><button class="btn" id="actNew" title="Registrar una cita, viaje, capacitación, entrevista u otra actividad">+ Actividad</button><button class="btn" id="cliCal" title="Calendario con la fecha vigente de entrega al cliente de la lista filtrada">📅 Calendario de entregas</button>'}</div></div>
   @@CLITABS@@<div class="note">Ficha «Información del cliente» para la elaboración de productos: datos del cliente y del trabajo, precio aprobado en la proforma y seguimiento de la entrega de requerimientos (texto, imágenes, material complementario).</div>
   <div class="kpis">
    <div class="kpi"><span class="l">Pedidos registrados</span><span class="v">${all.length}</span><span class="s">${(o=>o+(o===1?' orden':' órdenes'))(all.filter(r=>/Orden/.test(r.tipoDoc||'')).length)} · ${(c=>c+(c===1?' cotización':' cotizaciones'))(all.filter(r=>/Cotizaci/.test(r.tipoDoc||'')).length)}</span></div>
    <div class="kpi"><span class="l">Precio aprobado en proformas</span><span class="v">${money(monto)}</span><span class="s">${aprob} de ${all.length} con precio aprobado</span></div>
    <div class="kpi"><span class="l">Requerimientos pendientes</span><span class="v" style="${venc?'color:var(--bad)':''}">${pend}</span><span class="s">${venc} vencidos</span></div>
    <div class="kpi"><span class="l">Tiempo promedio de entrega</span><span class="v">${ds.length?(ds.reduce((a,b)=>a+b,0)/ds.length).toLocaleString('es-PE',{maximumFractionDigits:1}):'—'}</span><span class="s">días entre solicitud y entrega del cliente</span></div></div>`;
-  const tabs=`<div class="cr-tabs" role="tablist"><button type="button" role="tab" class="${cliF.vista!=='rep'?'on':''}" data-clivista="reg" aria-selected="${cliF.vista!=='rep'}">📋 Registros</button><button type="button" role="tab" class="${cliF.vista==='rep'?'on':''}" data-clivista="rep" aria-selected="${cliF.vista==='rep'}">📊 Reportes</button></div>`;
+  const tabs=`<div class="cr-tabs" role="tablist"><button type="button" role="tab" class="${cliF.vista==='reg'||!cliF.vista?'on':''}" data-clivista="reg" aria-selected="${cliF.vista==='reg'}">📋 Registros</button><button type="button" role="tab" class="${cliF.vista==='act'?'on':''}" data-clivista="act" aria-selected="${cliF.vista==='act'}">🗓 Actividades <span class="note">${(S.cliAct||[]).filter(a=>inFilter('clientes',a)).length||''}</span></button><button type="button" role="tab" class="${cliF.vista==='rep'?'on':''}" data-clivista="rep" aria-selected="${cliF.vista==='rep'}">📊 Reportes</button></div>`;
+  if(cliF.vista==='act')return h.slice(0,h.indexOf('@@CLITABS@@'))+tabs+viewActividades();
   if(cliF.vista==='rep')return h.slice(0,h.indexOf('@@CLITABS@@'))+tabs+(list.length?cliReportHtml(list):`<div class="panel empty"><strong>${all.length?'Ningún pedido coincide con los filtros':'Aún no hay pedidos registrados'}</strong>El reporte se arma con los pedidos de la lista filtrada.</div>`);
   h=h.replace('@@CLITABS@@',tabs);
   if(!list.length)return h+`<div class="panel empty"><strong>${all.length?'Ningún pedido coincide con los filtros':'Aún no hay clientes registrados'}</strong>${readOnly?'':'Usa «+ Nuevo cliente / pedido» para registrar la primera ficha.'}</div>`;
@@ -1187,32 +1192,102 @@ function openCliImport(){
       try{await put('clientes',o);if(!RAW.clientes.some(c=>c.id===o.id))RAW.clientes.push(o);okN++}catch(e){fail++}}
     dl.close();toast(`Importación terminada: ${okN} ${okN===1?'registro guardado':'registros guardados'}${fail?` · ${fail} con error`:''}.`);render()};
   dl.showModal()}
+/* ===== Ventas EIU: actividades (citas, viajes, capacitaciones, entrevistas…) ===== */
+const ACT_TIPOS=['Cita','Viaje','Capacitación','Entrevista','Reunión','Visita a cliente','Feria / evento','Presentación de producto','Llamada de seguimiento','Otro'];
+const ACT_EST=['Programada','Realizada','Reprogramada','Cancelada'];
+let actF={tipo:'',estado:''},actLastList=[],actEd=null;
+function actRange(a){const i=a.fechaIni||'',f=a.fechaFin&&a.fechaFin>=i?a.fechaFin:i;return [i,f]}
+function actSt(a){if(a.estado==='Cancelada')return ['Cancelada',''];if(a.estado==='Realizada')return ['Realizada','ok'];const [,f]=actRange(a);if(f&&f<today())return ['Sin cerrar','bad'];return [a.estado==='Reprogramada'?'Reprogramada':'Programada','info']}
+function actResp(a){return a.responsable?pname(a.responsable):(a.responsableTxt||'—')}
+function actHorario(a){const [i,f]=actRange(a);if(!i)return '—';return fdate(i)+(a.horaIni?' '+a.horaIni:'')+(f!==i?' → '+fdate(f):'')+(a.horaFin?(f!==i?' ':' – ')+a.horaFin:'')}
+function actFiltered(){const L=(S.cliAct||[]).filter(a=>inFilter('clientes',a));
+  return L.filter(a=>(!actF.tipo||a.tipo===actF.tipo)&&(!actF.estado||actSt(a)[0]===actF.estado||a.estado===actF.estado)&&(!cliF.asesor||(cliF.asesor==='none'?!a.responsable&&!a.responsableTxt:(cliF.asesor==='p:'+a.responsable||cliF.asesor==='t:'+norm(a.responsableTxt||''))))
+    &&(!cliF.q||norm([a.titulo,a.tipo,a.cliente,a.lugar,a.participantes,a.descripcion,a.codigoPedido].join(' ')).includes(norm(cliF.q))))
+   .sort((a,b)=>String(b.fechaIni||'').localeCompare(String(a.fechaIni||'')))}
+function viewActividades(){const L=actFiltered();actLastList=L;const t=today();
+  const prox=L.filter(a=>actRange(a)[1]>=t&&!['Cancelada','Realizada'].includes(a.estado)).length,real=L.filter(a=>a.estado==='Realizada').length,sinc=L.filter(a=>actSt(a)[0]==='Sin cerrar').length;
+  const tipos=ACT_TIPOS.map(x=>[x,L.filter(a=>a.tipo===x).length]).filter(x=>x[1]);
+  let h=`<div class="bar" style="justify-content:flex-start;gap:8px;flex-wrap:wrap"><select id="actTipo" aria-label="Tipo"><option value="">Todos los tipos</option>${ACT_TIPOS.map(x=>`<option ${x===actF.tipo?'selected':''}>${x}</option>`).join('')}</select>
+    <select id="actEst" aria-label="Estado de la actividad"><option value="">Todos los estados</option>${[...ACT_EST,'Sin cerrar'].map(x=>`<option ${x===actF.estado?'selected':''}>${x}</option>`).join('')}</select><span style="flex:1"></span>${readOnly?'':'<button class="btn primary" id="actNew2">+ Nueva actividad</button>'}</div>
+   <div class="note">Registra citas, viajes, capacitaciones, entrevistas y otras actividades comerciales. También aparecen en el 📅 Calendario. El filtro de asesor y la búsqueda de arriba se aplican por responsable y por texto.</div>
+   <div class="kpis"><div class="kpi"><span class="l">Actividades</span><span class="v">${L.length}</span><span class="s">${tipos.slice(0,3).map(([x,c])=>c+' '+x.toLowerCase()).join(' · ')||'—'}</span></div>
+    <div class="kpi"><span class="l">Próximas</span><span class="v">${prox}</span><span class="s">programadas desde hoy</span></div>
+    <div class="kpi"><span class="l">Realizadas</span><span class="v">${real}</span><span class="s">con resultado registrado: ${L.filter(a=>a.estado==='Realizada'&&a.resultado).length}</span></div>
+    <div class="kpi"><span class="l">Sin cerrar</span><span class="v" style="${sinc?'color:var(--bad)':''}">${sinc}</span><span class="s">ya pasaron y no se marcaron como realizadas</span></div></div>`;
+  if(!L.length)return h+`<div class="panel empty"><strong>${(S.cliAct||[]).length?'Ninguna actividad coincide con los filtros':'Aún no hay actividades registradas'}</strong>${readOnly?'':'Usa «+ Nueva actividad» para registrar la primera.'}</div>`;
+  return h+`<div class="tbl"><table><thead><tr><th>Fecha y hora</th><th>Tipo</th><th>Actividad</th><th>Cliente / lugar</th><th>Responsable</th><th>Estado</th><th></th></tr></thead><tbody>${L.map(a=>{const s=actSt(a);return `<tr>
+    <td style="white-space:nowrap"><strong>${actHorario(a)}</strong></td><td><span class="pill">${esc(a.tipo||'—')}</span></td>
+    <td><strong>${esc(a.titulo||'—')}</strong>${a.codigoPedido?`<div class="note">Pedido ${esc(a.codigoPedido)}</div>`:''}${a.resultado?`<div class="note">Resultado: ${esc(a.resultado.slice(0,120))}${a.resultado.length>120?'…':''}</div>`:''}</td>
+    <td>${esc(a.cliente||'—')}${a.lugar?`<div class="note">${esc(a.lugar)}</div>`:''}</td><td>${esc(actResp(a))}${a.participantes?`<div class="note">${esc(a.participantes)}</div>`:''}</td>
+    <td><span class="pill ${s[1]}">${s[0]}</span></td><td><button class="btn small" data-actopen="${a.id}">${canEditCli(a)?'Abrir / editar':'Ver'}</button></td></tr>`}).join('')}</tbody></table></div>`}
+function openAct(id,preset){
+  const a=id?{...(S.cliAct||[]).find(x=>x.id===id)}:{kind:'act',tipo:'Cita',estado:'Programada',fechaIni:today(),unidad:filterUnit!=='ALL'&&filterUnit!=='GG!'?fUnit():((myScopeUnits()||[])[0]||''),...(preset||{})};
+  const ro=!canEditCli(id?a:null)?'disabled':'';actEd={id,a,ro:!!ro};
+  let dl=$('#actDlg');if(!dl){dl=document.createElement('dialog');dl.id='actDlg';dl.style.width='min(860px,calc(100vw - 24px))';document.body.appendChild(dl)}
+  const F=(k,l,type='text',extra='')=>`<label ${extra}>${l}<input name="${k}" type="${type}" value="${esc(a[k]??'')}" ${type==='number'?'step="any" min="0"':''} ${ro}></label>`;
+  const peds=(S.clientes||[]).filter(c=>c.codigo).sort((x,y)=>String(y.codigo).localeCompare(String(x.codigo))).slice(0,400);
+  dl.innerHTML=`<form id="actFrm" method="dialog" novalidate><div class="hd"><h2>${id?(ro?'Ver':'Editar'):'Nueva'} actividad</h2><div class="note">Citas, viajes, capacitaciones, entrevistas y otras actividades comerciales</div></div>
+   <div class="bd" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+    <label>Tipo *<select name="tipo" ${ro}>${ACT_TIPOS.map(x=>`<option ${x===a.tipo?'selected':''}>${x}</option>`).join('')}</select></label>
+    <label style="grid-column:span 2">Actividad / motivo *<input name="titulo" value="${esc(a.titulo||'')}" placeholder="Ej. Presentación del catálogo 2027" ${ro}></label>
+    <label>Estado<select name="estado" ${ro}>${ACT_EST.map(x=>`<option ${x===a.estado?'selected':''}>${x}</option>`).join('')}</select></label>
+    ${F('fechaIni','Fecha de inicio *','date')}${F('horaIni','Hora de inicio','time')}${F('fechaFin','Fecha de fin','date')}${F('horaFin','Hora de fin','time')}
+    <label style="grid-column:span 2">Cliente<input name="cliente" list="actCliLst" value="${esc(a.cliente||'')}" placeholder="Elige o escribe" ${ro}><datalist id="actCliLst">${CLI_CLIENTES.map(c=>`<option value="${esc(c)}">`).join('')}</datalist></label>
+    <label style="grid-column:span 2">Lugar / destino<input name="lugar" value="${esc(a.lugar||'')}" placeholder="Ej. Juliaca · Colegio Adventista" ${ro}></label>
+    <label>Unidad *<select name="unidad" ${ro}><option value="">—</option>${myUnitOpts().map(([v,l])=>`<option value="${v}" ${v===a.unidad?'selected':''}>${esc(l)}</option>`).join('')}</select></label>
+    <label>Responsable<select name="responsable" ${ro}><option value="">—</option>${RAW.personal.filter(p=>p.estado!=='Cesado').map(p=>[p.id,p.nombre+(p.cargo?' — '+p.cargo:'')]).sort((x,y)=>x[1].localeCompare(y[1])).map(([v,l])=>`<option value="${v}" ${v===a.responsable?'selected':''}>${esc(l)}</option>`).join('')}</select></label>
+    <label style="grid-column:span 2">Participantes<input name="participantes" value="${esc(a.participantes||'')}" placeholder="Personas que participan" ${ro}></label>
+    <label style="grid-column:span 2">Pedido vinculado (opcional)<select name="codigoPedido" ${ro}><option value="">— Ninguno —</option>${peds.map(c=>`<option value="${esc(c.codigo)}" ${c.codigo===a.codigoPedido?'selected':''}>${esc(c.codigo+' · '+(c.cliente||'')+' · '+(c.trabajo||''))}</option>`).join('')}</select></label>
+    ${F('costo','Costo / viáticos (S/)','number')}<span></span>
+    <label style="grid-column:1/-1">Descripción / agenda<textarea name="descripcion" ${ro}>${esc(a.descripcion||'')}</textarea></label>
+    <label style="grid-column:1/-1">Resultados / acuerdos<textarea name="resultado" placeholder="Qué se logró, compromisos, próximos pasos" ${ro}>${esc(a.resultado||'')}</textarea></label>
+   </div>
+   <div class="ft"><div><b class="actMsg" hidden style="display:block;color:var(--bad);margin-bottom:6px"></b>${id&&!ro?'<button type="button" class="btn danger" id="actDel">Eliminar</button>':''}</div><div style="display:flex;gap:10px"><button type="button" class="btn" id="actCancel">${ro?'Cerrar':'Cancelar'}</button>${ro?'':'<button type="submit" class="btn primary">Guardar</button>'}</div></div></form>`;
+  $('#actCancel').onclick=()=>dl.close();
+  const dd=$('#actDel');if(dd)dd.onclick=async()=>{if(!dd.dataset.arm){dd.dataset.arm=1;dd.textContent='Confirmar eliminación';return}try{await del('clientes',actEd.id);dl.close();toast('Actividad eliminada.')}catch(e){dbErr(e)}};
+  $('#actFrm').onsubmit=async e=>{e.preventDefault();if(actEd.ro)return;const fd=new FormData($('#actFrm'));const o={...actEd.a,kind:'act'};
+    ['tipo','titulo','estado','fechaIni','horaIni','fechaFin','horaFin','cliente','lugar','unidad','responsable','participantes','codigoPedido','costo','descripcion','resultado'].forEach(k=>{const v=fd.get(k);if(v!==null)o[k]=String(v).trim()});
+    o.costo=o.costo===''?'':+o.costo;
+    const err=(m,f)=>{toast(m);const b=$('#actDlg .actMsg');b.textContent='⚠ '+m;b.hidden=false;const el=f&&$('#actFrm [name='+f+']');if(el){el.classList.add('cli-bad');el.focus()}};
+    if(!o.titulo)return err('Escribe la actividad o motivo.','titulo');if(!o.fechaIni)return err('Falta la fecha de inicio.','fechaIni');if(!o.unidad)return err('Elige la unidad.','unidad');
+    if(o.fechaFin&&o.fechaFin<o.fechaIni)return err('La fecha de fin no puede ser antes de la de inicio.','fechaFin');
+    if(!actEd.id){o.id=uid();o.creado=new Date().toISOString();o.creadoPor=actorId()}o.actualizado=new Date().toISOString();
+    try{await put('clientes',o);dl.close();toast('Actividad guardada.')}catch(x){dbErr(x)}};
+  dl.querySelectorAll('#actFrm input,#actFrm select').forEach(el=>el.addEventListener('input',()=>el.classList.remove('cli-bad')));
+  dl.showModal()}
 /* ===== Calendario de entregas al cliente (lista filtrada) ===== */
-let cliCalM=null;
+let cliCalM=null,cliCalShow={ent:true,act:true};
 const CLI_MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','setiembre','octubre','noviembre','diciembre'];
 function cliCalEvents(){return cliLastList.map(r=>({r,f:cliFechaVig(r)})).filter(x=>x.f).map(x=>{const r=x.r,ent=r.entregaConf==='Entregado'||r.estado==='Entregado';
   const st=r.estado==='Anulado'?['Anulado','']:ent?['Entregado','ok']:x.f<today()?['Vencida','bad']:['Pendiente','warn'];return {...x,st,nrp:(r.reprog||[]).filter(y=>y.fecha).length}})}
 function cliCalHtml(forPrint){
   const ev=cliCalEvents();const [y,m]=cliCalM;const first=new Date(y,m,1),start=new Date(y,m,1-first.getDay()),t=today();
   const key=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  const byDay={};ev.forEach(e=>(byDay[e.f]=byDay[e.f]||[]).push(e));
-  const inMonth=ev.filter(e=>e.f.startsWith(`${y}-${String(m+1).padStart(2,'0')}`)).sort((a,b)=>a.f.localeCompare(b.f));
+  const byDay={};if(cliCalShow.ent)ev.forEach(e=>(byDay[e.f]=byDay[e.f]||[]).push(e));
+  const acts=cliCalShow.act?actFiltered():[],aDay={};acts.forEach(a=>{const [i,f]=actRange(a);if(!i)return;let d=new Date(i+'T12:00:00');for(let c=0;c<62;c++){const k=key(d);(aDay[k]=aDay[k]||[]).push(a);if(k>=f)break;d.setDate(d.getDate()+1)}});
+  const ym=`${y}-${String(m+1).padStart(2,'0')}`,actM=acts.filter(a=>{const [i,f]=actRange(a);return i&&i.slice(0,7)<=ym&&f.slice(0,7)>=ym}).sort((p,q)=>(p.fechaIni+(p.horaIni||'')).localeCompare(q.fechaIni+(q.horaIni||'')));
+  const inMonth=(cliCalShow.ent?ev:[]).filter(e=>e.f.startsWith(`${y}-${String(m+1).padStart(2,'0')}`)).sort((a,b)=>a.f.localeCompare(b.f));
   let cells='';for(let i=0;i<42;i++){const d=new Date(start);d.setDate(start.getDate()+i);if(i>=35&&d.getMonth()!==m)break;const k=key(d),L=byDay[k]||[],out=d.getMonth()!==m;
-    cells+=`<div class="cc-day${out?' out':''}${k===t?' today':''}"><div class="cc-n">${d.getDate()}</div>${L.map(e=>`<button type="button" class="cc-ev ${e.st[1]}" ${forPrint?'':`data-calopen="${e.r.id}"`} title="${esc((e.r.codigo||'')+' · '+(e.r.cliente||'')+' · '+(e.r.trabajo||''))}"><b>${esc(e.r.cliente||'—')}</b> ${esc(e.r.trabajo||'')}<span>${[e.r.codigo,e.nrp?'reprog. '+e.nrp:'',e.st[0]].filter(Boolean).map(esc).join(' · ')}</span></button>`).join('')}</div>`}
+    cells+=`<div class="cc-day${out?' out':''}${k===t?' today':''}"><div class="cc-n">${d.getDate()}</div>${L.map(e=>`<button type="button" class="cc-ev ${e.st[1]}" ${forPrint?'':`data-calopen="${e.r.id}"`} title="${esc((e.r.codigo||'')+' · '+(e.r.cliente||'')+' · '+(e.r.trabajo||''))}"><b>${esc(e.r.cliente||'—')}</b> ${esc(e.r.trabajo||'')}<span>${[e.r.codigo,e.nrp?'reprog. '+e.nrp:'',e.st[0]].filter(Boolean).map(esc).join(' · ')}</span></button>`).join('')}${(aDay[k]||[]).map(a=>{const s=actSt(a);return `<button type="button" class="cc-ev act ${s[1]}${a.estado==='Cancelada'?' cxl':''}" ${forPrint?'':`data-calact="${a.id}"`} title="${esc(a.tipo+' · '+(a.titulo||'')+(a.cliente?' · '+a.cliente:''))}"><b>${esc(a.tipo)}</b> ${esc(a.titulo||'')}<span>${[a.fechaIni===k&&a.horaIni?a.horaIni:'',a.cliente,s[0]].filter(Boolean).map(esc).join(' · ')}</span></button>`}).join('')}</div>`}
   const cnt=s=>inMonth.filter(e=>e.st[0]===s).length;
   return `<div class="cc-head">${['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].map(d=>`<div>${d}</div>`).join('')}</div><div class="cc-grid">${cells}</div>
-   <div class="note" style="margin-top:8px">${inMonth.length} ${inMonth.length===1?'entrega':'entregas'} en ${CLI_MESES[m]} de ${y}: ${[['Entregado','entregada'],['Pendiente','pendiente'],['Vencida','vencida'],['Anulado','anulada']].filter(([s],i)=>i<3||cnt(s)).map(([s,w])=>cnt(s)+' '+w+(cnt(s)===1?'':'s')).join(' · ')}. Se usa la última fecha de entrega registrada (fecha vigente).</div>
-   ${inMonth.length?`<table class="cc-list"><thead><tr><th>Fecha</th><th>Código</th><th>Cliente</th><th>Trabajo</th><th>Asesor</th><th>Entrega</th></tr></thead><tbody>${inMonth.map(e=>`<tr><td>${fdate(e.f)}${e.nrp?`<div class="note">original ${fdate(e.r.fechaEntrega)}</div>`:''}</td><td class="mono">${esc(e.r.codigo||'—')}</td><td>${esc(e.r.cliente||'—')}${e.r.departamento?`<div class="note">${esc(e.r.departamento)}</div>`:''}</td><td>${esc(e.r.trabajo||'')}</td><td>${esc(e.r.asesor?pname(e.r.asesor):(e.r.asesorTxt||'—'))}</td><td><span class="pill ${e.st[1]}">${e.st[0]}</span></td></tr>`).join('')}</tbody></table>`:''}`}
+   <div class="note" style="margin-top:8px">${cliCalShow.act?`${actM.length} ${actM.length===1?'actividad':'actividades'} · `:''}${inMonth.length} ${inMonth.length===1?'entrega':'entregas'} en ${CLI_MESES[m]} de ${y}: ${[['Entregado','entregada'],['Pendiente','pendiente'],['Vencida','vencida'],['Anulado','anulada']].filter(([s],i)=>i<3||cnt(s)).map(([s,w])=>cnt(s)+' '+w+(cnt(s)===1?'':'s')).join(' · ')}. Se usa la última fecha de entrega registrada (fecha vigente).</div>
+   ${inMonth.length?`<table class="cc-list"><thead><tr><th>Fecha</th><th>Código</th><th>Cliente</th><th>Trabajo</th><th>Asesor</th><th>Entrega</th></tr></thead><tbody>${inMonth.map(e=>`<tr><td>${fdate(e.f)}${e.nrp?`<div class="note">original ${fdate(e.r.fechaEntrega)}</div>`:''}</td><td class="mono">${esc(e.r.codigo||'—')}</td><td>${esc(e.r.cliente||'—')}${e.r.departamento?`<div class="note">${esc(e.r.departamento)}</div>`:''}</td><td>${esc(e.r.trabajo||'')}</td><td>${esc(e.r.asesor?pname(e.r.asesor):(e.r.asesorTxt||'—'))}</td><td><span class="pill ${e.st[1]}">${e.st[0]}</span></td></tr>`).join('')}</tbody></table>`:''}
+   ${actM.length?`<h3 style="margin:14px 0 4px">Actividades del mes</h3><table class="cc-list"><thead><tr><th>Fecha y hora</th><th>Tipo</th><th>Actividad</th><th>Cliente / lugar</th><th>Responsable</th><th>Estado</th></tr></thead><tbody>${actM.map(a=>`<tr><td>${actHorario(a)}</td><td>${esc(a.tipo)}</td><td>${esc(a.titulo||'')}</td><td>${esc(a.cliente||'—')}${a.lugar?`<div class="note">${esc(a.lugar)}</div>`:''}</td><td>${esc(actResp(a))}</td><td><span class="pill ${actSt(a)[1]}">${actSt(a)[0]}</span></td></tr>`).join('')}</tbody></table>`:''}`}
 function openCliCal(){
-  const ev=cliCalEvents();if(!cliCalM){const t=today(),nx=ev.map(e=>e.f).filter(f=>f>=t).sort()[0]||ev.map(e=>e.f).sort().pop()||t;cliCalM=[+nx.slice(0,4),+nx.slice(5,7)-1]}
+  const ev=cliCalEvents();if(!cliCalM){const t=today(),fs=ev.map(e=>e.f).concat(actFiltered().map(a=>a.fechaIni).filter(Boolean)),nx=fs.filter(f=>f>=t).sort()[0]||fs.sort().pop()||t;cliCalM=[+nx.slice(0,4),+nx.slice(5,7)-1]}
   let dl=$('#cliCalDlg');if(!dl){dl=document.createElement('dialog');dl.id='cliCalDlg';dl.style.width='min(1180px,calc(100vw - 24px))';document.body.appendChild(dl)}
-  const draw=()=>{const [y,m]=cliCalM;dl.innerHTML=`<div class="hd" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div><h2>Calendario de entregas al cliente</h2><div class="note">${cliLastList.length} pedidos de la lista filtrada · ${ev.length} con fecha de entrega</div></div>
+  const draw=()=>{const [y,m]=cliCalM;dl.innerHTML=`<div class="hd" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div><h2>Calendario de entregas y actividades</h2><div class="note">${cliLastList.length} ${cliLastList.length===1?'pedido':'pedidos'} de la lista filtrada · ${ev.length} con fecha de entrega · ${actFiltered().length} ${actFiltered().length===1?'actividad':'actividades'}</div>
+    <div style="display:flex;gap:12px;margin-top:4px"><label class="note" style="flex-direction:row;display:flex;gap:4px;align-items:center"><input type="checkbox" id="ccShEnt" ${cliCalShow.ent?'checked':''}> Entregas</label><label class="note" style="flex-direction:row;display:flex;gap:4px;align-items:center"><input type="checkbox" id="ccShAct" ${cliCalShow.act?'checked':''}> Actividades</label>${readOnly?'':'<button type="button" class="btn small" id="ccAddAct">+ Actividad</button>'}</div></div>
     <div style="display:flex;gap:6px;align-items:center"><button type="button" class="btn small" id="ccPrev">◀</button><strong style="min-width:150px;text-align:center;text-transform:capitalize">${CLI_MESES[m]} ${y}</strong><button type="button" class="btn small" id="ccNext">▶</button><button type="button" class="btn small" id="ccHoy">Hoy</button></div></div>
     <div class="bd" style="display:block">${cliCalHtml()}</div>
-    <div class="ft"><div class="note"><span class="pill warn">Pendiente</span> <span class="pill bad">Vencida</span> <span class="pill ok">Entregado</span> · clic en un pedido para abrirlo</div><div style="display:flex;gap:10px"><button type="button" class="btn" id="ccPrint">🖨 Imprimir mes</button><button type="button" class="btn primary" id="ccX">Cerrar</button></div></div>`;
+    <div class="ft"><div class="note"><span class="pill warn">Pendiente</span> <span class="pill bad">Vencida</span> <span class="pill ok">Entregado</span> <span class="pill" style="border:1px dashed var(--cyan)">Actividad</span> · clic para abrir</div><div style="display:flex;gap:10px"><button type="button" class="btn" id="ccPrint">🖨 Imprimir mes</button><button type="button" class="btn primary" id="ccX">Cerrar</button></div></div>`;
     $('#ccPrev').onclick=()=>{cliCalM=m?[y,m-1]:[y-1,11];draw()};$('#ccNext').onclick=()=>{cliCalM=m<11?[y,m+1]:[y+1,0];draw()};
     $('#ccHoy').onclick=()=>{const t=today();cliCalM=[+t.slice(0,4),+t.slice(5,7)-1];draw()};$('#ccX').onclick=()=>dl.close();$('#ccPrint').onclick=printCliCal;
-    dl.querySelectorAll('[data-calopen]').forEach(b=>b.onclick=()=>{dl.close();openCli(b.dataset.calopen)})};
+    dl.querySelectorAll('[data-calopen]').forEach(b=>b.onclick=()=>{dl.close();openCli(b.dataset.calopen)});
+    dl.querySelectorAll('[data-calact]').forEach(b=>b.onclick=()=>{dl.close();openAct(b.dataset.calact)});
+    $('#ccShEnt').onchange=e=>{cliCalShow.ent=e.target.checked;draw()};$('#ccShAct').onchange=e=>{cliCalShow.act=e.target.checked;draw()};
+    const aa=$('#ccAddAct');if(aa)aa.onclick=()=>{dl.close();openAct(null)}};
   draw();if(!dl.open)dl.showModal()}
 function printCliCal(){const [y,m]=cliCalM;
   document.getElementById('ccPrintBox')?.remove();document.getElementById('ccPrintCss')?.remove();
@@ -1220,7 +1295,7 @@ function printCliCal(){const [y,m]=cliCalM;
    @media print{body>*:not(#ccPrintBox){display:none!important}#ccPrintBox{display:block;font:8pt/1.25 Arial,Helvetica,sans-serif;color:#111}#ccPrintBox h1{font-size:14pt;margin:0 0 2px}#ccPrintBox .sub{color:#555;margin-bottom:6px}
    #ccPrintBox .cc-day{min-height:70px}#ccPrintBox .cc-list{page-break-before:always}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}`;
   document.head.appendChild(st);const box=document.createElement('div');box.id='ccPrintBox';
-  box.innerHTML=`<h1>Calendario de entregas al cliente · ${CLI_MESES[m][0].toUpperCase()+CLI_MESES[m].slice(1)} ${y}</h1><div class="sub">Editorial · Planes Gerenciales · Ventas EIU · Impreso el ${fdate(today())}</div>${cliCalHtml(true)}`;
+  box.innerHTML=`<h1>Calendario de entregas y actividades · ${CLI_MESES[m][0].toUpperCase()+CLI_MESES[m].slice(1)} ${y}</h1><div class="sub">Editorial · Planes Gerenciales · Ventas EIU · Impreso el ${fdate(today())}</div>${cliCalHtml(true)}`;
   document.body.appendChild(box);const oldT=document.title;document.title=`Calendario de entregas ${CLI_MESES[m]} ${y}`;
   const clean=()=>{box.remove();st.remove();document.title=oldT;window.removeEventListener('afterprint',clean)};window.addEventListener('afterprint',clean);setTimeout(()=>window.print(),60)}
 /* ===== Ventas EIU: reportes ===== */
@@ -1314,7 +1389,10 @@ function bindClientes(){
   const as=$('#cliAse');if(as)as.onchange=e=>{cliF.asesor=e.target.value;render()};
   const rq=$('#cliReq');if(rq)rq.onchange=e=>{cliF.req=e.target.value;render()};
   const nb=$('#cliNew');if(nb)nb.onclick=()=>openCli(null);
-  const cc=$('#cliCal');if(cc)cc.onclick=openCliCal;
+  const cc=$('#cliCal');if(cc)cc.onclick=()=>{cliCalM=null;openCliCal()};
+  ['actNew','actNew2'].forEach(i=>{const b=$('#'+i);if(b)b.onclick=()=>openAct(null)});
+  document.querySelectorAll('[data-actopen]').forEach(b=>b.onclick=()=>openAct(b.dataset.actopen));
+  const at=$('#actTipo');if(at)at.onchange=e=>{actF.tipo=e.target.value;render()};const ae=$('#actEst');if(ae)ae.onchange=e=>{actF.estado=e.target.value;render()};
   document.querySelectorAll('[data-clivista]').forEach(b=>b.onclick=()=>{cliF.vista=b.dataset.clivista;render()});
   const ca=$('#crAnio');if(ca)ca.onchange=e=>{cliF.rAnio=e.target.value;render()};const cm=$('#crMet');if(cm)cm.onchange=e=>{cliF.rMet=e.target.value;render()};
   const cx=$('#crXls');if(cx)cx.onclick=cliRepExport;const cp=$('#crPrint');if(cp)cp.onclick=cliRepPrint;
@@ -3092,7 +3170,7 @@ render();
     db.collection('aces_denominacional').onSnapshot(snap=>{ADEN=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
     db.collection('educacion_aces').onSnapshot(snap=>{EDU=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
     db.collection('upn_material').onSnapshot(snap=>{UPNM=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
-    db.collection('clientes').onSnapshot(snap=>{RAW.clientes=snap.docs.map(d=>({...d.data(),id:d.id}));render()},()=>{});
+    db.collection('clientes').onSnapshot(snap=>{const all=snap.docs.map(d=>({...d.data(),id:d.id}));RAW.clientes=all.filter(r=>r.kind!=='act');RAW.cliAct=all.filter(r=>r.kind==='act');render()},()=>{});
     db.collection('ventas_hist').onSnapshot(snap=>{VHIST=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
     COLS.forEach(c=>db.collection(c).onSnapshot(snap=>{const rows=snap.docs.map(d=>({...d.data(),id:d.id}));if(c==='personal'){PUBP.length=0;PUBP.push(...rows);mergeP();migrate()}else RAW[c]=rows;render()},()=>toast('No se pudieron cargar los datos. Revisa tu conexión.')))};
   sb.auth.onAuthStateChange((ev,sess)=>{const had=!!SESSION;SESSION=sess;if(sess){loadUsers().then(startData)}else{USR=[];USR_READY=false;if(had){COLS.forEach(c=>RAW[c]=[]);db.clear()}loadUsers()}});
