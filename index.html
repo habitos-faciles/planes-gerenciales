@@ -199,6 +199,11 @@ dialog label.full{grid-column:1/-1}
 .cc-list{width:100%;border-collapse:collapse;margin-top:10px;font-size:.82rem}.cc-list th,.cc-list td{border-bottom:1px solid var(--rule-2,var(--rule));padding:5px 6px;text-align:left;vertical-align:top}
 @media print{.cc-day{border-color:#999}.cc-grid{border-color:#999}.cc-ev{background:#f2f2f2;color:#111}.cc-list th,.cc-list td{border:1px solid #999}}
 @media (max-width:700px){.cc-day{min-height:64px}.cc-ev b{display:none}}
+
+.cr-tabs{display:flex;gap:4px;border-bottom:1px solid var(--rule);margin:4px 0 12px}
+.cr-tabs button{all:unset;cursor:pointer;padding:8px 14px;font:600 .9rem var(--body);color:var(--ink-2);border-bottom:2px solid transparent;margin-bottom:-1px}
+.cr-tabs button.on{color:var(--ink);border-bottom-color:var(--cyan)}.cr-tabs button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.cr-sec{margin-top:14px}.cr-sec h3{margin:0 0 4px}.cr-mx td,.cr-mx th{white-space:nowrap}
 </style>
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px}img{max-width:100%}[hidden]{display:none!important}</style>
 <script src="config.js?v=2"></script>
@@ -550,7 +555,7 @@ async function loadUsers(){
 }
 
 /* ===== Navegación ===== */
-const TABS=[['dash','Dashboard'],['ventas','Reportes'],['org','Unidades'],['cal','Calendario'],['req','Requerimientos'],['clientes','Clientes y pedidos'],...COLS.map(c=>[c,SCH[c].t])];
+const TABS=[['dash','Dashboard'],['ventas','Reportes'],['org','Unidades'],['cal','Calendario'],['req','Requerimientos'],['clientes','Ventas EIU'],...COLS.map(c=>[c,SCH[c].t])];
 let tab='dash',filterUnit='ALL',q='';
 try{const h=location.hash.slice(1);if(TABS.some(t=>t[0]===h))tab=h}catch(e){}
 function tabsList(){return canManage()&&mode==='db'?[...TABS,['users','Usuarios']]:TABS}
@@ -799,7 +804,7 @@ function bindCal(){
   const pb=$('#calPrint');if(pb)pb.onclick=printCal;
 }
 
-/* ===== Módulo: Clientes y pedidos (ficha «Información del cliente», precio aprobado y requerimientos) ===== */
+/* ===== Módulo: Ventas EIU — clientes y pedidos (ficha «Información del cliente», precio aprobado y requerimientos) ===== */
 RAW.clientes=RAW.clientes||[];S.clientes=S.clientes||[];
 const CLI_CLIENTES=['UPN','APCE','MPN','MICOP','MINOP','ANOP','NT','SEHS NORTE','ASEACE','AEACOP','UPS','APC','MPCS','MCP','MOP','MSOP','MPLT','APS','SEHS SUR','ADRA','CAAS','CGH','CAJ','ACES'];
 const CLI_DEPTOS=['Mayordomía','MipEs','Ministerio Mujer','Ministerio Infantil','Ministerio Adolescente','Ministerio Joven','Educación','Publicaciones','Asoc. Ministerial','Tesorería','Secretaría','SVA','Legales','GTH'];
@@ -838,7 +843,7 @@ function cliProcRows(){const ro=cliEd.ro?'disabled':'',L=cliEd.r.procesos||[];if
 const CLI_REQ_DEF=['Entrega de texto completo','Entrega de imágenes','Entrega de material complementario'];
 const CLI_REQ_TIPOS=['Entrega de texto completo','Entrega de imágenes','Entrega de material complementario','Entrega de logotipos','Entrega de artes / diseño del cliente','Aprobación de prueba de color','Aprobación de prueba final','Otro'];
 const CLI_CAMB_TIPOS=['Cambio de número de páginas','Cambio de diseño de tapas','Cambio de formato','Cambio de color de las páginas (de color a blanco y negro)','Cambio de imágenes','No le gustó el diseño','Otros'];
-let cliF={q:'',estado:'',req:'',asesor:''},cliEd=null;
+let cliF={q:'',estado:'',req:'',asesor:'',vista:'reg',rAnio:'',rMet:'monto'},cliEd=null;
 function cliAsesorKeys(r){const k=new Set();if(r.asesor)k.add('p:'+r.asesor);else if(r.asesorTxt)k.add('t:'+norm(r.asesorTxt));
   const cr=r.creadoPor&&(typeof USR!=='undefined'?USR:[]).find(u=>u.id===r.creadoPor);if(cr?.persona)k.add('p:'+cr.persona);if(!k.size)k.add('none');return [...k]}
 function cliAsesorOpts(all){const m=new Map();all.forEach(r=>cliAsesorKeys(r).forEach(k=>{if(m.has(k))return;m.set(k,k==='none'?'Sin asesor':k.startsWith('p:')?pname(k.slice(2)):r.asesorTxt||k.slice(2))}));
@@ -868,17 +873,20 @@ function viewClientes(){
   const sums=all.map(cliReqSum),monto=all.reduce((s,r)=>s+n(r.precio),0),aprob=all.filter(r=>n(r.precio)>0).length;
   const pend=sums.reduce((s,x)=>s+x.pend,0),venc=sums.reduce((s,x)=>s+x.venc,0);
   const ds=all.flatMap(r=>(r.reqs||[]).filter(x=>x.entregado&&x.solicitado).map(x=>dDiff(x.solicitado,x.entregado)));
-  let h=`<div class="bar"><div class="left"><h2>Clientes y pedidos</h2>${unitFilterSel()}</div><div class="right"><input class="search" id="cliQ" placeholder="Buscar código, proforma, JOB, cliente, RUC…" value="${esc(cliF.q)}">
+  let h=`<div class="bar"><div class="left"><h2>Ventas EIU</h2>${unitFilterSel()}</div><div class="right"><input class="search" id="cliQ" placeholder="Buscar código, proforma, JOB, cliente, RUC…" value="${esc(cliF.q)}">
    <select id="cliAse" aria-label="Asesor comercial"><option value="">Todos los asesores</option>${cliAsesorOpts(all).map(([k,l])=>`<option value="${esc(k)}" ${k===cliF.asesor?'selected':''}>${esc(l)}</option>`).join('')}</select>
    <select id="cliEst" aria-label="Estado"><option value="">Todos los estados</option>${CLI_EST.map(e=>`<option ${e===cliF.estado?'selected':''}>${e}</option>`).join('')}</select>
    <select id="cliReq" aria-label="Requerimientos"><option value="">Todos los requerimientos</option><option value="pend" ${cliF.req==='pend'?'selected':''}>Con requerimientos pendientes</option><option value="venc" ${cliF.req==='venc'?'selected':''}>Con requerimientos vencidos</option><option value="ok" ${cliF.req==='ok'?'selected':''}>Requerimientos completos</option></select>
    <button class="btn" id="cliExp" title="Descarga en Excel los pedidos de la vista actual">⬇ Exportar</button>${readOnly?'':'<button class="btn" id="cliImp" title="Cargar información pasada desde Excel">⬆ Importar</button><button class="btn primary" id="cliNew">+ Nuevo cliente / pedido</button><button class="btn" id="cliCal" title="Calendario con la fecha vigente de entrega al cliente de la lista filtrada">📅 Calendario de entregas</button>'}</div></div>
-  <div class="note">Ficha «Información del cliente» para la elaboración de productos: datos del cliente y del trabajo, precio aprobado en la proforma y seguimiento de la entrega de requerimientos (texto, imágenes, material complementario).</div>
+  @@CLITABS@@<div class="note">Ficha «Información del cliente» para la elaboración de productos: datos del cliente y del trabajo, precio aprobado en la proforma y seguimiento de la entrega de requerimientos (texto, imágenes, material complementario).</div>
   <div class="kpis">
    <div class="kpi"><span class="l">Pedidos registrados</span><span class="v">${all.length}</span><span class="s">${(o=>o+(o===1?' orden':' órdenes'))(all.filter(r=>/Orden/.test(r.tipoDoc||'')).length)} · ${(c=>c+(c===1?' cotización':' cotizaciones'))(all.filter(r=>/Cotizaci/.test(r.tipoDoc||'')).length)}</span></div>
    <div class="kpi"><span class="l">Precio aprobado en proformas</span><span class="v">${money(monto)}</span><span class="s">${aprob} de ${all.length} con precio aprobado</span></div>
    <div class="kpi"><span class="l">Requerimientos pendientes</span><span class="v" style="${venc?'color:var(--bad)':''}">${pend}</span><span class="s">${venc} vencidos</span></div>
    <div class="kpi"><span class="l">Tiempo promedio de entrega</span><span class="v">${ds.length?(ds.reduce((a,b)=>a+b,0)/ds.length).toLocaleString('es-PE',{maximumFractionDigits:1}):'—'}</span><span class="s">días entre solicitud y entrega del cliente</span></div></div>`;
+  const tabs=`<div class="cr-tabs" role="tablist"><button type="button" role="tab" class="${cliF.vista!=='rep'?'on':''}" data-clivista="reg" aria-selected="${cliF.vista!=='rep'}">📋 Registros</button><button type="button" role="tab" class="${cliF.vista==='rep'?'on':''}" data-clivista="rep" aria-selected="${cliF.vista==='rep'}">📊 Reportes</button></div>`;
+  if(cliF.vista==='rep')return h.slice(0,h.indexOf('@@CLITABS@@'))+tabs+(list.length?cliReportHtml(list):`<div class="panel empty"><strong>${all.length?'Ningún pedido coincide con los filtros':'Aún no hay pedidos registrados'}</strong>El reporte se arma con los pedidos de la lista filtrada.</div>`);
+  h=h.replace('@@CLITABS@@',tabs);
   if(!list.length)return h+`<div class="panel empty"><strong>${all.length?'Ningún pedido coincide con los filtros':'Aún no hay clientes registrados'}</strong>${readOnly?'':'Usa «+ Nuevo cliente / pedido» para registrar la primera ficha.'}</div>`;
   h+=`<div class="tbl"><table><thead><tr><th>Código / proforma</th><th>Cliente</th><th>Trabajo</th><th>Entrega al cliente</th><th class="num">Cantidad</th><th class="num">Precio aprobado</th><th>Requerimientos</th><th>Cambios</th><th>Estado</th><th></th></tr></thead><tbody>${list.map(r=>{const s=cliReqSum(r);
     const fv=cliFechaVig(r),nrp=(r.reprog||[]).filter(x=>x.fecha).length,lateJob=fv&&fv<today()&&r.entregaConf!=='Entregado'&&!['Entregado','Anulado'].includes(r.estado);
@@ -1211,8 +1219,93 @@ function printCliCal(){const [y,m]=cliCalM;
    @media print{body>*:not(#ccPrintBox){display:none!important}#ccPrintBox{display:block;font:8pt/1.25 Arial,Helvetica,sans-serif;color:#111}#ccPrintBox h1{font-size:14pt;margin:0 0 2px}#ccPrintBox .sub{color:#555;margin-bottom:6px}
    #ccPrintBox .cc-day{min-height:70px}#ccPrintBox .cc-list{page-break-before:always}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}`;
   document.head.appendChild(st);const box=document.createElement('div');box.id='ccPrintBox';
-  box.innerHTML=`<h1>Calendario de entregas al cliente · ${CLI_MESES[m][0].toUpperCase()+CLI_MESES[m].slice(1)} ${y}</h1><div class="sub">Editorial · Planes Gerenciales · Clientes y pedidos · Impreso el ${fdate(today())}</div>${cliCalHtml(true)}`;
+  box.innerHTML=`<h1>Calendario de entregas al cliente · ${CLI_MESES[m][0].toUpperCase()+CLI_MESES[m].slice(1)} ${y}</h1><div class="sub">Editorial · Planes Gerenciales · Ventas EIU · Impreso el ${fdate(today())}</div>${cliCalHtml(true)}`;
   document.body.appendChild(box);const oldT=document.title;document.title=`Calendario de entregas ${CLI_MESES[m]} ${y}`;
+  const clean=()=>{box.remove();st.remove();document.title=oldT;window.removeEventListener('afterprint',clean)};window.addEventListener('afterprint',clean);setTimeout(()=>window.print(),60)}
+/* ===== Ventas EIU: reportes ===== */
+const CLI_MES3=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Set','Oct','Nov','Dic'];
+const cliFecha=r=>r.fechaIngreso||String(r.creado||'').slice(0,10)||'';
+function cliEntSt(r){const f=cliFechaVig(r);if(r.estado==='Anulado')return 'anu';if(r.entregaConf==='Entregado'||r.estado==='Entregado')return 'ent';return f&&f<today()?'venc':'pend'}
+function cliAgg(list,keyFn){const m=new Map();list.forEach(r=>{const k=keyFn(r)||'(sin dato)';const g=m.get(k)||{k,n:0,u:0,monto:0,ent:0,pend:0,venc:0,anu:0,cli:new Set()};
+  g.n++;g.u+=n(r.cantidad);g.monto+=n(r.precio);g[cliEntSt(r)]++;if(r.cliente)g.cli.add(r.cliente);m.set(k,g)});return [...m.values()]}
+const cliPct=(a,b)=>b?(a/b*100):null;
+const cliVar=(a,b)=>!b?(a?'<span class="note">nuevo</span>':'—'):`<span style="color:${a>=b?'var(--ok)':'var(--bad)'}">${a>=b?'+':''}${((a-b)/b*100).toLocaleString('es-PE',{maximumFractionDigits:1})}%</span>`;
+function cliRepData(list){
+  const yrs=[...new Set(list.map(r=>cliFecha(r).slice(0,4)).filter(y=>/^\d{4}$/.test(y)))].sort();
+  const Y=cliF.rAnio&&yrs.includes(cliF.rAnio)?cliF.rAnio:(cliF.rAnio==='todos'?'todos':(yrs[yrs.length-1]||String(new Date().getFullYear())));
+  const base=Y==='todos'?list:list.filter(r=>cliFecha(r).startsWith(Y));
+  const cy=Y==='todos'?(yrs[yrs.length-1]||String(new Date().getFullYear())):Y,py=String(+cy-1);
+  const met=cliF.rMet||'monto',mv=(r)=>met==='monto'?n(r.precio):met==='u'?n(r.cantidad):1;
+  const byM=(y,fn=cliFecha,L=list)=>CLI_MES3.map((_,i)=>L.filter(r=>fn(r).startsWith(`${y}-${String(i+1).padStart(2,'0')}`)));
+  return {yrs,Y,base,cy,py,met,mv,byM}}
+function cliFmtMet(v,met){return met==='monto'?money(v):Math.round(v).toLocaleString('es-PE')}
+function cliRepTable(title,note,rows,tot,first,extra){
+  const T=rows.reduce((s,g)=>s+g.monto,0);
+  return `<div class="panel cr-sec"><h3>${title}</h3>${note?`<div class="note">${note}</div>`:''}<div class="tbl" style="border:0"><table><thead><tr><th>${first}</th>${extra?'<th class="num">Clientes</th>':''}<th class="num">Pedidos</th><th class="num">Unidades</th><th class="num">Precio aprobado</th><th style="min-width:120px">% del monto</th><th class="num">Entregados</th><th class="num">Pendientes</th><th class="num">Vencidos</th></tr></thead><tbody>
+   ${rows.map(g=>{const p=cliPct(g.monto,T);return `<tr><td>${g.k==='(sin dato)'?`<em class="note">Sin ${first.toLowerCase()}</em>`:`<strong>${esc(g.k)}</strong>`}</td>${extra?`<td class="num">${g.cli.size}</td>`:''}<td class="num">${g.n}</td><td class="num">${g.u?g.u.toLocaleString('es-PE'):'—'}</td><td class="num">${g.monto?money(g.monto):'—'}</td><td>${p!=null?`${meter(p)}<div class="note">${p.toLocaleString('es-PE',{maximumFractionDigits:1})}%</div>`:'—'}</td><td class="num">${g.ent||'—'}</td><td class="num">${g.pend||'—'}</td><td class="num" style="${g.venc?'color:var(--bad);font-weight:600':''}">${g.venc||'—'}</td></tr>`}).join('')}
+   <tr class="vtot"><td><strong>Total</strong></td>${extra?`<td class="num">${new Set(rows.flatMap(g=>[...g.cli])).size}</td>`:''}<td class="num">${tot.n}</td><td class="num">${tot.u.toLocaleString('es-PE')}</td><td class="num">${money(tot.monto)}</td><td></td><td class="num">${tot.ent}</td><td class="num">${tot.pend}</td><td class="num">${tot.venc}</td></tr></tbody></table></div></div>`}
+function cliBarsSvg(a,b,la,lb,met){const W=760,H=200,pl=58,pb=24,mx=Math.max(1,...a,...b),bw=(W-pl-10)/12;
+  const tick=[0,.25,.5,.75,1].map(t=>t*mx);const fy=v=>H-pb-(v/mx)*(H-pb-10);
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-height:240px" role="img" aria-label="Comparativo mensual ${lb} vs ${la}">
+   ${tick.map(v=>`<line x1="${pl}" x2="${W-6}" y1="${fy(v)}" y2="${fy(v)}" stroke="var(--rule)" stroke-width="1"/><text x="${pl-6}" y="${fy(v)+3}" text-anchor="end" font-size="10" fill="var(--ink-2)">${met==='monto'?(v>=1000?'S/ '+(v/1000).toLocaleString('es-PE',{maximumFractionDigits:1})+' k':'S/ '+Math.round(v)):Math.round(v)}</text>`).join('')}
+   ${CLI_MES3.map((m,i)=>{const x=pl+i*bw+bw*.14,w=bw*.34;return `<rect x="${x}" y="${fy(a[i])}" width="${w}" height="${H-pb-fy(a[i])}" fill="var(--rule)" rx="2"><title>${m} ${la}: ${cliFmtMet(a[i],met)}</title></rect><rect x="${x+w+2}" y="${fy(b[i])}" width="${w}" height="${H-pb-fy(b[i])}" fill="var(--cyan)" rx="2"><title>${m} ${lb}: ${cliFmtMet(b[i],met)}</title></rect><text x="${pl+i*bw+bw/2}" y="${H-8}" text-anchor="middle" font-size="10" fill="var(--ink-2)">${m}</text>`}).join('')}</svg>
+   <div class="note"><span style="display:inline-block;width:10px;height:10px;background:var(--rule);border-radius:2px"></span> ${la} &nbsp; <span style="display:inline-block;width:10px;height:10px;background:var(--cyan);border-radius:2px"></span> ${lb}</div>`}
+function cliReportHtml(list){
+  const D=cliRepData(list),{yrs,Y,base,cy,py,met,mv,byM}=D;
+  const tot=cliAgg(base,()=>'t')[0]||{n:0,u:0,monto:0,ent:0,pend:0,venc:0,anu:0,cli:new Set()};
+  const metL={monto:'Precio aprobado (S/)',n:'N.º de pedidos',u:'Unidades'}[met];
+  const sortG=a=>a.sort((x,y)=>y.monto-x.monto||y.n-x.n||x.k.localeCompare(y.k));
+  const pC=sortG(cliAgg(base,r=>r.cliente)),pT=sortG(cliAgg(base,r=>(r.trabajo||'').trim())),pD=sortG(cliAgg(base,r=>r.departamento));
+  const mC=byM(cy),mP=byM(py),sum=L=>L.reduce((s,r)=>s+mv(r),0);
+  const aC=mC.map(sum),aP=mP.map(sum),eC=byM(cy,cliFechaVig);
+  const tC=aC.reduce((a,b)=>a+b,0),tP=aP.reduce((a,b)=>a+b,0);
+  const topC=pC.slice(0,15).map(g=>g.k),topD=pD.map(g=>g.k);
+  const matrix=(title,keys,fn)=>{const L=list.filter(r=>cliFecha(r).startsWith(cy));const cell=(k,i)=>sum(L.filter(r=>(fn(r)||'(sin dato)')===k&&cliFecha(r).slice(5,7)===String(i+1).padStart(2,'0')));
+    const rows=keys.map(k=>({k,v:CLI_MES3.map((_,i)=>cell(k,i))})).filter(x=>x.v.some(Boolean));if(!rows.length)return '';
+    const colT=CLI_MES3.map((_,i)=>rows.reduce((s,x)=>s+x.v[i],0));
+    return `<div class="panel cr-sec"><h3>${title} · ${cy}</h3><div class="note">${metL} por mes de ingreso del pedido.</div><div class="tbl" style="border:0;overflow:auto"><table class="cr-mx"><thead><tr><th></th>${CLI_MES3.map(m=>`<th class="num">${m}</th>`).join('')}<th class="num">Total</th></tr></thead><tbody>
+     ${rows.map(x=>`<tr><td>${x.k==='(sin dato)'?'<em class="note">Sin dato</em>':`<strong>${esc(x.k)}</strong>`}</td>${x.v.map(v=>`<td class="num">${v?cliFmtMet(v,met):'<span class="note">·</span>'}</td>`).join('')}<td class="num"><strong>${cliFmtMet(x.v.reduce((a,b)=>a+b,0),met)}</strong></td></tr>`).join('')}
+     <tr class="vtot"><td><strong>Total</strong></td>${colT.map(v=>`<td class="num">${v?cliFmtMet(v,met):'—'}</td>`).join('')}<td class="num">${cliFmtMet(colT.reduce((a,b)=>a+b,0),met)}</td></tr></tbody></table></div></div>`};
+  const hasDep=pD.some(g=>g.k!=='(sin dato)');
+  return `<div class="bar cr-noprint" style="justify-content:flex-start;gap:8px;flex-wrap:wrap"><label class="note" style="display:flex;gap:6px;align-items:center">Año (fecha de ingreso)<select id="crAnio">${['todos',...yrs.slice().reverse()].map(y=>`<option value="${y}" ${y===Y?'selected':''}>${y==='todos'?'Todos los años':y}</option>`).join('')}</select></label>
+    <label class="note" style="display:flex;gap:6px;align-items:center">Cuadros mensuales en<select id="crMet">${[['monto','Precio aprobado (S/)'],['n','N.º de pedidos'],['u','Unidades']].map(([v,l])=>`<option value="${v}" ${v===met?'selected':''}>${l}</option>`).join('')}</select></label>
+    <span style="flex:1"></span><button class="btn" id="crXls">⬇ Exportar reporte</button><button class="btn" id="crPrint">🖨 Imprimir reporte</button></div>
+   <div id="crBody"><div class="note">Reporte de la lista filtrada (${list.length} pedidos) · ${Y==='todos'?'todos los años':'año '+Y}. Los filtros de unidad, asesor, estado y búsqueda de arriba también se aplican aquí.</div>
+   <div class="kpis"><div class="kpi"><span class="l">Pedidos</span><span class="v">${tot.n}</span><span class="s">${pC.filter(g=>g.k!=='(sin dato)').length} clientes · ${pT.length} trabajos</span></div>
+    <div class="kpi"><span class="l">Precio aprobado</span><span class="v">${money(tot.monto)}</span><span class="s">promedio ${money(tot.n?tot.monto/tot.n:0)} por pedido</span></div>
+    <div class="kpi"><span class="l">Unidades</span><span class="v">${tot.u.toLocaleString('es-PE')}</span><span class="s">ejemplares solicitados</span></div>
+    <div class="kpi"><span class="l">Entregas</span><span class="v">${tot.ent} <span style="font-size:.55em;color:var(--ink-2)">de ${tot.n}</span></span><span class="s">${tot.pend} pendientes · <span style="${tot.venc?'color:var(--bad)':''}">${tot.venc} vencidas</span></span></div></div>
+   <div class="panel cr-sec"><h3>Cuadro comparativo mensual · ${cy} vs ${py}</h3><div class="note">${metL} por mes de ingreso del pedido. Las entregas programadas usan la fecha vigente de entrega al cliente.</div>
+    ${cliBarsSvg(aP,aC,py,cy,met)}
+    <div class="tbl" style="border:0;overflow:auto"><table class="cr-mx"><thead><tr><th>Mes</th><th class="num">${py}</th><th class="num">${cy}</th><th class="num">Variación</th><th class="num">Pedidos ${cy}</th><th class="num">Unidades ${cy}</th><th class="num">Precio aprobado ${cy}</th><th class="num">Entregas programadas ${cy}</th><th class="num">Entregadas</th></tr></thead><tbody>
+    ${CLI_MES3.map((m,i)=>`<tr><td>${m}</td><td class="num">${aP[i]?cliFmtMet(aP[i],met):'—'}</td><td class="num"><strong>${aC[i]?cliFmtMet(aC[i],met):'—'}</strong></td><td class="num">${aC[i]||aP[i]?cliVar(aC[i],aP[i]):'—'}</td><td class="num">${mC[i].length||'—'}</td><td class="num">${(u=>u?u.toLocaleString('es-PE'):'—')(mC[i].reduce((s,r)=>s+n(r.cantidad),0))}</td><td class="num">${mC[i].reduce((s,r)=>s+n(r.precio),0)?money(mC[i].reduce((s,r)=>s+n(r.precio),0)):'—'}</td><td class="num">${eC[i].length||'—'}</td><td class="num">${eC[i].filter(r=>cliEntSt(r)==='ent').length||'—'}</td></tr>`).join('')}
+    <tr class="vtot"><td><strong>Total</strong></td><td class="num">${cliFmtMet(tP,met)}</td><td class="num"><strong>${cliFmtMet(tC,met)}</strong></td><td class="num">${cliVar(tC,tP)}</td><td class="num">${mC.flat().length}</td><td class="num">${mC.flat().reduce((s,r)=>s+n(r.cantidad),0).toLocaleString('es-PE')}</td><td class="num">${money(mC.flat().reduce((s,r)=>s+n(r.precio),0))}</td><td class="num">${eC.flat().length}</td><td class="num">${eC.flat().filter(r=>cliEntSt(r)==='ent').length}</td></tr></tbody></table></div></div>
+   ${cliRepTable('Reporte por clientes','Ordenado por precio aprobado.',pC,tot,'Cliente')}
+   ${cliRepTable('Reporte por departamentos / áreas',hasDep?'Departamento o área del cliente.':'Aún no hay pedidos con departamento / área registrado.',pD,tot,'Departamento / área',true)}
+   ${cliRepTable('Reporte por trabajos','Agrupa los pedidos con el mismo nombre de trabajo.',pT,tot,'Trabajo',true)}
+   ${matrix('Comparativo mensual por cliente'+(pC.length>15?' (15 principales)':''),topC,r=>r.cliente)}
+   ${hasDep?matrix('Comparativo mensual por departamento / área',topD,r=>r.departamento):''}
+   </div>`}
+function cliRepExport(){loadXLSX().then(X=>{const list=cliLastList,D=cliRepData(list),{base,cy,py,mv,byM}=D;const wb=X.utils.book_new();
+  const g2a=(rows,first)=>[[first,'Clientes','Pedidos','Unidades','Precio aprobado (S/)','Entregados','Pendientes','Vencidos'],...rows.map(g=>[g.k,g.cli.size,g.n,g.u,g.monto,g.ent,g.pend,g.venc])];
+  const sortG=a=>a.sort((x,y)=>y.monto-x.monto||y.n-x.n);
+  const add=(name,aoa)=>{const s=X.utils.aoa_to_sheet(aoa);s['!cols']=aoa[0].map((_,i)=>({wch:i?14:34}));X.utils.book_append_sheet(wb,s,name)};
+  const mC=byM(cy),mP=byM(py),eC=byM(cy,cliFechaVig);
+  add('Mensual',[['Mes',`Pedidos ${py}`,`Pedidos ${cy}`,`Unidades ${py}`,`Unidades ${cy}`,`Precio aprobado ${py}`,`Precio aprobado ${cy}`,`Entregas programadas ${cy}`,`Entregadas ${cy}`],...CLI_MES3.map((m,i)=>[m,mP[i].length,mC[i].length,mP[i].reduce((s,r)=>s+n(r.cantidad),0),mC[i].reduce((s,r)=>s+n(r.cantidad),0),mP[i].reduce((s,r)=>s+n(r.precio),0),mC[i].reduce((s,r)=>s+n(r.precio),0),eC[i].length,eC[i].filter(r=>cliEntSt(r)==='ent').length])]);
+  add('Por clientes',g2a(sortG(cliAgg(base,r=>r.cliente)),'Cliente'));add('Por departamentos',g2a(sortG(cliAgg(base,r=>r.departamento)),'Departamento / área'));add('Por trabajos',g2a(sortG(cliAgg(base,r=>(r.trabajo||'').trim())),'Trabajo'));
+  const L=list.filter(r=>cliFecha(r).startsWith(cy));const mx=fn=>{const keys=[...new Set(L.map(r=>fn(r)||'(sin dato)'))].sort();return [['',...CLI_MES3,'Total'],...keys.map(k=>{const v=CLI_MES3.map((_,i)=>L.filter(r=>(fn(r)||'(sin dato)')===k&&cliFecha(r).slice(5,7)===String(i+1).padStart(2,'0')).reduce((s,r)=>s+mv(r),0));return [k,...v,v.reduce((a,b)=>a+b,0)]})]};
+  add(`Clientes x mes ${cy}`,mx(r=>r.cliente));add(`Deptos x mes ${cy}`,mx(r=>r.departamento));
+  X.writeFile(wb,`reporte_ventas_eiu_${today()}.xlsx`);toast('Reporte exportado a Excel.')}).catch(()=>toast('No se pudo generar el Excel. Revisa tu conexión.'))}
+function cliRepPrint(){const src=$('#crBody');if(!src)return;
+  document.getElementById('crPrintBox')?.remove();document.getElementById('crPrintCss')?.remove();
+  const st=document.createElement('style');st.id='crPrintCss';st.textContent=`@page{size:A4 landscape;margin:9mm}@media screen{#crPrintBox{display:none}}
+   @media print{body>*:not(#crPrintBox){display:none!important}#crPrintBox{display:block;font:8pt/1.3 Arial,Helvetica,sans-serif;color:#111}#crPrintBox h1{font-size:14pt;margin:0}#crPrintBox .sub{color:#555;margin-bottom:6px}
+   #crPrintBox .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:6px 0}#crPrintBox .kpi{border:1px solid #bbb;padding:5px;border-radius:4px}#crPrintBox .kpi .v{font-size:13pt;font-weight:700;display:block}#crPrintBox .kpi .l,#crPrintBox .kpi .s{display:block;font-size:7.5pt;color:#444}
+   #crPrintBox .panel{border:0;padding:0;margin:8px 0;box-shadow:none}#crPrintBox h3{font-size:10pt;margin:6px 0 2px;break-after:avoid}#crPrintBox tr{break-inside:avoid}#crPrintBox table{width:100%;border-collapse:collapse}#crPrintBox th,#crPrintBox td{border:1px solid #999;padding:2px 4px;font-size:7.5pt}#crPrintBox .num{text-align:right}
+   #crPrintBox .meter{display:none}#crPrintBox svg{max-height:170px}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}`;
+  document.head.appendChild(st);const box=document.createElement('div');box.id='crPrintBox';
+  box.innerHTML=`<h1>Reporte Ventas EIU</h1><div class="sub">Editorial · Planes Gerenciales · ${esc(filterUnit==='ALL'?'Toda la organización':(U[fUnit()]?.n||''))} · Impreso el ${fdate(today())}</div>${src.innerHTML}`;
+  document.body.appendChild(box);const oldT=document.title;document.title='Reporte Ventas EIU '+today();
   const clean=()=>{box.remove();st.remove();document.title=oldT;window.removeEventListener('afterprint',clean)};window.addEventListener('afterprint',clean);setTimeout(()=>window.print(),60)}
 function bindClientes(){
   const qi=$('#cliQ');if(qi)qi.oninput=e=>{cliF.q=e.target.value;const p=e.target.selectionStart;render();const n2=$('#cliQ');n2.focus();try{n2.setSelectionRange(p,p)}catch(_){}};
@@ -1221,6 +1314,9 @@ function bindClientes(){
   const rq=$('#cliReq');if(rq)rq.onchange=e=>{cliF.req=e.target.value;render()};
   const nb=$('#cliNew');if(nb)nb.onclick=()=>openCli(null);
   const cc=$('#cliCal');if(cc)cc.onclick=openCliCal;
+  document.querySelectorAll('[data-clivista]').forEach(b=>b.onclick=()=>{cliF.vista=b.dataset.clivista;render()});
+  const ca=$('#crAnio');if(ca)ca.onchange=e=>{cliF.rAnio=e.target.value;render()};const cm=$('#crMet');if(cm)cm.onchange=e=>{cliF.rMet=e.target.value;render()};
+  const cx=$('#crXls');if(cx)cx.onclick=cliRepExport;const cp=$('#crPrint');if(cp)cp.onclick=cliRepPrint;
   const ex=$('#cliExp');if(ex)ex.onclick=cliExport;const im=$('#cliImp');if(im)im.onclick=openCliImport;
   document.querySelectorAll('[data-cliopen]').forEach(b=>b.onclick=()=>openCli(b.dataset.cliopen));
   document.querySelectorAll('[data-cliprint]').forEach(b=>b.onclick=()=>printCli(b.dataset.cliprint));
