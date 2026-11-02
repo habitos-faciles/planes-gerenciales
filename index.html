@@ -862,8 +862,10 @@ const CLI_REQ_TIPOS=['Entrega de texto completo','Entrega de imágenes','Entrega
 const CLI_CAMB_TIPOS=['Cambio de número de páginas','Cambio de diseño de tapas','Cambio de formato','Cambio de color de las páginas (de color a blanco y negro)','Cambio de imágenes','No le gustó el diseño','Otros'];
 let cliF={q:'',estado:'',req:'',asesor:'',vista:'reg',rAnio:'',rMet:'monto',tabla:(()=>{try{return localStorage.getItem('cliTabla')||'res'}catch(_){return 'res'}})()},cliEd=null;
 function cliAsesorKeys(r){const k=new Set();if(r.asesor)k.add('p:'+r.asesor);else if(r.asesorTxt)k.add('t:'+norm(r.asesorTxt));
-  const cr=r.creadoPor&&(typeof USR!=='undefined'?USR:[]).find(u=>u.id===r.creadoPor);if(cr?.persona)k.add('p:'+cr.persona);if(!k.size)k.add('none');return [...k]}
-function cliAsesorOpts(all){const m=new Map();all.forEach(r=>cliAsesorKeys(r).forEach(k=>{if(m.has(k))return;m.set(k,k==='none'?'Sin asesor':k.startsWith('p:')?pname(k.slice(2)):r.asesorTxt||k.slice(2))}));
+  const ck=cliCreatorKey(r.creadoPor);if(ck)k.add(ck);if(!k.size)k.add('none');return [...k]}
+function cliCreatorKey(uidv){if(!uidv)return '';const cr=(typeof USR!=='undefined'?USR:[]).find(u=>u.id===uidv);if(!cr)return '';if(cr.persona)return 'p:'+cr.persona;
+  const nm=norm(cr.nombre||'');const p=nm&&RAW.personal.find(p=>norm(p.nombre)===nm);return p?'p:'+p.id:'u:'+cr.id}
+function cliAsesorOpts(all){const m=new Map();all.forEach(r=>cliAsesorKeys(r).forEach(k=>{if(m.has(k))return;m.set(k,k==='none'?'Sin asesor':k.startsWith('p:')?pname(k.slice(2)):k.startsWith('u:')?(()=>{const u=(typeof USR!=='undefined'?USR:[]).find(x=>x.id===k.slice(2));return (u?.nombre||u?.usuario||'Usuario')+' (registró)'})():r.asesorTxt||k.slice(2))}));
   return [...m].sort((a,b)=>a[0]==='none'?1:b[0]==='none'?-1:a[1].localeCompare(b[1]))}
 function scopeClientes(ac){
   if(ac==='all'){S.clientes=RAW.clientes;S.cliAct=RAW.cliAct||[];return}
@@ -892,7 +894,7 @@ function viewClientes(){
   const pend=sums.reduce((s,x)=>s+x.pend,0),venc=sums.reduce((s,x)=>s+x.venc,0);
   const ds=all.flatMap(r=>(r.reqs||[]).filter(x=>x.entregado&&x.solicitado).map(x=>dDiff(x.solicitado,x.entregado)));
   let h=`<div class="bar"><div class="left"><h2>Ventas EIU</h2>${unitFilterSel()}</div><div class="right"><input class="search" id="cliQ" placeholder="Buscar código, proforma, JOB, cliente, RUC…" value="${esc(cliF.q)}">
-   <select id="cliAse" aria-label="Asesor comercial"><option value="">Todos los asesores</option>${cliAsesorOpts(all.concat((S.cliAct||[]).filter(a=>a.responsable||a.responsableTxt).map(a=>({asesor:a.responsable,asesorTxt:a.responsableTxt})))).map(([k,l])=>`<option value="${esc(k)}" ${k===cliF.asesor?'selected':''}>${esc(l)}</option>`).join('')}</select>
+   <select id="cliAse" aria-label="Asesor comercial"><option value="">Todos los asesores / registradores</option>${cliAsesorOpts(all.concat((S.cliAct||[]).map(a=>({asesor:a.responsable,asesorTxt:a.responsableTxt,creadoPor:a.creadoPor})).filter(a=>a.asesor||a.asesorTxt||a.creadoPor))).map(([k,l])=>`<option value="${esc(k)}" ${k===cliF.asesor?'selected':''}>${esc(l)}</option>`).join('')}</select>
    <select id="cliEst" aria-label="Estado"><option value="">Todos los estados</option>${CLI_EST.map(e=>`<option ${e===cliF.estado?'selected':''}>${e}</option>`).join('')}</select>
    <select id="cliReq" aria-label="Requerimientos"><option value="">Todos los requerimientos</option><option value="pend" ${cliF.req==='pend'?'selected':''}>Con requerimientos pendientes</option><option value="venc" ${cliF.req==='venc'?'selected':''}>Con requerimientos vencidos</option><option value="ok" ${cliF.req==='ok'?'selected':''}>Requerimientos completos</option></select>
    <button class="btn" id="cliExp" title="Descarga en Excel los pedidos de la vista actual">⬇ Exportar</button>${readOnly?'':'<button class="btn" id="cliImp" title="Cargar información pasada desde Excel">⬆ Importar</button><button class="btn primary" id="cliNew">+ Nuevo cliente / pedido</button><button class="btn" id="actNew" title="Registrar una cita, viaje, capacitación, entrevista u otra actividad">+ Actividad</button><button class="btn" id="cliCal" title="Calendario con la fecha vigente de entrega al cliente de la lista filtrada">📅 Calendario de entregas</button>'}</div></div>
@@ -1231,7 +1233,7 @@ function actSt(a){if(a.estado==='Cancelada')return ['Cancelada',''];if(a.estado=
 function actResp(a){return a.responsable?pname(a.responsable):(a.responsableTxt||'—')}
 function actHorario(a){const [i,f]=actRange(a);if(!i)return '—';return fdate(i)+(a.horaIni?' '+a.horaIni:'')+(f!==i?' → '+fdate(f):'')+(a.horaFin?(f!==i?' ':' – ')+a.horaFin:'')}
 function actFiltered(){const L=(S.cliAct||[]).filter(a=>inFilter('clientes',a));
-  return L.filter(a=>(!actF.tipo||a.tipo===actF.tipo)&&(!actF.estado||actSt(a)[0]===actF.estado||a.estado===actF.estado)&&(!cliF.asesor||(cliF.asesor==='none'?!a.responsable&&!a.responsableTxt:(cliF.asesor==='p:'+a.responsable||cliF.asesor==='t:'+norm(a.responsableTxt||''))))
+  return L.filter(a=>(!actF.tipo||a.tipo===actF.tipo)&&(!actF.estado||actSt(a)[0]===actF.estado||a.estado===actF.estado)&&(!cliF.asesor||(cliF.asesor==='none'?!a.responsable&&!a.responsableTxt:(cliF.asesor==='p:'+a.responsable||cliF.asesor==='t:'+norm(a.responsableTxt||'')||cliF.asesor===cliCreatorKey(a.creadoPor))))
     &&(!cliF.q||norm([a.titulo,a.tipo,a.cliente,a.lugar,a.participantes,a.descripcion,a.codigoPedido].join(' ')).includes(norm(cliF.q))))
    .sort((a,b)=>String(b.fechaIni||'').localeCompare(String(a.fechaIni||'')))}
 function viewActividades(){const L=actFiltered();actLastList=L;const t=today();
