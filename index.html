@@ -207,6 +207,16 @@ dialog label.full{grid-column:1/-1}
 
 .cc-ev.act{background:var(--cyan-soft);border-left-color:var(--cyan)}.cc-ev.act.ok{border-left-color:var(--ok)}.cc-ev.act.bad{border-left-color:var(--bad)}.cc-ev.cxl{text-decoration:line-through;opacity:.6}
 @media print{.cc-ev.act{background:#e6f4f9}}
+
+.cf-wrap{overflow:auto;max-height:72vh;border:1px solid var(--rule);border-radius:10px;background:var(--sheet)}
+.cf{border-collapse:separate;border-spacing:0;font-size:.8rem;min-width:100%}
+.cf th,.cf td{padding:6px 8px;border-bottom:1px solid var(--rule-2);border-right:1px solid var(--rule-2);vertical-align:top;white-space:nowrap;text-align:left}
+.cf thead th{position:sticky;top:0;z-index:2;background:var(--paper);font:600 .7rem var(--body);text-transform:uppercase;letter-spacing:.04em;color:var(--ink-2)}
+.cf .cf-s0,.cf .cf-s1{position:sticky;background:var(--sheet);z-index:1}.cf .cf-s0{left:0;min-width:86px}.cf .cf-s1{left:86px;box-shadow:2px 0 0 var(--rule)}
+.cf thead .cf-s0,.cf thead .cf-s1{z-index:3;background:var(--paper)}
+.cf td.cf-w{white-space:normal;min-width:180px;max-width:280px}.cf td.cf-x{white-space:normal;min-width:240px;max-width:380px}.cf .num{text-align:right}
+.cf-l div{padding:1px 0;border-bottom:1px dotted var(--rule-2)}.cf-l div:last-child{border:0}
+.cf tbody tr:hover td{background:color-mix(in srgb,var(--cyan) 6%,var(--sheet))}
 </style>
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px}img{max-width:100%}[hidden]{display:none!important}</style>
 <script src="config.js?v=2"></script>
@@ -850,7 +860,7 @@ function cliProcRows(){const ro=cliEd.ro?'disabled':'',L=cliEd.r.procesos||[];if
 const CLI_REQ_DEF=['Entrega de texto completo','Entrega de imágenes','Entrega de material complementario'];
 const CLI_REQ_TIPOS=['Entrega de texto completo','Entrega de imágenes','Entrega de material complementario','Entrega de logotipos','Entrega de artes / diseño del cliente','Aprobación de prueba de color','Aprobación de prueba final','Otro'];
 const CLI_CAMB_TIPOS=['Cambio de número de páginas','Cambio de diseño de tapas','Cambio de formato','Cambio de color de las páginas (de color a blanco y negro)','Cambio de imágenes','No le gustó el diseño','Otros'];
-let cliF={q:'',estado:'',req:'',asesor:'',vista:'reg',rAnio:'',rMet:'monto'},cliEd=null;
+let cliF={q:'',estado:'',req:'',asesor:'',vista:'reg',rAnio:'',rMet:'monto',tabla:(()=>{try{return localStorage.getItem('cliTabla')||'res'}catch(_){return 'res'}})()},cliEd=null;
 function cliAsesorKeys(r){const k=new Set();if(r.asesor)k.add('p:'+r.asesor);else if(r.asesorTxt)k.add('t:'+norm(r.asesorTxt));
   const cr=r.creadoPor&&(typeof USR!=='undefined'?USR:[]).find(u=>u.id===r.creadoPor);if(cr?.persona)k.add('p:'+cr.persona);if(!k.size)k.add('none');return [...k]}
 function cliAsesorOpts(all){const m=new Map();all.forEach(r=>cliAsesorKeys(r).forEach(k=>{if(m.has(k))return;m.set(k,k==='none'?'Sin asesor':k.startsWith('p:')?pname(k.slice(2)):r.asesorTxt||k.slice(2))}));
@@ -897,6 +907,8 @@ function viewClientes(){
   if(cliF.vista==='rep')return h.slice(0,h.indexOf('@@CLITABS@@'))+tabs+(list.length?cliReportHtml(list):`<div class="panel empty"><strong>${all.length?'Ningún pedido coincide con los filtros':'Aún no hay pedidos registrados'}</strong>El reporte se arma con los pedidos de la lista filtrada.</div>`);
   h=h.replace('@@CLITABS@@',tabs);
   if(!list.length)return h+`<div class="panel empty"><strong>${all.length?'Ningún pedido coincide con los filtros':'Aún no hay clientes registrados'}</strong>${readOnly?'':'Usa «+ Nuevo cliente / pedido» para registrar la primera ficha.'}</div>`;
+  h+=`<div class="cr-tabs" style="margin-top:6px;border-bottom:0"><button type="button" class="${cliF.tabla!=='full'?'on':''}" data-clitabla="res">Vista resumida</button><button type="button" class="${cliF.tabla==='full'?'on':''}" data-clitabla="full">Vista completa · todos los datos</button></div>`;
+  if(cliF.tabla==='full')h+=cliFullTable(list);else
   h+=`<div class="tbl"><table><thead><tr><th>Código / proforma</th><th>Cliente</th><th>Trabajo</th><th>Entrega al cliente</th><th class="num">Cantidad</th><th class="num">Precio aprobado</th><th>Requerimientos</th><th>Cambios</th><th>Estado</th><th></th></tr></thead><tbody>${list.map(r=>{const s=cliReqSum(r);
     const fv=cliFechaVig(r),nrp=(r.reprog||[]).filter(x=>x.fecha).length,lateJob=fv&&fv<today()&&r.entregaConf!=='Entregado'&&!['Entregado','Anulado'].includes(r.estado);
     return `<tr><td><strong class="mono">${esc(r.codigo||'Sin código')}</strong> ${r.tipoDoc?`<span class="pill">${esc(r.tipoDoc)}</span>`:''}<div class="note">Proforma ${esc(r.proforma||'—')} · JOB ${esc(r.job||'—')} · ingreso ${fdate(r.fechaIngreso)}</div></td>
@@ -916,6 +928,20 @@ function viewClientes(){
   if(pc.length)h+=`<div class="panel"><h3>Cambios en proceso de aprobación sin atender</h3><div class="tbl" style="border:0"><table><thead><tr><th>Cambio</th><th>Cliente / proforma</th><th>Solicitado</th><th>Fecha límite</th><th class="num">Días esperando</th><th>Estado</th></tr></thead><tbody>${pc.map(({r,x,i})=>`<tr><td>${esc(x.tipo)}${x.detalle?`<div class="note">${esc(x.detalle)}</div>`:''}</td><td>${esc(r.cliente||'—')}<div class="note">Proforma ${esc(r.proforma||'—')}</div></td><td>${fdate(x.solicitado)}</td><td>${fdate(x.limite)}</td><td class="num">${i.dias??'—'}</td><td><span class="pill ${i.c}">${i.st}</span></td></tr>`).join('')}</tbody></table></div></div>`;
   return h;
 }
+function cliFullTable(list){
+  const sk=new Set(['codigo']);const cols=CLI_XCOLS.filter(c=>!sk.has(c[0]));
+  const cell=(c,r)=>{const v=r[c[0]];if(c[0]==='unidad')return esc(U[v]?.n||v||'');if(c[0]==='asesor')return esc(v?pname(v):(r.asesorTxt||''));if(c[2]==='b')return v?'Sí':'No';if(c[2]==='d')return v?fdate(v):'';if(c[0]==='precio')return n(v)?money(v):'';if(c[2]==='n')return v!==''&&v!=null?n(v).toLocaleString('es-PE'):'';if(c[0]==='estado')return esc(v||'Registrado');return esc(v??'')};
+  const lst=(L,f)=>(L||[]).length?`<div class="cf-l">${L.map(f).join('')}</div>`:'';
+  const ex=[['Entrega vigente',r=>{const f=cliFechaVig(r);return f?fdate(f):''}],['Reprogramaciones',r=>lst((r.reprog||[]).filter(x=>x.fecha),(x,i)=>`<div>${i+1}. ${fdate(x.fecha)} · ${esc(x.motivo||'')}${x.detalle?' — '+esc(x.detalle):''}</div>`)],
+   ['Requerimientos',r=>lst(r.reqs,x=>`<div>${esc(x.tipo)}${x.detalle?' ('+esc(x.detalle)+')':''}: ${fdate(x.solicitado)} → ${x.entregado?fdate(x.entregado):'<b style="color:var(--warn)">pendiente</b>'}${x.limite?' · límite '+fdate(x.limite):''}</div>`)],
+   ['Etapas del estado',r=>lst(r.procesos,x=>`<div>${esc(x.etapa)}: ${[x.entrega?'recib. '+fdate(x.entrega):'',x.inicio?'inicio '+fdate(x.inicio):'',x.fin?'fin '+fdate(x.fin):''].filter(Boolean).join(' · ')||'—'}${x.obs?' — '+esc(x.obs):''}</div>`)],
+   ['Cambios',r=>lst(r.cambios,x=>`<div>${esc(x.tipo)}${x.detalle?' ('+esc(x.detalle)+')':''}: ${fdate(x.solicitado)} → ${x.entregado?fdate(x.entregado):'<b style="color:var(--warn)">sin atender</b>'}</div>`)],
+   ['Distribución',r=>lst(r.dist,x=>`<div>${n(x.cantidad).toLocaleString('es-PE')} ${esc(x.material||'')}${x.precio!==''&&x.precio!=null?' · S/ '+(+x.precio).toFixed(2):''}${x.campo?' · '+esc(x.campo):''}${x.logistico?' · '+esc(x.logistico):''}${x.direccion?' · '+esc(x.direccion):''}${x.agencia?' · '+esc(x.agencia):''}</div>`)],
+   ['Registrado',r=>r.creado?fdate(String(r.creado).slice(0,10)):''],['Actualizado',r=>r.actualizado?fdate(String(r.actualizado).slice(0,10)):'']];
+  const wide=new Set(['otros','trabajo','tapa','hojas','encuadernacion','encarte','precioAprobo','cliente','departamento']);
+  return `<div class="note" style="margin:4px 0 6px">${list.length} ${list.length===1?'registro':'registros'} · desplázate a la derecha para ver todas las columnas (${cols.length+ex.length+1}). Usa el buscador de arriba o Ctrl+F para ubicar un dato.</div>
+   <div class="cf-wrap"><table class="cf"><thead><tr><th class="cf-s0"></th><th class="cf-s1">Código</th>${cols.map(c=>`<th>${esc(c[1].replace(/\s*\(.*?\)/,''))}</th>`).join('')}${ex.map(e=>`<th>${e[0]}</th>`).join('')}</tr></thead><tbody>
+   ${list.map(r=>`<tr><td class="cf-s0"><button class="btn small" data-cliopen="${r.id}" title="${canEditCli(r)?'Abrir / editar':'Ver'}">${canEditCli(r)?'✎':'👁'}</button> <button class="btn small" data-cliprint="${r.id}" title="Imprimir">🖨</button></td><td class="cf-s1 mono"><strong>${esc(r.codigo||'Sin código')}</strong></td>${cols.map(c=>`<td class="${wide.has(c[0])?'cf-w':''}${c[2]==='n'?' num':''}">${cell(c,r)}</td>`).join('')}${ex.map(e=>`<td class="cf-x">${e[1](r)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`}
 function cliRadio(name,opts,v,dis){return `<div style="display:flex;gap:12px;flex-wrap:wrap;font-weight:400;color:var(--ink)">${opts.map(o=>`<label style="flex-direction:row;align-items:center;gap:5px;font-weight:400"><input type="radio" name="${name}" value="${esc(o)}" ${v===o?'checked':''} ${dis}>${esc(o)}</label>`).join('')}</div>`}
 function cliReqRows(key='reqs'){const ro=cliEd.ro?'disabled':'',cb=key==='cambios',T=cb?CLI_CAMB_TIPOS:CLI_REQ_TIPOS;return (cliEd.r[key]||[]).map((x,i)=>{const inf=reqInfo(x,cb);return `<div style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1.2fr) repeat(3,minmax(0,1fr)) auto;gap:8px;align-items:end;padding:8px 0;border-bottom:1px solid var(--rule-2)">
   <label>${cb?'Cambio':'Requerimiento'}<select data-rq="${key}:${i}:tipo" ${ro}>${T.map(t=>`<option ${t===x.tipo?'selected':''}>${t}</option>`).join('')}</select></label>
@@ -1397,6 +1423,7 @@ function bindClientes(){
   ['actNew','actNew2'].forEach(i=>{const b=$('#'+i);if(b)b.onclick=()=>openAct(null)});
   document.querySelectorAll('[data-actopen]').forEach(b=>b.onclick=()=>openAct(b.dataset.actopen));
   const at=$('#actTipo');if(at)at.onchange=e=>{actF.tipo=e.target.value;render()};const ae=$('#actEst');if(ae)ae.onchange=e=>{actF.estado=e.target.value;render()};
+  document.querySelectorAll('[data-clitabla]').forEach(b=>b.onclick=()=>{cliF.tabla=b.dataset.clitabla;try{localStorage.setItem('cliTabla',cliF.tabla)}catch(_){}render()});
   document.querySelectorAll('[data-clivista]').forEach(b=>b.onclick=()=>{cliF.vista=b.dataset.clivista;render()});
   const ca=$('#crAnio');if(ca)ca.onchange=e=>{cliF.rAnio=e.target.value;render()};const cm=$('#crMet');if(cm)cm.onchange=e=>{cliF.rMet=e.target.value;render()};
   const cx=$('#crXls');if(cx)cx.onclick=cliRepExport;const cp=$('#crPrint');if(cp)cp.onclick=cliRepPrint;
