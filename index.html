@@ -2957,7 +2957,7 @@ function pickDoc(key,arr){const s=vSorted(arr);return s.find(d=>d.id===REPV[key]
 const vFmtDT=t=>{if(!t)return 'sin fecha';const d=new Date(t.length<=10?t+'T12:00:00':t);if(isNaN(d))return t;return d.toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric'})+(t.length>10?' '+d.toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'}):'')};
 const vSrc=()=>{const s=REPV.eiu&&VHIST.find(x=>x.id===REPV.eiu);return s?(s.filas||[]):VENTAS};
 /* Barra de versiones de cada sección: elegir versión (de la más reciente a la más antigua), subir otra y quitar la elegida */
-const REP_UP={susc:['viSusc','suscripciones'],prod:['viProd','produccion'],aces:['viAces','aces'],soma:['viSoma','soma'],cap:['viCap','capellania'],apt:['viApt','apt'],jv:['viJv','jefatura_ventas'],dis:['viDis','diseno'],mant:['viMant','mantenimiento'],aden:['viAden','aces_denominacional'],edu:['viEdu','educacion_aces'],upn:['viUpn','upn_material']};
+const REP_UP={susc:['viSusc','suscripciones'],prod:['viProd','produccion'],aces:['viAces','aces'],soma:['viSoma','soma'],cap:['viCap','capellania'],apt:['viApt','apt'],jv:['viJv','jefatura_ventas'],dis:['viDis','diseno'],dyc:['viDyc','diseno_correccion'],mant:['viMant','mantenimiento'],aden:['viAden','aces_denominacional'],edu:['viEdu','educacion_aces'],upn:['viUpn','upn_material']};
 function verBar(key,arr){
   const adm=canManage(),s=vSorted(arr),cur=key==='eiu'?(VHIST.find(x=>x.id===REPV.eiu)||null):pickDoc(key,arr);
   if(!s.length&&!adm&&key!=='eiu')return '';
@@ -2970,12 +2970,12 @@ function verBar(key,arr){
    <label class="note v-lbl" style="flex:1 1 260px">Versión del reporte (de la más reciente a la más antigua)${(s.length||key==='eiu')?`<select data-vver="${key}">${opts}</select>`:'<span>Aún no hay versiones cargadas</span>'}</label>
    <span class="note">${s.length} ${s.length===1?'versión guardada':'versiones guardadas'}</span>
    <button class="btn small primary" data-vprint="${key}">🖨 Imprimir sección</button>
-   ${adm&&up?`<label class="btn small" style="cursor:pointer">Subir nueva versión<input type="file" accept=".json,application/json" data-up="${up[0]}" hidden></label>`:''}
+   ${adm&&up?`<label class="btn small" style="cursor:pointer">Subir nueva versión<input type="file" accept=".json,application/json${key==='dyc'?',.xlsx,.xls':''}" data-up="${up[0]}" hidden></label>`:''}
    ${adm&&key==='eiu'?`<button class="btn small" data-vopenimp="1">Cargar nueva versión</button>`:''}
    ${adm&&cur&&(key==='eiu'||up)?`<button class="btn small" data-vdelcol="${key==='eiu'?'ventas_hist':up[1]}" data-vdelid="${esc(cur.id)}">Quitar esta versión</button>`:''}
    ${old?`<span class="pill warn" style="flex-basis:100%">Estás viendo una versión anterior (${esc(vFmtDT(vTime(cur)))}). Elige la más reciente para volver.</span>`:''}</div>`;
 }
-const REP_ARR=()=>({susc:SUSC,prod:PROD,aces:ACES,soma:SOMA,cap:CAP,apt:APT,jv:JV,dis:DIS,mant:MANT,aden:ADEN,edu:EDU,upn:UPNM});
+const REP_ARR=()=>({susc:SUSC,prod:PROD,aces:ACES,soma:SOMA,cap:CAP,apt:APT,jv:JV,dis:DIS,dyc:DYC,mant:MANT,aden:ADEN,edu:EDU,upn:UPNM});
 function withVer(key,html){const re=new RegExp('(<h[23] id="rep-'+key+'" class="rep-sec"[^>]*>[\\s\\S]*?</h[23]>)');return html.replace(re,m=>m+verBar(key,REP_ARR()[key]))}
 const vf={anio:null,corte:null,canal:'Todos'};
 const vImp={open:false,text:'',anio:new Date().getFullYear(),hasta:'',parsed:null,busy:false};
@@ -2989,6 +2989,7 @@ let CAP=[];
 let APT=[];
 let JV=[];
 let DIS=[];
+let DYC=[];
 let MANT=[];
 let ADEN=[];
 let EDU=[];
@@ -3068,16 +3069,16 @@ function vStats(M,y,corte,c){
 const vYearCol=(y,years)=>V_YCOL[(years.length-1-years.indexOf(y))%V_YCOL.length];
 
 /* Vista */
-const REP_UNIT={eiu:'GV',susc:'GV',prod:'GP',aces:'GV',soma:'CSO',cap:'CAP',apt:'JAPT',jv:'JV',dis:'JD',mant:'CMT',aden:'VDEN',edu:'VEDU',upn:'GV'};
+const REP_UNIT={eiu:'GV',susc:'GV',prod:'GP',aces:'GV',soma:'CSO',cap:'CAP',apt:'JAPT',jv:'JV',dis:'JD',dyc:'JD',mant:'CMT',aden:'VDEN',edu:'VEDU',upn:'GV'};
 function repOK(k){return !!myAcc()} /* Reportes: los ven todos los usuarios; solo el administrador los carga */
 function vNav(hasV){
-  const items0=[['rep-eiu','Facturación EIU',hasV],['rep-susc','Suscripciones',SUSC.length||canManage()],['rep-prod','Producción',PROD.length||canManage()],['rep-aces','Facturación ACES',ACES.length||canManage()],['rep-soma','SOMA',SOMA.length||canManage()],['rep-cap','Capellanía',CAP.length||canManage()],['rep-apt','APT',APT.length||canManage()],['rep-jv','Jefatura Ventas EIU',JV.length||canManage()],['rep-dis','Diseño',DIS.length||canManage()],['rep-mant','Mantenimiento',MANT.length||canManage()],['rep-aden','ACES Denominacional',ADEN.length||canManage()],['rep-edu','Educación ACES',EDU.length||canManage()],['rep-upn','UPN Material Iglesias',UPNM.length||canManage()]];
-  const KEY={'rep-eiu':'eiu','rep-susc':'susc','rep-prod':'prod','rep-aces':'aces','rep-soma':'soma','rep-cap':'cap','rep-apt':'apt','rep-jv':'jv','rep-dis':'dis','rep-mant':'mant','rep-aden':'aden','rep-edu':'edu','rep-upn':'upn'};
+  const items0=[['rep-eiu','Facturación EIU',hasV],['rep-susc','Suscripciones',SUSC.length||canManage()],['rep-prod','Producción',PROD.length||canManage()],['rep-aces','Facturación ACES',ACES.length||canManage()],['rep-soma','SOMA',SOMA.length||canManage()],['rep-cap','Capellanía',CAP.length||canManage()],['rep-apt','APT',APT.length||canManage()],['rep-jv','Jefatura Ventas EIU',JV.length||canManage()],['rep-dis','Diseño',DIS.length||canManage()],['rep-dyc','Diseño y corrección',DYC.length||canManage()],['rep-mant','Mantenimiento',MANT.length||canManage()],['rep-aden','ACES Denominacional',ADEN.length||canManage()],['rep-edu','Educación ACES',EDU.length||canManage()],['rep-upn','UPN Material Iglesias',UPNM.length||canManage()]];
+  const KEY={'rep-eiu':'eiu','rep-susc':'susc','rep-prod':'prod','rep-aces':'aces','rep-soma':'soma','rep-cap':'cap','rep-apt':'apt','rep-jv':'jv','rep-dis':'dis','rep-dyc':'dyc','rep-mant':'mant','rep-aden':'aden','rep-edu':'edu','rep-upn':'upn'};
   const items=items0.filter(([id])=>repOK(KEY[id]));
   if(!items.length)return '';
   return `<nav class="vnav" aria-label="Ir a un reporte">${items.map(([id,l,on])=>`<button type="button" class="vnav-b" data-goto="${id}" ${on?'':'disabled'}>${l}</button>`).join('')}</nav>`;
 }
-function repViews(){return [['susc',viewSusc],['prod',viewProd],['aces',viewAces],['soma',viewSoma],['cap',viewCap],['apt',viewApt],['jv',viewJv],['dis',viewDis],['mant',viewMant],['aden',viewAden],['edu',viewEdu],['upn',viewUpn]].map(([k,f])=>repOK(k)?withVer(k,f()):'').join('')}
+function repViews(){return [['susc',viewSusc],['prod',viewProd],['aces',viewAces],['soma',viewSoma],['cap',viewCap],['apt',viewApt],['jv',viewJv],['dis',viewDis],['dyc',viewDyc],['mant',viewMant],['aden',viewAden],['edu',viewEdu],['upn',viewUpn]].map(([k,f])=>repOK(k)?withVer(k,f()):'').join('')}
 function viewVentas(){
   const fe=document.activeElement;vFocus=fe&&fe.id&&/^vi/.test(fe.id)?{id:fe.id,s:fe.selectionStart,e:fe.selectionEnd,top:fe.scrollTop}:null;
   const adm=canManage(),M=vModel();
@@ -3201,7 +3202,8 @@ function viewVImport(M){
   h+=`<div style="border-top:1px solid var(--rule);padding-top:12px;display:flex;flex-direction:column;gap:8px"><h3>Informe de Capellanía</h3><div class="note">Sube el archivo del informe de Capellanía (formato JSON). Si ya hay uno del mismo periodo, se reemplaza.${CAP.length?` Cargados: ${CAP.map(s=>`<b>${esc(s.periodo)}</b> <button class="link" data-cpdel="${esc(s.id)}">Quitar</button>`).join(' · ')}`:''}</div><div><label class="btn" style="cursor:pointer">Subir informe de Capellanía<input id="viCap" type="file" accept=".json,application/json" hidden></label></div></div>`;
   h+=`<div style="border-top:1px solid var(--rule);padding-top:12px;display:flex;flex-direction:column;gap:8px"><h3>Informe de APT</h3><div class="note">Sube el archivo del informe de APT (formato JSON). Si ya hay uno del mismo periodo, se reemplaza.${APT.length?` Cargados: ${APT.map(s=>`<b>${esc(s.periodo)}</b> <button class="link" data-apdel="${esc(s.id)}">Quitar</button>`).join(' · ')}`:''}</div><div><label class="btn" style="cursor:pointer">Subir informe de APT<input id="viApt" type="file" accept=".json,application/json" hidden></label></div></div>`;
   h+=`<div style="border-top:1px solid var(--rule);padding-top:12px;display:flex;flex-direction:column;gap:8px"><h3>Informe de la Jefatura de Ventas EIU</h3><div class="note">Sube el archivo del informe de la Jefatura de Ventas (formato JSON). Si ya hay uno del mismo periodo, se reemplaza.${JV.length?` Cargados: ${JV.map(s=>`<b>${esc(s.periodo)}</b> <button class="link" data-jvdel="${esc(s.id)}">Quitar</button>`).join(' · ')}`:''}</div><div><label class="btn" style="cursor:pointer">Subir informe de Jefatura de Ventas<input id="viJv" type="file" accept=".json,application/json" hidden></label></div></div>`;
-  h+=`<div style="border-top:1px solid var(--rule);padding-top:12px;display:flex;flex-direction:column;gap:8px"><h3>Informe de Diseño y corrección</h3><div class="note">Sube el archivo del informe de Diseño (formato JSON). Si ya hay uno del mismo periodo, se reemplaza.${DIS.length?` Cargados: ${DIS.map(s=>`<b>${esc(s.periodo)}</b> <button class="link" data-disdel="${esc(s.id)}">Quitar</button>`).join(' · ')}`:''}</div><div><label class="btn" style="cursor:pointer">Subir informe de Diseño<input id="viDis" type="file" accept=".json,application/json" hidden></label></div></div>`;
+  h+=`<div style="border-top:1px solid var(--rule);padding-top:12px;display:flex;flex-direction:column;gap:8px"><h3>Informe de Diseño</h3><div class="note">Sube el archivo del informe de Diseño (formato JSON). Si ya hay uno del mismo periodo, se reemplaza.${DIS.length?` Cargados: ${DIS.map(s=>`<b>${esc(s.periodo)}</b> <button class="link" data-disdel="${esc(s.id)}">Quitar</button>`).join(' · ')}`:''}</div><div><label class="btn" style="cursor:pointer">Subir informe de Diseño<input id="viDis" type="file" accept=".json,application/json" hidden></label></div></div>`;
+  h+=`<div style="border-top:1px solid var(--rule);padding-top:12px;display:flex;flex-direction:column;gap:8px"><h3>INFORME DISEÑO Y CORRECCIÓN</h3><div class="note">Sube el Excel de la base de datos de horas de diseñadores y correctores (BASE_DATOS.xlsx: Responsable, Cargo, Fecha, JOB, Nombre del Trabajo, Actividad, H_Inicio, H_Final, Horas_Decimales, Estado JOB). Cada carga se guarda como una nueva versión del informe.${DYC.length?` Cargados: ${vSorted(DYC).map(s=>`<b>${esc(s.periodo)}</b>`).join(' · ')}`:''}</div><div><label class="btn" style="cursor:pointer">Subir Excel de Diseño y corrección<input id="viDyc" type="file" accept=".xlsx,.xls,.json" hidden></label></div></div>`;
   h+=`<div style="border-top:1px solid var(--rule);padding-top:12px;display:flex;flex-direction:column;gap:8px"><h3>Informe de Mantenimiento</h3><div class="note">Sube el archivo del informe de Mantenimiento (formato JSON). Si ya hay uno del mismo periodo, se reemplaza.${MANT.length?` Cargados: ${MANT.map(s=>`<b>${esc(s.periodo)}</b> <button class="link" data-mtdel="${esc(s.id)}">Quitar</button>`).join(' · ')}`:''}</div><div><label class="btn" style="cursor:pointer">Subir informe de Mantenimiento<input id="viMant" type="file" accept=".json,application/json" hidden></label></div></div>`;
   h+=`<div style="border-top:1px solid var(--rule);padding-top:12px;display:flex;flex-direction:column;gap:8px"><h3>Informe Denominacional ACES</h3><div class="note">Sube el archivo del informe Denominacional de ACES (formato JSON). Si ya hay uno del mismo periodo, se reemplaza.${ADEN.length?` Cargados: ${ADEN.map(s=>`<b>${esc(s.periodo)}</b> <button class="link" data-addel="${esc(s.id)}">Quitar</button>`).join(' · ')}`:''}</div><div><label class="btn" style="cursor:pointer">Subir informe Denominacional ACES<input id="viAden" type="file" accept=".json,application/json" hidden></label></div></div>`;
   h+=`<div style="border-top:1px solid var(--rule);padding-top:12px;display:flex;flex-direction:column;gap:8px"><h3>Informe Educación ACES</h3><div class="note">Sube el archivo del informe de Educación ACES (formato JSON). Si ya hay uno del mismo periodo, se reemplaza.${EDU.length?` Cargados: ${EDU.map(s=>`<b>${esc(s.periodo)}</b> <button class="link" data-edudel="${esc(s.id)}">Quitar</button>`).join(' · ')}`:''}</div><div><label class="btn" style="cursor:pointer">Subir informe Educación ACES<input id="viEdu" type="file" accept=".json,application/json" hidden></label></div></div>`;
@@ -3750,6 +3752,66 @@ function viewJv(){
 
 /* ===== Informe de Diseño y corrección ===== */
 const disDoc=()=>pickDoc('dis',DIS);
+/* INFORME DISEÑO Y CORRECCIÓN (base de datos de horas · colección diseno_correccion) */
+let dycF={cargo:'',resp:''};
+const dycDoc=()=>pickDoc('dyc',DYC);
+const dycH=v=>(Math.round((+v||0)*10)/10).toLocaleString('es-PE',{minimumFractionDigits:1,maximumFractionDigits:1});
+const DYC_EST=[['Si JOB','Con JOB','var(--cyan)'],['No JOB','Sin JOB','#2b3f63'],['N/C','No corresponde (N/C)','#b8c0cc']];
+const dycEstK=e=>{const n=norm(e);return /^si/.test(n)?'Si JOB':/^no/.test(n)?'No JOB':'N/C'};
+async function dycParseXlsx(f){const X=await loadXLSX();const wb=X.read(await f.arrayBuffer(),{type:'array'});let g=null,hi=-1;
+  for(const sn of wb.SheetNames){const gg=X.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:''});const i=gg.findIndex(r=>r.some(v=>norm(v)==='responsable')&&r.some(v=>/actividad/.test(norm(v))));if(i>=0){g=gg;hi=i;break}}
+  if(!g)throw new Error('El Excel debe tener una fila de encabezados con «Responsable» y «Actividad».');
+  const H=g[hi].map(v=>norm(String(v)).replace(/[_\s]+/g,' ').trim()),ix=re=>H.findIndex(x=>re.test(x));
+  const c={resp:ix(/^responsable$/),cargo:ix(/^cargo$/),fecha:ix(/^fecha$/),job:ix(/^job$/),trab:ix(/nombre del trabajo/),act:ix(/^actividad$/),ini:ix(/^h inicio$/),fin:ix(/^h final$/),dec:ix(/decimal/),obs:ix(/observacion/),est:ix(/estado job/)};
+  const tm=v=>{if(typeof v==='number'){const m=Math.round((v%1)*1440);return String(Math.floor(m/60)%24).padStart(2,'0')+':'+String(m%60).padStart(2,'0')}const m=String(v||'').match(/(\d{1,2}):(\d{2})/);return m?m[1].padStart(2,'0')+':'+m[2]:''};
+  const S0=v=>String(v??'').trim(),seen=new Set();let dup=0,inc=0;const R=[];
+  g.slice(hi+1).forEach(r=>{if(!r.some((v,i)=>i>0&&S0(v)!==''))return;const resp=S0(r[c.resp]),fecha=toDate(r[c.fecha]),ini=tm(r[c.ini]),fin=tm(r[c.fin]);
+    let h=c.dec>=0&&r[c.dec]!==''?+r[c.dec]:null;if(h==null||isNaN(h))h=hrCalc(ini,fin);h=h==null?0:Math.round(h*100)/100;
+    if(!resp||!fecha||!h){inc++;return}const job=S0(r[c.job]),act=S0(r[c.act])||'Sin especificar';
+    const k=[resp,fecha,ini,fin,job,act].map(norm).join('|');if(seen.has(k)){dup++;return}seen.add(k);
+    R.push([resp,S0(r[c.cargo]),fecha,job,S0(r[c.trab]),act,h,c.est>=0?dycEstK(S0(r[c.est])||(job?'Si JOB':'No JOB')):(job?'Si JOB':'No JOB'),c.obs>=0?S0(r[c.obs]):'',ini,fin])});
+  if(!R.length)throw new Error('No se encontraron registros con responsable, fecha y horas.');
+  const fs=R.map(r=>r[2]).sort(),d1=fs[0],d2=fs[fs.length-1];
+  const per=(()=>{const a=new Date(d1+'T12:00:00'),b=new Date(d2+'T12:00:00'),M=x=>x.toLocaleDateString('es-PE',{month:'long'}).toLowerCase();return a.getMonth()===b.getMonth()&&a.getFullYear()===b.getFullYear()?`${a.getDate()} al ${b.getDate()} de ${M(b)} de ${b.getFullYear()}`:`${a.getDate()} de ${M(a)}${a.getFullYear()!==b.getFullYear()?' de '+a.getFullYear():''} al ${b.getDate()} de ${M(b)} de ${b.getFullYear()}`})();
+  return {titulo:'INFORME DISEÑO Y CORRECCIÓN',periodo:per,desde:d1,hasta:d2,fuente:f.name,omitidos:{repetidos:dup,incompletos:inc},cols:['responsable','cargo','fecha','job','trabajo','actividad','horas','estadoJob','obs','hIni','hFin'],registros:R}}
+function viewDyc(){const d=dycDoc();
+  if(!d)return canManage()?`<h2 id="rep-dyc" class="rep-sec" style="margin-top:14px">INFORME DISEÑO Y CORRECCIÓN</h2><div class="panel empty"><strong>Aún no hay informe de Diseño y corrección</strong>Usa «Subir nueva versión» y elige el Excel de la base de datos de horas (BASE_DATOS.xlsx).</div>`:'';
+  const ALL=(d.registros||[]).map(r=>({resp:r[0],cargo:r[1]||'Sin cargo',fecha:r[2],job:r[3],trab:r[4],act:r[5],h:+r[6]||0,est:r[7]||'N/C',obs:r[8]}));
+  const cargos=[...new Set(ALL.map(r=>r.cargo))].sort(),resps=[...new Set(ALL.filter(r=>!dycF.cargo||r.cargo===dycF.cargo).map(r=>r.resp))].sort();
+  if(dycF.resp&&!resps.includes(dycF.resp))dycF.resp='';
+  const L=ALL.filter(r=>(!dycF.cargo||r.cargo===dycF.cargo)&&(!dycF.resp||r.resp===dycF.resp));
+  const sum=a=>a.reduce((s,r)=>s+r.h,0),T=sum(L),by=(f,a=L)=>{const m=new Map();a.forEach(r=>{const k=f(r);if(!m.has(k))m.set(k,[]);m.get(k).push(r)});return [...m.entries()].map(([k,rs])=>({k,rs,h:sum(rs)})).sort((x,y)=>y.h-x.h)};
+  const E=k=>sum(L.filter(r=>r.est===k)),pc=v=>T?v/T:null,dias=[...new Set(L.map(r=>r.fecha))].sort(),jobs=new Set(L.filter(r=>r.job).map(r=>r.job));
+  const stack=rs=>{const t=sum(rs)||1;return `<div style="display:flex;height:16px;border-radius:4px;overflow:hidden;background:var(--rule)">${DYC_EST.map(([k,,c])=>{const v=sum(rs.filter(r=>r.est===k));return v?`<div title="${k}: ${dycH(v)} h" style="width:${v/t*100}%;background:${c}"></div>`:''}).join('')}</div>`};
+  const leg=`<div class="legend">${DYC_EST.map(([,l,c])=>`<span><i style="background:${c}"></i>${l}</span>`).join('')}</div>`;
+  const bars=(rows,lab,max,col)=>`<div class="vbars">${rows.map((r,i)=>`<div class="vbar"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.k)}">${esc(lab?lab(r):r.k)}</span><div class="t"><b style="width:${max?r.h/max*100:0}%;background:${col||(i<3?'var(--cyan)':'var(--ink-2)')};opacity:${col||i<3?1:.45}"></b></div><span class="val">${dycH(r.h)} h · ${vP1(pc(r.h))}</span></div>`).join('')}</div>`;
+  const P=by(r=>r.resp),A=by(r=>r.act),C=by(r=>r.cargo),J=by(r=>r.job,L.filter(r=>r.job)).slice(0,15),SJ=by(r=>r.trab||r.act,L.filter(r=>r.est==='No JOB')).slice(0,12),D=dias.map(f=>({k:f,h:sum(L.filter(r=>r.fecha===f))})),mxD=Math.max(1,...D.map(x=>x.h));
+  const pName=n=>{const [a,b]=String(n).split(',');return b?b.trim().split(/\s+/)[0]+' '+a.trim().split(/\s+/)[0][0]+a.trim().split(/\s+/)[0].slice(1).toLowerCase():n};
+  const top=P[0],sinAlto=P.map(p=>({...p,s:sum(p.rs.filter(r=>r.est==='No JOB'))})).filter(p=>p.h&&p.s/p.h>=.5);
+  const flt=`<div class="panel" style="flex-direction:row;flex-wrap:wrap;gap:14px;align-items:end;padding:12px 18px">
+    <label class="note v-lbl">Cargo<select data-dycf="cargo"><option value="">Todos (diseño y corrección)</option>${cargos.map(c=>`<option ${c===dycF.cargo?'selected':''}>${esc(c)}</option>`).join('')}</select></label>
+    <label class="note v-lbl">Responsable<select data-dycf="resp"><option value="">Todas las personas</option>${resps.map(c=>`<option value="${esc(c)}" ${c===dycF.resp?'selected':''}>${esc(c)}</option>`).join('')}</select></label>
+    <span class="note" style="flex:1 1 200px;text-align:right">${L.length} registros de ${ALL.length}${d.omitidos&&(d.omitidos.repetidos||d.omitidos.incompletos)?` · al cargar se omitieron ${d.omitidos.repetidos} filas repetidas y ${d.omitidos.incompletos} incompletas`:''}</span></div>`;
+  let h=`<h2 id="rep-dyc" class="rep-sec" style="margin-top:14px">INFORME DISEÑO Y CORRECCIÓN</h2>${flt}
+   <p class="vlead">Horas registradas por diseñadores y correctores del ${esc(d.periodo||'')}: <b>${dycH(T)} horas</b> en ${L.length} registros de ${P.length} ${P.length===1?'persona':'personas'}, ${dias.length} días con registro y ${jobs.size} JOB atendidos. El <b>${vP1(pc(E('Si JOB')))}</b> de las horas tiene JOB y el <b class="v-down">${vP1(pc(E('No JOB')))}</b> se trabajó sin JOB. Fuente: ${esc(d.fuente||'base de datos de horas')}.</p>
+   <div class="kpis">
+    <div class="kpi"><span class="l">Horas registradas</span><span class="v">${dycH(T)}</span><span class="s">${C.map(c=>esc(c.k)+': '+dycH(c.h)+' h').join(' · ')}</span></div>
+    <div class="kpi"><span class="l">Horas con JOB</span><span class="v">${dycH(E('Si JOB'))}</span><span class="s">${vP1(pc(E('Si JOB')))} del total</span></div>
+    <div class="kpi"><span class="l">Horas sin JOB</span><span class="v v-down">${dycH(E('No JOB'))}</span><span class="s">${vP1(pc(E('No JOB')))} del total${E('N/C')?` · N/C: ${dycH(E('N/C'))} h`:''}</span></div>
+    <div class="kpi"><span class="l">JOB atendidos</span><span class="v">${jobs.size}</span><span class="s">Promedio ${dycH(jobs.size?E('Si JOB')/jobs.size:0)} h por JOB</span></div>
+    <div class="kpi"><span class="l">Promedio por persona</span><span class="v">${dycH(P.length?T/P.length:0)} h</span><span class="s">${dycH(P.length&&dias.length?T/P.length/dias.length:0)} h por día con registro</span></div></div>
+   <div class="panel"><h2 style="font-size:1.05rem">Horas con JOB y sin JOB</h2><div class="note">Distribución de todas las horas registradas según el estado del JOB.</div>
+    <div style="display:flex;height:34px;border-radius:6px;overflow:hidden;margin:6px 0 8px">${DYC_EST.map(([k,,c])=>{const v=E(k);return v?`<div style="width:${v/T*100}%;background:${c};color:${k==='N/C'?'#1f2937':'#fff'};display:flex;align-items:center;justify-content:center;font-weight:600;white-space:nowrap;overflow:hidden">${v/T>=.08?vP1(v/T)+' · '+dycH(v)+' h':''}</div>`:''}).join('')}</div>${leg}</div>
+   <div class="panel"><h2 style="font-size:1.05rem">Horas por persona</h2><div class="note">Horas de cada diseñador y corrector, y qué parte se trabajó con JOB.${top?` Más horas: ${esc(pName(top.k))} (${dycH(top.h)} h).`:''}${sinAlto.length?` Con la mitad o más de sus horas sin JOB: ${sinAlto.map(p=>esc(pName(p.k))).join(', ')}.`:''}</div>${leg}
+    <div class="tbl vt" style="margin-top:8px"><table><thead><tr><th>Persona</th><th>Cargo</th><th class="num">Horas</th><th class="num">Días</th><th class="num">Horas / día</th><th class="num">JOB</th><th class="num">% con JOB</th><th class="num">% sin JOB</th><th style="min-width:160px">Distribución</th></tr></thead><tbody>
+    ${P.map(p=>{const dd=new Set(p.rs.map(r=>r.fecha)).size,s=sum(p.rs.filter(r=>r.est==='No JOB')),cj=sum(p.rs.filter(r=>r.est==='Si JOB'));return `<tr><td>${esc(p.k)}</td><td>${esc(p.rs[0].cargo)}</td><td class="num"><b>${dycH(p.h)}</b></td><td class="num">${dd}</td><td class="num">${dycH(dd?p.h/dd:0)}</td><td class="num">${new Set(p.rs.filter(r=>r.job).map(r=>r.job)).size}</td><td class="num">${vP1(p.h?cj/p.h:null)}</td><td class="num ${p.h&&s/p.h>=.5?'v-down':''}">${vP1(p.h?s/p.h:null)}</td><td>${stack(p.rs)}</td></tr>`}).join('')}
+    <tr><td><b>Total</b></td><td></td><td class="num"><b>${dycH(T)}</b></td><td class="num">${dias.length}</td><td></td><td class="num">${jobs.size}</td><td class="num">${vP1(pc(E('Si JOB')))}</td><td class="num">${vP1(pc(E('No JOB')))}</td><td>${stack(L)}</td></tr></tbody></table></div></div>
+   <div class="grid2"><div class="panel"><h2 style="font-size:1.05rem">Horas por actividad</h2><div class="note">En qué se usaron las horas de diseño y corrección.</div>${bars(A.slice(0,14),null,A[0]&&A[0].h)}${A.length>14?`<div class="note">Y ${A.length-14} actividades más con ${dycH(sum(A.slice(14).flatMap(a=>a.rs)))} h.</div>`:''}</div>
+    <div class="panel"><h2 style="font-size:1.05rem">Horas por día</h2><div class="note">Horas registradas cada día del periodo.</div><div style="display:flex;align-items:flex-end;gap:2px;height:170px;margin-top:10px">${D.map(x=>`<div title="${fdate(x.k)}: ${dycH(x.h)} h" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%"><span style="font-size:.6rem;color:var(--ink-2)">${Math.round(x.h)}</span><div style="width:100%;height:${x.h/mxD*130}px;background:var(--cyan);border-radius:3px 3px 0 0"></div><span style="font-size:.6rem;color:var(--ink-2)">${+x.k.slice(8)}</span></div>`).join('')}</div><div class="note" style="margin-top:6px">Promedio: ${dycH(D.length?T/D.length:0)} h por día con registro.</div></div></div>
+   <div class="grid2"><div class="panel"><h2 style="font-size:1.05rem">JOB con más horas</h2><div class="note">Los ${J.length} JOB que más horas de diseño y corrección usaron.</div><div class="tbl vt"><table><thead><tr><th>JOB</th><th>Trabajo</th><th class="num">Horas</th><th class="num">Personas</th></tr></thead><tbody>${J.map(j=>`<tr><td class="mono" style="white-space:nowrap">${esc(j.k)}</td><td>${esc(j.rs[0].trab||'')}</td><td class="num"><b>${dycH(j.h)}</b></td><td class="num">${new Set(j.rs.map(r=>r.resp)).size}</td></tr>`).join('')}</tbody></table></div></div>
+    <div class="panel"><h2 style="font-size:1.05rem">Trabajos sin JOB con más horas</h2><div class="note">Horas hechas sin JOB (${dycH(E('No JOB'))} h). Conviene pedir el JOB para registrarlas como costo.</div><div class="tbl vt"><table><thead><tr><th>Trabajo / actividad</th><th class="num">Horas</th><th class="num">Personas</th></tr></thead><tbody>${SJ.map(j=>`<tr><td>${esc(j.k)}</td><td class="num"><b>${dycH(j.h)}</b></td><td class="num">${new Set(j.rs.map(r=>r.resp)).size}</td></tr>`).join('')||'<tr><td colspan="3" class="note">No hay horas sin JOB.</td></tr>'}</tbody></table></div></div></div>`;
+  return h}
+
 function viewDis(){
   const d=disDoc();
   if(!d)return canManage()?`<h3 id="rep-dis" class="rep-sec" style="margin-top:6px">INFORME DISEÑO</h3><div class="panel empty"><strong>Aún no hay informe de Diseño</strong>Súbelo desde “Cargar o actualizar datos”.</div>`:'';
@@ -4029,6 +4091,12 @@ function bindVentas(){
     catch(err){toast('No se pudo cargar: '+(err.message||err))}};
   document.querySelectorAll('[data-mtdel]').forEach(b=>b.onclick=async()=>{if(!b.dataset.arm){b.dataset.arm=1;b.textContent='Confirmar';return}
     const r=await sb.from('registros').delete().eq('col','mantenimiento').eq('id',b.dataset.mtdel);if(r.error)toast('No se pudo quitar: '+r.error.message);else{db.reloadAll();toast('Informe quitado.')}});
+  UPH.viDyc=async e=>{const f=e.target.files[0];if(!f)return;e.target.value='';
+    try{let o;if(/\.json$/i.test(f.name)){o=JSON.parse(await f.text());if(!o||!Array.isArray(o.registros))throw new Error('El archivo no tiene el formato del informe de Diseño y corrección.')}else{toast('Leyendo el Excel…');o=await dycParseXlsx(f)}
+      const id='dyc-'+vSlug(o.periodo)+'-'+Date.now().toString(36);const r=await sb.from('registros').upsert({col:'diseno_correccion',id,data:{...o,actualizado:today(),cargadoEn:new Date().toISOString(),creadoPor:actorId()},updated_at:new Date().toISOString()});if(r.error)throw r.error;db.reloadAll();
+      toast(`Informe Diseño y corrección guardado: ${o.registros.length} registros del ${o.periodo}.`)}
+    catch(err){toast('No se pudo cargar: '+(err.message||err))}};
+  document.querySelectorAll('[data-dycf]').forEach(s=>s.onchange=()=>{dycF[s.dataset.dycf]=s.value;if(s.dataset.dycf==='cargo')dycF.resp='';render()});
   UPH.viDis=async e=>{const f=e.target.files[0];if(!f)return;e.target.value='';
     try{const o=JSON.parse(await f.text());const ok=o&&o.periodo&&Array.isArray(o.personas)&&o.totales;
       if(!ok){toast('El archivo no tiene el formato del informe de Diseño.');return}
@@ -4182,6 +4250,7 @@ render();
     db.collection('capellania').onSnapshot(snap=>{CAP=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
     db.collection('apt').onSnapshot(snap=>{APT=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
     db.collection('jefatura_ventas').onSnapshot(snap=>{JV=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
+    db.collection('diseno_correccion').onSnapshot(snap=>{DYC=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
     db.collection('diseno').onSnapshot(snap=>{DIS=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
     db.collection('mantenimiento').onSnapshot(snap=>{MANT=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
     db.collection('aces_denominacional').onSnapshot(snap=>{ADEN=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
