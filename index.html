@@ -605,7 +605,7 @@ function render(){
   const v=$('#view');
   if(ac==='pending'){$('#tabs').innerHTML='';v.innerHTML='<div class="panel empty"><strong>Verificando acceso…</strong>Un momento, por favor.</div>';return}
   if(ac==='none'){$('#tabs').innerHTML='';v.innerHTML=viewLogin();bindView();return}
-  applyScope(ac);scopeClientes(ac);scopeProd(ac);consolidate();
+  applyScope(ac);scopeClientes(ac);scopeProd(ac);scopeHrs(ac);consolidate();
   if(tab==='users'&&!canManage())tab='dash';
   renderTabs();
   if(tab==='dash')v.innerHTML=viewDash();
@@ -1552,7 +1552,8 @@ function viewProdMod(){
   let h=`<div class="bar"><div class="left"><h2>Costos y Producción</h2>${unitFilterSel()}</div><div class="right"><input class="search" id="pjQ" placeholder="Buscar JOB, descripción, cliente…" value="${esc(pjF.q)}">
    ${sel('pjAnio','Todos los años',yrs,pjF.anio)}${sel('pjMes','Todos los meses',PJ_MES.map((m,i)=>[String(i+1).padStart(2,'0'),m]),pjF.mes)}${sel('pjTipo','Todos los tipos',PJ_TIPOS,pjF.tipo)}${sel('pjCampo','Todos los campos',PJ_CAMPOS,pjF.campo)}${sel('pjEst','Todos los estados',PJ_EST,pjF.estado)}
    <button class="btn" id="pjExp">⬇ Exportar</button>${readOnly?'':'<button class="btn" id="pjImp">⬆ Importar JOB</button>'}${adm?'<button class="btn" id="pjHistBtn" title="Cargar el informe Excel de producción (comparativos y gráficos)">⬆ Cargar informe Excel</button>':''}${readOnly?'':'<button class="btn primary" id="pjNew">+ Nuevo cliente / JOB</button>'}</div></div>
-   <div class="cr-tabs" role="tablist"><button type="button" class="${pjF.vista!=='rep'?'on':''}" data-pjv="reg">📋 Registros de JOB <span class="note">${all.length||''}</span></button><button type="button" class="${pjF.vista==='rep'?'on':''}" data-pjv="rep">📊 Reportes e informe</button></div>`;
+   <div class="cr-tabs" role="tablist"><button type="button" class="${pjF.vista!=='rep'&&pjF.vista!=='hrs'?'on':''}" data-pjv="reg">📋 Registros de JOB <span class="note">${all.length||''}</span></button><button type="button" class="${pjF.vista==='hrs'?'on':''}" data-pjv="hrs">⏱ Horas por JOB <span class="note">${(S.prodHrs||[]).filter(r=>inFilter('clientes',r)).length||''}</span></button><button type="button" class="${pjF.vista==='rep'?'on':''}" data-pjv="rep">📊 Reportes e informe</button></div>`;
+  if(pjF.vista==='hrs')return h+`<div id="hrBody">${viewHoras(all)}</div>`;
   if(pjF.vista==='rep')return h+pjReportHtml(all,H,yrs);
   const tot=L.reduce((s,j)=>s+pjTotal(j),0),u=L.reduce((s,j)=>s+n(j.cantidad),0),rr=L.filter(j=>j.tipoFact==='RRPP');
   h+=`<div class="kpis"><div class="kpi"><span class="l">JOB registrados</span><span class="v">${L.length}</span><span class="s">${L.filter(j=>j.estado==='Entregado').length} entregados · ${L.filter(j=>!j.estado||j.estado==='En proceso').length} en proceso</span></div>
@@ -1578,8 +1579,8 @@ function pjDefs(v){const D=d=>d?fdate(d):'',m2=x=>x?pjM2(x):'';const mg=j=>{cons
   const T=(k,l,f,o={})=>({k,l,fv:f,sv:o.sv||f,num:o.num,cls:o.cls});
   const base={fecha:T('fecha','Mes / entrega',j=>{const f=pjFecha(j);return f?PJ_MES[+f.slice(5,7)-1]+' '+f.slice(0,4)+' · '+fdate(f):''},{sv:pjFecha}),job:T('job','JOB N.º',j=>j.job||''),cliente:T('cliente','Cliente',j=>j.cliente||''),desc:T('desc','Descripción',j=>j.descripcion||'',{cls:'cf-w'}),
    campo:T('campo','Campo',j=>j.campo||''),tipo:T('tipo','Tipo',j=>j.tipoFact||'Principal'),cant:T('cant','Cantidad',j=>j.cantidad?n(j.cantidad).toLocaleString('es-PE'):'',{sv:j=>j.cantidad===''||j.cantidad==null?null:n(j.cantidad),num:1}),
-   total:T('total','Precio de venta',j=>m2(pjTotal(j)),{sv:j=>pjTotal(j)||null,num:1}),costo:T('costo','Costo total',j=>m2(pjCosto(j)),{sv:j=>pjCosto(j)||null,num:1}),margen:T('margen','Margen',j=>mg(j)+(mgp(j)?' ('+mgp(j)+')':''),{sv:pjMargen,num:1}),estado:T('estado','Estado',j=>j.estado||'En proceso')};
-  if(v==='res')return ['fecha','job','cliente','desc','campo','tipo','cant','total','costo','margen','estado'].map(k=>base[k]);
+   total:T('total','Precio de venta',j=>m2(pjTotal(j)),{sv:j=>pjTotal(j)||null,num:1}),costo:T('costo','Costo total',j=>m2(pjCosto(j)),{sv:j=>pjCosto(j)||null,num:1}),margen:T('margen','Margen',j=>mg(j)+(mgp(j)?' ('+mgp(j)+')':''),{sv:pjMargen,num:1}),horas:T('horas','Horas registradas',j=>{const x=hrJobHoras(j.job);return x.h?hrH(x.h)+' h':''},{sv:j=>hrJobHoras(j.job).h||null,num:1}),estado:T('estado','Estado',j=>j.estado||'En proceso')};
+  if(v==='res')return ['fecha','job','cliente','desc','campo','tipo','cant','horas','total','costo','margen','estado'].map(k=>base[k]);
   return [base.job,T('timp','Tipo de impresión',j=>j.tipoImpresion||''),T('afe','Afectación',j=>j.afectacion||''),T('fi','Fecha de emisión',j=>D(j.fechaIngreso),{sv:j=>j.fechaIngreso||''}),T('fe','Fecha de entrega',j=>D(j.fechaEntrega),{sv:j=>j.fechaEntrega||''}),base.estado,T('uni','Unidad',j=>U[j.unidad]?.n||j.unidad||''),
    base.cliente,T('cont','Contacto',j=>j.contacto||''),T('cel','Celular',j=>j.celular||''),T('mail','Correo',j=>j.correo||''),T('ruc','RUC / DNI',j=>j.ruc||''),T('ase','Asesor',j=>j.asesor||''),T('at','At.',j=>j.atencion||''),
    base.desc,base.cant,T('let','Cantidad en letras',j=>numLetras(j.cantidad)),T('fmt','Formato',j=>[j.formato,pjOt(j,'fmt')].filter(Boolean).join(' · ')),T('tapa','Tapa',j=>j.tapa||'',{cls:'cf-w'}),T('hojas','Hojas',j=>j.hojas||''),T('enc','Encartes',j=>j.encartes||''),T('otros','Otros',j=>j.otros||''),
@@ -1590,7 +1591,7 @@ function pjDefs(v){const D=d=>d?fdate(d):'',m2=x=>x?pjM2(x):'';const mg=j=>{cons
    T('pren','Prensa',pjPrensaTxt,{cls:'cf-x'}),T('corte','Corte de papel',j=>{const O=j.ot||{};return ['tapas','hojas','encartes'].map(p=>{const s=[O[`pz.${p}.pliegos`]?O[`pz.${p}.pliegos`]+' pliegos':'',...PJ_PL.filter(f=>O[`pz.${p}.${f}`]).map(f=>f+': '+O[`pz.${p}.${f}`])].filter(Boolean);return s.length?p+' '+s.join(', '):''}).filter(Boolean).concat(O.pzCorteEsp?['Especial: '+O.pzCorteEsp]:[]).join(' · ')},{cls:'cf-w'}),
    T('pos','Posprensa',j=>[pjOt(j,'po'),pjOt(j,'tp'),(j.ot||{}).tpEmbolsado?'Embolsado '+j.ot.tpEmbolsado:''].filter(Boolean).join(' · '),{cls:'cf-x'}),T('oi','Otras indicaciones',j=>j.otrasInd||'',{cls:'cf-w'}),
    base.campo,T('dep','Departamento',j=>j.departamento||''),T('ev','Evento',j=>j.evento||''),T('cla','Clasificación',j=>j.clasificacion||''),base.tipo,T('pv','P.V.',j=>j.pv!==''&&j.pv!=null?'S/ '+(+j.pv).toFixed(2):'',{sv:j=>j.pv===''||j.pv==null?null:+j.pv,num:1}),base.total,
-   ...PJ_COST.map(([k,l])=>T(k,l,j=>m2(n(j[k])),{sv:j=>n(j[k])||null,num:1})),base.costo,base.margen,T('ped','Pedido Ventas EIU',j=>j.codigoPedido||''),T('nota','Nota interna',j=>j.obs||'')]}
+   ...PJ_COST.map(([k,l])=>T(k,l,j=>m2(n(j[k])),{sv:j=>n(j[k])||null,num:1})),base.horas,base.costo,base.margen,T('ped','Pedido Ventas EIU',j=>j.codigoPedido||''),T('nota','Nota interna',j=>j.obs||'')]}
 function pjApplyCols(L,v){const D=pjDefs(v),F=(pjF.cf||{})[v]||{},S0=(pjF.srt2||{})[v];const act=Object.entries(F).filter(([,q])=>q&&q.trim());
   if(act.length){const dm=Object.fromEntries(D.map(d=>[d.k,d]));L=L.filter(j=>act.every(([k,q])=>!dm[k]||norm(dm[k].fv(j)).includes(norm(q))))}
   if(S0){const d=D.find(x=>x.k===S0.k);if(d){const dir=S0.d==='desc'?-1:1;L=L.slice().sort((a,b)=>{const x=d.sv(a),y=d.sv(b),ex=x===''||x==null,ey=y===''||y==null;if(ex&&ey)return 0;if(ex)return 1;if(ey)return -1;return (typeof x==='number'&&typeof y==='number'?x-y:String(x).localeCompare(String(y),'es',{numeric:true}))*dir})}}
@@ -1678,13 +1679,17 @@ function openPJ(id){
      <label>Tipo de facturación<select name="tipoFact" ${ro}>${PJ_TIPOS.map(e=>`<option ${e===(j.tipoFact||'Principal')?'selected':''}>${e}</option>`).join('')}</select></label>
      ${F('pv','Precio unitario P.V. (S/)','number')}<label>Total (S/)<input name="total" type="number" step="any" min="0" value="${esc(j.total??'')}" placeholder="Cantidad × P.V." ${ro}></label>${F('obs','Nota interna')}
      <div class="note" id="pjTotNote" style="grid-column:1/-1"></div>`,true)}
-   ${sec('10. Costos',`${PJ_COST.map(([k,l])=>F(k,l+' (S/)','number')).join('')}<div class="note" id="pjCostNote" style="grid-column:1/-1"></div>`,true)}
+   ${sec('10. Costos',`${PJ_COST.map(([k,l])=>F(k,l+' (S/)','number')).join('')}
+     <div style="grid-column:1/-1;display:flex;gap:10px;align-items:end;flex-wrap:wrap;border-top:1px dashed var(--rule);padding-top:8px"><span class="note" id="pjHrNote" style="flex:1;min-width:240px"></span>${F('tarifaHora','Costo por hora de diseño / corrección (S/)','number','style="width:240px"')}${ro?'':'<button type="button" class="btn small" id="pjHrCalc">Calcular mano de obra con las horas</button>'}</div>
+     <div class="note" id="pjCostNote" style="grid-column:1/-1"></div>`,true)}
    </div>
    <div class="ft"><div><b class="pjMsg" hidden style="display:block;color:var(--bad);margin-bottom:6px"></b>${id&&!ro?'<button type="button" class="btn danger" id="pjDel">Eliminar</button>':''} ${id?'<button type="button" class="btn" id="pjPrint">🖨 Imprimir JOB</button>':''}</div><div style="display:flex;gap:10px"><button type="button" class="btn" id="pjCancel">${ro?'Cerrar':'Cancelar'}</button>${ro?'':'<button type="submit" class="btn" data-pjpr="1">🖨 Guardar e imprimir</button><button type="submit" class="btn primary">Guardar</button>'}</div></div></form>`;
   const upd=()=>{const c=+($('#pjFrm [name=cantidad]').value||0),p=+($('#pjFrm [name=pv]').value||0),t=$('#pjFrm [name=total]').value;$('#pjLet').value=numLetras(c);$('#pjTotNote').textContent=t!==''?`Total registrado: ${pjM2(t)}${c&&p?` (cantidad × P.V. = ${pjM2(c*p)})`:''}`:c&&p?`Total calculado: ${pjM2(c*p)} (cantidad × P.V.). Puedes escribir otro total si corresponde.`:''};
   const updC=()=>{const c=PJ_COST.reduce((s,[k])=>s+(+($('#pjFrm [name='+k+']').value||0)),0),t=$('#pjFrm [name=total]').value!==''?+$('#pjFrm [name=total]').value:(+($('#pjFrm [name=cantidad]').value||0))*(+($('#pjFrm [name=pv]').value||0));
     $('#pjCostNote').innerHTML=c?`Costo total: <b>${pjM2(c)}</b> · Precio de venta: <b>${pjM2(t)}</b> · Margen: <b style="color:${t-c<0?'var(--bad)':'var(--ok)'}">${pjM2(t-c)}${t?' ('+((t-c)/t*100).toLocaleString('es-PE',{maximumFractionDigits:1})+'%)':''}</b>${c&&n($('#pjFrm [name=cantidad]').value)?` · Costo unitario: ${pjM2(c/n($('#pjFrm [name=cantidad]').value))}`:''}`:'Registra los costos para calcular el costo total y el margen.'};
   ['cantidad','pv','total',...PJ_COST.map(c=>c[0])].forEach(k=>$('#pjFrm [name='+k+']').addEventListener('input',()=>{upd();updC()}));upd();updC();
+  const hrN=()=>{const x=hrJobHoras($('#pjFrm [name=job]').value);$('#pjHrNote').innerHTML=x.h?`⏱ Horas registradas para este JOB: <b>${hrH(x.h)} h</b> (${x.n} registros de ${x.p} ${x.p===1?'persona':'personas'}).`:'⏱ Aún no hay horas registradas para este JOB en «Horas por JOB».'};hrN();$('#pjFrm [name=job]').addEventListener('change',hrN);
+  const hc=$('#pjHrCalc');if(hc)hc.onclick=()=>{const x=hrJobHoras($('#pjFrm [name=job]').value),t=+$('#pjFrm [name=tarifaHora]').value;if(!x.h){toast('No hay horas registradas para este JOB.');return}if(!t){toast('Escribe el costo por hora.');$('#pjFrm [name=tarifaHora]').focus();return}$('#pjFrm [name=cMO]').value=Math.round(x.h*t*100)/100;updC();toast(`Mano de obra: ${hrH(x.h)} h × ${pjM2(t)} = ${pjM2(x.h*t)}`)};
   dl.querySelectorAll('[data-pjotro]').forEach(s=>s.addEventListener('change',()=>{const i=$('#pjFrm [name='+s.dataset.pjotro+'Otro]');i.hidden=s.value!=='__otro';if(!i.hidden)i.focus()}));
   const ps=$('#pjPed');if(ps&&!ro)ps.addEventListener('change',()=>{const c=(S.clientes||[]).find(x=>x.codigo===ps.value);if(!c)return;const set=(k,v)=>{const el=$('#pjFrm [name='+k+']');if(el&&!el.value&&v!=null&&v!=='')el.value=v};
     const cs=$('#pjFrm [name=cliente]');if(cs&&!cs.value&&c.cliente){if([...cs.options].some(o=>o.value===c.cliente))cs.value=c.cliente;else{cs.value='__otro';const i=$('#pjFrm [name=clienteOtro]');i.hidden=false;i.value=c.cliente}}
@@ -1694,7 +1699,7 @@ function openPJ(id){
   $('#pjFrm').onsubmit=async e=>{e.preventDefault();if(pjEd.ro)return;const fd=new FormData($('#pjFrm'));const o={...pjEd.j,kind:'job'};
     ['job','descripcion','fechaIngreso','fechaEntrega','unidad','estado','cliente','campo','departamento','evento','clasificacion','tipoFact','cantidad','pv','total','codigoPedido','obs','tipoImpresion','afectacion','contacto','celular','correo','ruc','asesor','atencion','formato','tapa','hojas','encartes','otros','disenador','proforma','pi','impresionTxt','observaciones','otrasInd'].forEach(k=>{const v=fd.get(k);if(v!==null)o[k]=String(v).trim()});
     ['cliente','campo','departamento','evento','clasificacion'].forEach(k=>{if(o[k]==='__otro')o[k]=String(fd.get(k+'Otro')||'').trim()});
-    PJ_COST.forEach(([k])=>{const v=fd.get(k);o[k]=v===null||v===''?'':+v});
+    PJ_COST.forEach(([k])=>{const v=fd.get(k);o[k]=v===null||v===''?'':+v});{const v=fd.get('tarifaHora');o.tarifaHora=v===null||v===''?'':+v}
     ['cantidad','pv','total'].forEach(k=>o[k]=o[k]===''?'':+o[k]);
     const ot={};dl.querySelectorAll('[data-ot]').forEach(el=>{const k=el.dataset.ot;if(el.type==='checkbox'){if(el.checked)ot[k]=true}else if(el.value!=='')ot[k]=el.type==='number'?+el.value:el.value});o.ot=ot;
     const err=(m,f)=>{toast(m);const b=$('#pjDlg .pjMsg');b.textContent='⚠ '+m;b.hidden=false;const el=f&&$('#pjFrm [name='+f+']');if(el){el.closest('details')&&(el.closest('details').open=true);el.classList.add('cli-bad');el.focus()}};
@@ -1919,7 +1924,139 @@ function bindProdMod(){
   document.querySelectorAll('[data-pjprint]').forEach(b=>b.onclick=()=>{const j=S.prodJobs.find(x=>x.id===b.dataset.pjprint);if(j)printPJ(j)});
   const nb=$('#pjNew');if(nb)nb.onclick=()=>openPJ(null);const ex=$('#pjExp');if(ex)ex.onclick=pjExport;const im=$('#pjImp');if(im)im.onclick=openPJImport;const hb=$('#pjHistBtn');if(hb)hb.onclick=openPJHist;
   const ra=$('#pjRA');if(ra)ra.onchange=e=>{pjF.rAnio=e.target.value;render()};const rf=$('#pjRF');if(rf)rf.onchange=e=>{pjF.rFuente=e.target.value;render()};
+  if(pjF.vista==='hrs')bindHoras();
   const rx=$('#pjRX');if(rx)rx.onclick=pjRepExport;const rp=$('#pjRP');if(rp)rp.onclick=pjRepPrint;
+}
+
+/* ===== Costos y Producción: registro de horas por JOB (base de datos de diseño y corrección) ===== */
+RAW.prodHrs=RAW.prodHrs||[];S.prodHrs=S.prodHrs||[];
+const HR_ACT=['102 Arte final','102 Corrección final','103 Revisión y corrección de textos','104 Corrección final','104 Revisión de paginación','105 Otros (especificar)','105 Revisión y corrección de textos','106 Verificación final','107 Diseño','107 Otros (especificar)','108 Diseño y Diagramación','110 Levantar corrección','111 Modificar diseño','113 Preparar muestra','116 Revisar Diseño','117 Revisar y corregir','120 Otros (especificar)','123 Capacitación','124 Reunión','Sin especificar'];
+const HR_CARGOS=['Diseñador','Corrector','Diagramador','Ilustrador','Jefe de Diseño','Otro'];
+const HR_EST=['Si JOB','No JOB','N/C'];
+let hrF={mes:'',resp:'',cargo:'',est:'',q:'',srt:null},hrEd=null,hrLast=[];
+const hrMin=t=>{const m=String(t||'').match(/^(\d{1,2}):(\d{2})/);return m?(+m[1])*60+(+m[2]):null};
+const hrCalc=(a,b)=>{const x=hrMin(a),y=hrMin(b);if(x==null||y==null)return null;let d=y-x;if(d<0)d+=1440;return Math.round(d/60*100)/100};
+const hrH=v=>(+v||0).toLocaleString('es-PE',{minimumFractionDigits:0,maximumFractionDigits:2});
+const hrHM=v=>{const m=Math.round((+v||0)*60);return `${Math.floor(m/60)}:${String(m%60).padStart(2,'0')}`};
+function scopeHrs(ac){if(ac==='all'){S.prodHrs=RAW.prodHrs;return}const a=myAcc()||{},sc=myScopeUnits()||[];S.prodHrs=RAW.prodHrs.filter(r=>sc.includes(r.unidad)||(a.id&&r.creadoPor===a.id))}
+function hrJobHoras(job){const k=norm(job);if(!k)return {h:0,p:0,n:0};const L=(S.prodHrs||[]).filter(r=>norm(r.job)===k);return {h:L.reduce((s,r)=>s+(+r.horas||0),0),p:new Set(L.map(r=>r.resp)).size,n:L.length}}
+function hrList(){let L=(S.prodHrs||[]).filter(r=>inFilter('clientes',r));
+  if(hrF.mes)L=L.filter(r=>String(r.fecha||'').startsWith(hrF.mes));if(hrF.resp)L=L.filter(r=>r.resp===hrF.resp);if(hrF.cargo)L=L.filter(r=>r.cargo===hrF.cargo);if(hrF.est)L=L.filter(r=>(r.estadoJob||'')===hrF.est);
+  if(hrF.q){const q=norm(hrF.q);L=L.filter(r=>norm([r.job,r.trabajo,r.actividad,r.resp,r.obs].join(' ')).includes(q))}
+  const S0=hrF.srt,sv={fecha:r=>(r.fecha||'')+(r.hIni||''),resp:r=>r.resp||'',cargo:r=>r.cargo||'',job:r=>r.job||'',trab:r=>r.trabajo||'',act:r=>r.actividad||'',horas:r=>+r.horas||0,est:r=>r.estadoJob||''};
+  if(S0&&sv[S0.k]){const f=sv[S0.k],d=S0.d==='desc'?-1:1;L=L.slice().sort((a,b)=>{const x=f(a),y=f(b);return (typeof x==='number'?x-y:String(x).localeCompare(String(y),'es',{numeric:true}))*d})}
+  else L=L.slice().sort((a,b)=>String(b.fecha||'').localeCompare(String(a.fecha||''))||String(a.resp||'').localeCompare(String(b.resp||''))||String(a.hIni||'').localeCompare(String(b.hIni||'')));
+  return L}
+function hrAgg(L,fn){const m=new Map();L.forEach(r=>{const k=(fn(r)||'(sin dato)');const g=m.get(k)||{k,h:0,si:0,no:0,n:0,jobs:new Set()};const h=+r.horas||0;g.h+=h;g.n++;if(r.estadoJob==='Si JOB')g.si+=h;else g.no+=h;if(r.job)g.jobs.add(r.job);m.set(k,g)});return [...m.values()].sort((a,b)=>b.h-a.h)}
+function viewHoras(all){
+  const base=(S.prodHrs||[]).filter(r=>inFilter('clientes',r)),L=hrList();hrLast=L;
+  const meses=[...new Set(base.map(r=>String(r.fecha||'').slice(0,7)).filter(Boolean))].sort().reverse();const resps=[...new Set(base.map(r=>r.resp).filter(Boolean))].sort();
+  const sel=(id,lab,opts,v)=>`<select id="${id}" aria-label="${lab}"><option value="">${lab}</option>${opts.map(o=>Array.isArray(o)?o:[o,o]).map(([a,b])=>`<option value="${esc(a)}" ${a===v?'selected':''}>${esc(b)}</option>`).join('')}</select>`;
+  const tot=L.reduce((s,r)=>s+(+r.horas||0),0),si=L.filter(r=>r.estadoJob==='Si JOB').reduce((s,r)=>s+(+r.horas||0),0),jobs=new Set(L.filter(r=>r.job).map(r=>r.job));
+  let h=`<div class="bar" style="justify-content:flex-start;gap:8px;flex-wrap:wrap"><input class="search" id="hrQ" placeholder="Buscar JOB, trabajo, actividad…" value="${esc(hrF.q)}">
+   ${sel('hrMes','Todos los meses',meses.map(m=>[m,PJ_MES[+m.slice(5,7)-1]+' '+m.slice(0,4)]),hrF.mes)}${sel('hrResp','Todos los responsables',resps,hrF.resp)}${sel('hrCargo','Todos los cargos',[...new Set(base.map(r=>r.cargo).filter(Boolean))].sort(),hrF.cargo)}${sel('hrEst','Si JOB / No JOB',HR_EST,hrF.est)}
+   <span style="flex:1"></span><button class="btn" id="hrXls">⬇ Exportar</button><button class="btn" id="hrPrint">🖨 Imprimir reporte</button>${readOnly?'':'<button class="btn" id="hrImp">⬆ Importar base de datos</button><button class="btn primary" id="hrNew">+ Registrar horas</button>'}</div>
+   <div class="kpis"><div class="kpi"><span class="l">Horas registradas</span><span class="v">${hrH(tot)}</span><span class="s">${L.length} registros · ${new Set(L.map(r=>r.resp)).size} personas</span></div>
+    <div class="kpi"><span class="l">Horas en JOB</span><span class="v">${hrH(si)}</span><span class="s">${tot?(si/tot*100).toLocaleString('es-PE',{maximumFractionDigits:1}):0}% del total · ${jobs.size} JOB atendidos</span></div>
+    <div class="kpi"><span class="l">Horas sin JOB</span><span class="v">${hrH(tot-si)}</span><span class="s">otras actividades, capacitación, reuniones, N/C</span></div>
+    <div class="kpi"><span class="l">Promedio por JOB</span><span class="v">${jobs.size?hrH(si/jobs.size):'—'}</span><span class="s">horas por JOB atendido</span></div></div>`;
+  if(!L.length)return h+`<div class="panel empty"><strong>${base.length?'Ningún registro coincide con los filtros':'Aún no hay horas registradas'}</strong>${readOnly?'':'Usa «⬆ Importar base de datos» para cargar el Excel de horas, o «+ Registrar horas» para un registro.'}</div>`;
+  const pr=hrAgg(L,r=>r.resp),ac=hrAgg(L,r=>r.actividad),jb=hrAgg(L.filter(r=>r.job),r=>r.job),cg=hrAgg(L,r=>r.cargo);
+  const bars=(rows,lab)=>{const mx=Math.max(1,...rows.map(g=>g.h));return `<div class="pj-bars">${rows.map(g=>`<div class="pj-b" style="grid-template-columns:minmax(140px,38%) 1fr 150px"><span class="pj-bl" title="${esc(g.k)}">${esc(lab?lab(g):g.k)}</span><span class="pj-bt" style="display:flex"><i style="width:${(g.si/mx*100).toFixed(1)}%;border-radius:3px 0 0 3px"></i><i style="width:${(g.no/mx*100).toFixed(1)}%;background:var(--yellow);border-radius:0 3px 3px 0"></i></span><span class="pj-bv">${hrH(g.h)} h <em>${g.h?Math.round(g.si/g.h*100):0}% JOB</em></span></div>`).join('')}</div><div class="note" style="margin-top:4px"><span style="display:inline-block;width:10px;height:10px;background:var(--cyan);border-radius:2px"></span> Horas en JOB &nbsp; <span style="display:inline-block;width:10px;height:10px;background:var(--yellow);border-radius:2px"></span> Sin JOB / N/C</div>`};
+  const jn=k=>{const j=(S.prodJobs||[]).find(x=>norm(x.job)===norm(k));const t=L.find(r=>r.job===k)?.trabajo;return k+' · '+((j&&j.descripcion)||t||'')};
+  const days=[...new Set(L.map(r=>r.fecha).filter(Boolean))].sort();const byDay=days.map(d=>[d,L.filter(r=>r.fecha===d).reduce((s,r)=>s+(+r.horas||0),0)]);const mxd=Math.max(1,...byDay.map(x=>x[1]));
+  h+=`<div class="grid2"><div class="panel cr-sec"><h3>Horas por responsable</h3>${bars(pr)}</div><div class="panel cr-sec"><h3>Horas por actividad</h3>${bars(ac)}</div></div>
+   <div class="grid2"><div class="panel cr-sec"><h3>Horas por JOB (${jb.length} JOB)</h3>${bars(jb.slice(0,25),g=>jn(g.k))}${jb.length>25?`<div class="note">Se muestran los 25 JOB con más horas.</div>`:''}</div>
+    <div class="panel cr-sec"><h3>Horas por cargo</h3>${bars(cg)}<h3 style="margin-top:14px">Horas por día</h3><div style="display:flex;align-items:flex-end;gap:2px;height:120px;border-bottom:1px solid var(--rule)">${byDay.map(([d,v])=>`<div title="${fdate(d)}: ${hrH(v)} h" style="flex:1;background:var(--cyan);height:${(v/mxd*100).toFixed(1)}%;min-width:3px;border-radius:2px 2px 0 0"></div>`).join('')}</div><div class="note" style="display:flex;justify-content:space-between"><span>${fdate(days[0])}</span><span>${fdate(days[days.length-1])}</span></div></div></div>`;
+  const S0=hrF.srt||{};const th=(k,l,num)=>`<th class="srt${num?' num':''}" data-hrs="${k}" tabindex="0">${l}${S0.k===k?(S0.d==='desc'?' ▼':' ▲'):' <span class="srt-h">⇅</span>'}</th>`;
+  const shown=L.slice(0,600);
+  h+=`<div class="panel cr-sec"><h3>Detalle de registros (${L.length})</h3><div class="tbl" style="border:0;overflow:auto;max-height:70vh"><table><thead><tr>${th('fecha','Fecha')}${th('resp','Responsable')}${th('cargo','Cargo')}${th('job','JOB')}${th('trab','Nombre del trabajo')}${th('act','Actividad')}<th>Inicio</th><th>Final</th>${th('horas','Horas',1)}${th('est','Estado JOB')}<th>Observaciones</th><th></th></tr></thead><tbody>
+   ${shown.map(r=>`<tr><td style="white-space:nowrap">${fdate(r.fecha)}</td><td>${esc(r.resp||'')}</td><td>${esc(r.cargo||'')}</td><td class="mono" style="white-space:nowrap">${esc(r.job||'—')}</td><td>${esc(r.trabajo||'')}</td><td>${esc(r.actividad||'')}</td><td>${esc(r.hIni||'')}</td><td>${esc(r.hFin||'')}</td><td class="num"><strong>${hrHM(r.horas)}</strong></td><td><span class="pill ${r.estadoJob==='Si JOB'?'ok':r.estadoJob==='No JOB'?'warn':''}">${esc(r.estadoJob||'—')}</span></td><td class="note">${esc(r.obs||'')}</td><td><button class="btn small" data-hropen="${r.id}">${pjCanEdit(r)?'✎':'👁'}</button></td></tr>`).join('')}
+   <tr class="vtot"><td colspan="8"><strong>Total</strong></td><td class="num"><strong>${hrHM(tot)}</strong></td><td colspan="3">${hrH(tot)} horas decimales</td></tr></tbody></table></div>${L.length>600?`<div class="note">Se muestran 600 de ${L.length} registros; usa los filtros o exporta a Excel para verlos todos.</div>`:''}</div>`;
+  return h}
+function openHr(id,preset){
+  const r=id?{...(S.prodHrs||[]).find(x=>x.id===id)}:{kind:'hrs',fecha:today(),estadoJob:'Si JOB',unidad:(myScopeUnits()||[]).find(u=>u==='JD')||(filterUnit!=='ALL'&&filterUnit!=='GG!'?fUnit():((myScopeUnits()||[])[0]||'JD')),...(preset||{})};
+  const ro=pjCanEdit(id?r:null)?'':'disabled';hrEd={id,r,ro:!!ro};
+  let dl=$('#hrDlg');if(!dl){dl=document.createElement('dialog');dl.id='hrDlg';dl.style.width='min(820px,calc(100vw - 24px))';document.body.appendChild(dl)}
+  const resps=[...new Set([...(RAW.prodHrs||[]).map(x=>x.resp),...RAW.personal.filter(p=>p.estado!=='Cesado').map(p=>p.nombre)].filter(Boolean))].sort();
+  const jobs=[...new Map([...(S.prodJobs||[]).map(j=>[j.job,j.descripcion]),...(S.prodHrs||[]).filter(x=>x.job).map(x=>[x.job,x.trabajo])].filter(x=>x[0])).entries()];
+  const F=(k,l,type='text',extra='')=>`<label ${extra}>${l}<input name="${k}" type="${type}" value="${esc(r[k]??'')}" ${ro}></label>`;
+  dl.innerHTML=`<form id="hrFrm" method="dialog" novalidate><div class="hd"><h2>${id?(ro?'Ver':'Editar'):'Registrar'} horas de trabajo</h2><div class="note">Una fila por actividad: responsable, JOB, actividad y horario</div></div>
+   <div class="bd" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+    <label style="grid-column:span 2">Responsable *<input name="resp" list="hrRespL" value="${esc(r.resp||'')}" placeholder="APELLIDOS, Nombres" ${ro}><datalist id="hrRespL">${resps.map(x=>`<option value="${esc(x)}">`).join('')}</datalist></label>
+    <label>Cargo<input name="cargo" list="hrCargoL" value="${esc(r.cargo||'')}" ${ro}><datalist id="hrCargoL">${HR_CARGOS.map(x=>`<option value="${x}">`).join('')}</datalist></label>${F('fecha','Fecha *','date')}
+    <label>JOB<input name="job" list="hrJobL" value="${esc(r.job||'')}" placeholder="2608-2512" ${ro}><datalist id="hrJobL">${jobs.map(([k,v])=>`<option value="${esc(k)}">${esc(v||'')}</option>`).join('')}</datalist></label>
+    <label style="grid-column:span 3">Nombre del trabajo<input name="trabajo" value="${esc(r.trabajo||'')}" ${ro}></label>
+    <label style="grid-column:span 2">Actividad *<input name="actividad" list="hrActL" value="${esc(r.actividad||'')}" ${ro}><datalist id="hrActL">${HR_ACT.map(x=>`<option value="${x}">`).join('')}</datalist></label>
+    <label>Estado JOB<select name="estadoJob" ${ro}>${HR_EST.map(x=>`<option ${x===(r.estadoJob||'Si JOB')?'selected':''}>${x}</option>`).join('')}</select></label>
+    <label>Unidad<select name="unidad" ${ro}>${myUnitOpts().map(([v,l])=>`<option value="${v}" ${v===r.unidad?'selected':''}>${esc(l)}</option>`).join('')}</select></label>
+    ${F('hIni','Hora de inicio *','time')}${F('hFin','Hora final *','time')}<label>Total<input id="hrTot" value="" disabled></label><span></span>
+    <label style="grid-column:1/-1">Observaciones<input name="obs" value="${esc(r.obs||'')}" ${ro}></label>
+   </div><div class="ft"><div><b class="hrMsg" hidden style="display:block;color:var(--bad);margin-bottom:6px"></b>${id&&!ro?'<button type="button" class="btn danger" id="hrDel">Eliminar</button>':''}</div><div style="display:flex;gap:10px"><button type="button" class="btn" id="hrCancel">${ro?'Cerrar':'Cancelar'}</button>${ro?'':(id?'':'<button type="submit" class="btn" data-hrmore="1">Guardar y registrar otra</button>')+'<button type="submit" class="btn primary">Guardar</button>'}</div></div></form>`;
+  const q=k=>$('#hrFrm [name='+k+']');const upd=()=>{const t=hrCalc(q('hIni').value,q('hFin').value);$('#hrTot').value=t==null?'':`${hrHM(t)} h (${hrH(t)})`};['hIni','hFin'].forEach(k=>q(k).addEventListener('input',upd));upd();
+  q('job').addEventListener('change',()=>{const v=q('job').value.trim();const m=jobs.find(([k])=>norm(k)===norm(v));if(m&&!q('trabajo').value)q('trabajo').value=m[1]||'';q('estadoJob').value=v?'Si JOB':'No JOB'});
+  q('resp').addEventListener('change',()=>{if(q('cargo').value)return;const p=(RAW.prodHrs||[]).find(x=>x.resp===q('resp').value&&x.cargo);if(p)q('cargo').value=p.cargo});
+  $('#hrCancel').onclick=()=>dl.close();
+  const dd=$('#hrDel');if(dd)dd.onclick=async()=>{if(!dd.dataset.arm){dd.dataset.arm=1;dd.textContent='Confirmar eliminación';return}try{await del('clientes',hrEd.id);dl.close();toast('Registro eliminado.')}catch(e){dbErr(e)}};
+  $('#hrFrm').onsubmit=async e=>{e.preventDefault();if(hrEd.ro)return;const fd=new FormData($('#hrFrm'));const o={...hrEd.r,kind:'hrs'};['resp','cargo','fecha','job','trabajo','actividad','estadoJob','unidad','hIni','hFin','obs'].forEach(k=>{const v=fd.get(k);if(v!==null)o[k]=String(v).trim()});
+    const err=(m,f)=>{toast(m);const b=$('#hrDlg .hrMsg');b.textContent='⚠ '+m;b.hidden=false;if(f){q(f).classList.add('cli-bad');q(f).focus()}};
+    if(!o.resp)return err('Escribe el responsable.','resp');if(!o.fecha)return err('Falta la fecha.','fecha');if(!o.actividad)return err('Elige la actividad.','actividad');if(!o.hIni||!o.hFin)return err('Registra la hora de inicio y la final.',o.hIni?'hFin':'hIni');
+    o.horas=hrCalc(o.hIni,o.hFin);if(!o.horas)return err('La hora final debe ser distinta de la inicial.','hFin');
+    if(!hrEd.id){o.id=uid();o.creado=new Date().toISOString();o.creadoPor=actorId()}o.actualizado=new Date().toISOString();
+    try{await put('clientes',o);dl.close();toast('Horas registradas.');if(e.submitter?.dataset?.hrmore)openHr(null,{resp:o.resp,cargo:o.cargo,fecha:o.fecha,unidad:o.unidad,hIni:o.hFin})}catch(x){dbErr(x)}};
+  dl.querySelectorAll('#hrFrm input,#hrFrm select').forEach(el=>el.addEventListener('input',()=>el.classList.remove('cli-bad')));
+  dl.showModal()}
+async function putMany(col,objs,onProg){if(mode!=='db'){for(const o of objs)await put(col,o);return}const now=new Date().toISOString();
+  for(let i=0;i<objs.length;i+=200){const rows=objs.slice(i,i+200).map(o=>({col,id:o.id,data:o,updated_at:now}));const r=await sb.from('registros').upsert(rows);if(r.error)throw r.error;if(onProg)onProg(Math.min(objs.length,i+200),objs.length)}
+  db.reloadAll()}
+function hrKey(o){const s=[o.resp,o.fecha,o.hIni,o.hFin,o.job,o.actividad].map(norm).join('|');let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;return 'hr'+(h>>>0).toString(36)+s.length.toString(36)}
+function openHrImport(){let dl=$('#hrIDlg');if(!dl){dl=document.createElement('dialog');dl.id='hrIDlg';dl.style.width='min(980px,calc(100vw - 24px))';document.body.appendChild(dl)}
+  dl.innerHTML=`<div class="hd"><h2>Importar base de datos de horas</h2><div class="note">Sube el Excel de la base de datos (columnas: Responsable, Cargo, Fecha, JOB, Nombre del Trabajo, Actividad, H_Inicio, H_Final, Total_H, Horas_Decimales, Observaciones, Estado JOB). Si vuelves a subir el mismo archivo, los registros iguales no se duplican.</div></div>
+   <div class="bd" style="display:block"><label class="btn primary" for="hrIFile" style="display:inline-block">Elegir archivo Excel…</label><input id="hrIFile" type="file" accept=".xlsx,.xls,.csv" hidden><div id="hrIBody" style="margin-top:10px"></div></div>
+   <div class="ft"><div></div><div style="display:flex;gap:10px"><button type="button" class="btn" id="hrIX">Cerrar</button><button type="button" class="btn primary" id="hrIGo" disabled>Importar</button></div></div>`;
+  let rows=[],newJobs=[];$('#hrIX').onclick=()=>dl.close();
+  $('#hrIFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;const B=$('#hrIBody');B.innerHTML='<div class="note">Leyendo…</div>';
+    try{const X=await loadXLSX();const wb=X.read(await f.arrayBuffer(),{type:'array'});let g=null,hi=-1;
+      for(const sn of wb.SheetNames){const gg=X.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:''});const i=gg.findIndex(r=>r.some(v=>norm(v)==='responsable')&&r.some(v=>/actividad/.test(norm(v))));if(i>=0){g=gg;hi=i;break}}
+      if(!g)throw 0;const H=g[hi].map(v=>norm(String(v)).replace(/[_\s]+/g,' ').trim());const ix=re=>H.findIndex(x=>re.test(x));
+      const c={resp:ix(/^responsable$/),cargo:ix(/^cargo$/),fecha:ix(/^fecha$/),job:ix(/^job$/),trab:ix(/nombre del trabajo/),act:ix(/^actividad$/),ini:ix(/^h inicio$/),fin:ix(/^h final$/),dec:ix(/decimal/),obs:ix(/observacion/),est:ix(/estado job/)};
+      const tm=v=>{if(typeof v==='number'){const m=Math.round((v%1)*1440);return String(Math.floor(m/60)%24).padStart(2,'0')+':'+String(m%60).padStart(2,'0')}const m=String(v||'').match(/(\d{1,2}):(\d{2})/);return m?m[1].padStart(2,'0')+':'+m[2]:''};
+      const units=myUnitOpts(),U0=(units.find(([v])=>v==='JD')||units[0]||[''])[0];const seen=new Set();
+      rows=g.slice(hi+1).filter(r=>r.some((v,i)=>i>0&&String(v??'').trim()!=='')).map((r,k)=>{const o={kind:'hrs',resp:String(r[c.resp]??'').trim(),cargo:String(r[c.cargo]??'').trim(),fecha:toDate(r[c.fecha]),job:String(r[c.job]??'').trim(),trabajo:String(r[c.trab]??'').trim(),actividad:String(r[c.act]??'').trim(),hIni:tm(r[c.ini]),hFin:tm(r[c.fin]),obs:c.obs>=0?String(r[c.obs]??'').trim():'',estadoJob:c.est>=0?String(r[c.est]??'').trim():'',unidad:U0};
+        o.horas=hrCalc(o.hIni,o.hFin);if(o.horas==null&&c.dec>=0&&+r[c.dec])o.horas=Math.round(+r[c.dec]*100)/100;if(!o.estadoJob)o.estadoJob=o.job?'Si JOB':'No JOB';
+        const err=[];if(!o.resp)err.push('falta responsable');if(!o.fecha)err.push('falta fecha');if(!o.horas)err.push('sin horas');
+        o.id=hrKey(o);const dup=seen.has(o.id);seen.add(o.id);const ex=(RAW.prodHrs||[]).some(x=>x.id===o.id);return {fila:hi+2+k,o,err,dup,ex}});
+      const ok=rows.filter(x=>!x.err.length&&!x.dup);const known=new Set((RAW.prodJobs||[]).map(j=>norm(j.job)));
+      const jm=new Map();ok.forEach(x=>{if(x.o.job&&!known.has(norm(x.o.job))){const g2=jm.get(x.o.job)||{job:x.o.job,desc:x.o.trabajo,f:x.o.fecha,h:0};g2.h+=x.o.horas;if(x.o.fecha<g2.f)g2.f=x.o.fecha;jm.set(x.o.job,g2)}});newJobs=[...jm.values()];
+      const th=ok.reduce((s,x)=>s+x.o.horas,0);
+      B.innerHTML=`<div class="note"><b>${esc(f.name)}</b>: ${rows.length} filas · <span style="color:var(--ok)">${ok.filter(x=>!x.ex).length} nuevos</span> · ${ok.filter(x=>x.ex).length} ya existían (se actualizan) · ${rows.filter(x=>x.dup).length} repetidos en el archivo · <span style="color:var(--bad)">${rows.filter(x=>x.err.length).length} con errores</span> · <b>${hrH(th)} horas</b></div>
+       <label class="note" style="display:flex;gap:8px;align-items:center;margin:8px 0;flex-direction:row"><input type="checkbox" id="hrMkJobs" ${newJobs.length?'checked':''} ${newJobs.length?'':'disabled'}> Crear en «Registros de JOB» los ${newJobs.length} JOB que aún no están registrados (con su nombre del trabajo; luego completas cliente y demás datos)</label>
+       <div class="tbl" style="max-height:300px;overflow:auto"><table><thead><tr><th class="num">Fila</th><th>Fecha</th><th>Responsable</th><th>JOB</th><th>Actividad</th><th>Horario</th><th class="num">Horas</th><th>Estado</th><th>Detalle</th></tr></thead><tbody>${rows.slice(0,300).map(x=>`<tr><td class="num">${x.fila}</td><td>${fdate(x.o.fecha)}</td><td>${esc(x.o.resp)}</td><td class="mono">${esc(x.o.job||'—')}</td><td>${esc(x.o.actividad)}</td><td>${esc(x.o.hIni)}–${esc(x.o.hFin)}</td><td class="num">${hrH(x.o.horas)}</td><td>${esc(x.o.estadoJob)}</td><td class="note" style="color:${x.err.length?'var(--bad)':'inherit'}">${x.err.length?esc(x.err.join('; ')):x.dup?'repetido':x.ex?'actualiza':''}</td></tr>`).join('')}</tbody></table></div>${rows.length>300?`<div class="note">Vista previa de 300 de ${rows.length} filas.</div>`:''}`;
+      const go=$('#hrIGo');go.disabled=!ok.length;go.textContent=ok.length?`Importar ${ok.length} registros`:'Nada para importar'}
+    catch(x){rows=[];B.innerHTML='<div class="note" style="color:var(--bad)">No se pudo leer el archivo. Debe tener una fila de encabezados con «Responsable» y «Actividad».</div>';$('#hrIGo').disabled=true}};
+  $('#hrIGo').onclick=async()=>{const go=$('#hrIGo');const L=rows.filter(x=>!x.err.length&&!x.dup);const now=new Date().toISOString(),me=actorId();go.disabled=true;
+    const objs=L.map(x=>({...((RAW.prodHrs||[]).find(y=>y.id===x.o.id)||{creado:now,creadoPor:me,importado:now}),...x.o,actualizado:now}));
+    const mk=$('#hrMkJobs')?.checked?newJobs.map(g=>({id:uid(),kind:'job',job:g.job,descripcion:g.desc,fechaIngreso:g.f,estado:'En proceso',tipoFact:'Principal',unidad:(myUnitOpts().find(([v])=>v==='GP')||myUnitOpts()[0]||[''])[0],creado:now,creadoPor:me,importado:now,actualizado:now,obs:'Creado desde la base de datos de horas'})):[];
+    try{await putMany('clientes',[...objs,...mk],(a,b)=>go.textContent=`Guardando ${a} de ${b}…`);if(mode!=='db'){}
+      dl.close();toast(`Importación terminada: ${objs.length} registros de horas${mk.length?` y ${mk.length} JOB nuevos`:''}.`);render()}catch(e){go.disabled=false;go.textContent='Reintentar';dbErr(e)}};
+  dl.showModal()}
+function hrExport(){const L=hrLast;if(!L.length){toast('No hay registros para exportar.');return}loadXLSX().then(X=>{const aoa=[['Responsable','Cargo','Fecha','JOB','Nombre del Trabajo','Actividad','H_Inicio','H_Final','Total_H','Horas_Decimales','Observaciones','Estado JOB'],...L.map(r=>[r.resp,r.cargo,r.fecha,r.job,r.trabajo,r.actividad,r.hIni,r.hFin,hrHM(r.horas),+r.horas||0,r.obs,r.estadoJob])];
+  const ws=X.utils.aoa_to_sheet(aoa);ws['!cols']=[{wch:34},{wch:12},{wch:11},{wch:11},{wch:48},{wch:30},{wch:8},{wch:8},{wch:8},{wch:10},{wch:30},{wch:10}];ws['!autofilter']={ref:X.utils.encode_range({s:{r:0,c:0},e:{r:L.length,c:11}})};
+  const wb=X.utils.book_new();X.utils.book_append_sheet(wb,ws,'BD');
+  const ag=(fn,t)=>{const A=hrAgg(L,fn);X.utils.book_append_sheet(wb,X.utils.aoa_to_sheet([[t,'Horas','Horas en JOB','Horas sin JOB','Registros','JOB'],...A.map(g=>[g.k,+g.h.toFixed(2),+g.si.toFixed(2),+g.no.toFixed(2),g.n,g.jobs.size])]),t.slice(0,31))};
+  ag(r=>r.resp,'Por responsable');ag(r=>r.actividad,'Por actividad');ag(r=>r.job||'(sin JOB)','Por JOB');ag(r=>r.fecha,'Por día');
+  X.writeFile(wb,`horas_diseno_${today()}.xlsx`);toast(`Exportados ${L.length} registros.`)}).catch(()=>toast('No se pudo generar el Excel.'))}
+function hrPrint(){const src=document.querySelector('#hrBody');if(!src)return;document.getElementById('hrPBox')?.remove();document.getElementById('hrPCss')?.remove();
+  const st=document.createElement('style');st.id='hrPCss';st.textContent=`@page{size:A4 landscape;margin:8mm}@media screen{#hrPBox{display:none}}@media print{body>*:not(#hrPBox){display:none!important}#hrPBox{display:block;font:7.5pt/1.3 Arial,Helvetica,sans-serif;color:#111}#hrPBox h1{font-size:13pt;margin:0}#hrPBox .bar,#hrPBox button{display:none!important}#hrPBox .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:6px 0}#hrPBox .kpi{border:1px solid #bbb;padding:4px;border-radius:4px}#hrPBox .kpi .v{font-size:12pt;font-weight:700;display:block}#hrPBox .kpi .l,#hrPBox .kpi .s{display:block;font-size:7pt;color:#444}
+   #hrPBox .panel{border:0;padding:0;margin:6px 0;box-shadow:none}#hrPBox .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}#hrPBox h3{font-size:9.5pt;margin:5px 0 2px}#hrPBox table{width:100%;border-collapse:collapse}#hrPBox th,#hrPBox td{border:1px solid #999;padding:1px 3px;font-size:6.8pt}#hrPBox .tbl{max-height:none!important;overflow:visible!important}#hrPBox tr{break-inside:avoid}#hrPBox .pj-b{grid-template-columns:40% 1fr 110px!important}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}`;
+  document.head.appendChild(st);const b=document.createElement('div');b.id='hrPBox';b.innerHTML=`<h1>Horas de trabajo por JOB · Diseño y corrección</h1><div style="color:#555;margin-bottom:4px">Editorial · Costos y Producción · ${[hrF.mes?PJ_MES[+hrF.mes.slice(5,7)-1]+' '+hrF.mes.slice(0,4):'Todos los meses',hrF.resp,hrF.cargo,hrF.est].filter(Boolean).map(esc).join(' · ')} · Impreso el ${fdate(today())}</div>${src.innerHTML}`;
+  document.body.appendChild(b);const oldT=document.title;document.title='Horas por JOB '+today();const clean=()=>{b.remove();st.remove();document.title=oldT;window.removeEventListener('afterprint',clean)};window.addEventListener('afterprint',clean);setTimeout(()=>window.print(),60)}
+function bindHoras(){
+  const qi=$('#hrQ');if(qi)qi.oninput=e=>{hrF.q=e.target.value;clearTimeout(window.__hrT);window.__hrT=setTimeout(()=>{const p=e.target.selectionStart;render();const n2=$('#hrQ');if(n2){n2.focus();try{n2.setSelectionRange(p,p)}catch(_){}}},300)};
+  [['hrMes','mes'],['hrResp','resp'],['hrCargo','cargo'],['hrEst','est']].forEach(([id,k])=>{const s=$('#'+id);if(s)s.onchange=e=>{hrF[k]=e.target.value;render()}});
+  document.querySelectorAll('[data-hrs]').forEach(th=>{const go=()=>{const k=th.dataset.hrs,c=hrF.srt;hrF.srt=!c||c.k!==k?{k,d:'asc'}:c.d==='asc'?{k,d:'desc'}:null;render()};th.onclick=go;th.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go()}}});
+  document.querySelectorAll('[data-hropen]').forEach(b=>b.onclick=()=>openHr(b.dataset.hropen));
+  const nb=$('#hrNew');if(nb)nb.onclick=()=>openHr(null);const im=$('#hrImp');if(im)im.onclick=openHrImport;const xl=$('#hrXls');if(xl)xl.onclick=hrExport;const pr=$('#hrPrint');if(pr)pr.onclick=hrPrint;
 }
 
 /* ===== Módulo: Requerimientos centralizados ===== */
@@ -3692,7 +3829,7 @@ render();
     db.collection('aces_denominacional').onSnapshot(snap=>{ADEN=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
     db.collection('educacion_aces').onSnapshot(snap=>{EDU=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
     db.collection('upn_material').onSnapshot(snap=>{UPNM=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
-    db.collection('clientes').onSnapshot(snap=>{const all=snap.docs.map(d=>({...d.data(),id:d.id}));RAW.clientes=all.filter(r=>r.kind!=='act'&&r.kind!=='job');RAW.cliAct=all.filter(r=>r.kind==='act');RAW.prodJobs=all.filter(r=>r.kind==='job');render()},()=>{});
+    db.collection('clientes').onSnapshot(snap=>{const all=snap.docs.map(d=>({...d.data(),id:d.id}));RAW.clientes=all.filter(r=>r.kind!=='act'&&r.kind!=='job'&&r.kind!=='hrs');RAW.prodHrs=all.filter(r=>r.kind==='hrs');RAW.cliAct=all.filter(r=>r.kind==='act');RAW.prodJobs=all.filter(r=>r.kind==='job');render()},()=>{});
     db.collection('produccion_hist').onSnapshot(snap=>{PRODH=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='prod')render()},()=>{});
     db.collection('ventas_hist').onSnapshot(snap=>{VHIST=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
     COLS.forEach(c=>db.collection(c).onSnapshot(snap=>{const rows=snap.docs.map(d=>({...d.data(),id:d.id}));if(c==='personal'){PUBP.length=0;PUBP.push(...rows);mergeP();migrate()}else RAW[c]=rows;render()},()=>toast('No se pudieron cargar los datos. Revisa tu conexión.')))};
