@@ -222,6 +222,15 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ink)}th.srt .srt
 tr.cf-frow th{padding:4px 6px!important;background:var(--paper);text-transform:none;letter-spacing:0}
 tr.cf-frow input{width:100%;min-width:70px;font:400 .78rem var(--body);padding:4px 6px;border:1px solid var(--rule);border-radius:6px;background:var(--sheet);color:var(--ink)}
 .cf thead{position:sticky;top:0;z-index:3}.cf thead th{position:static}.cf thead .cf-s0,.cf thead .cf-s1{position:sticky}
+
+.pj-bars{display:flex;flex-direction:column;gap:3px;font-size:.8rem}.pj-b{display:grid;grid-template-columns:minmax(120px,34%) 1fr 118px;gap:8px;align-items:center}
+.pj-bl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pj-bt{height:12px;background:var(--rule-2);border-radius:3px;overflow:hidden}.pj-bt i{display:block;height:100%;background:var(--cyan);border-radius:3px}
+.pj-bv{font-family:var(--mono);font-size:.78rem;text-align:right;white-space:nowrap}.pj-bv em{font-style:normal;color:var(--ink-2);margin-left:6px}.pj-tot{border-top:1px solid var(--rule);padding-top:3px;font-weight:600}
+@media print{.pj-bt{background:#e5e8ec}.pj-bt i{background:#0a8fb8}.pj-b{grid-template-columns:42% 1fr 90px}}
+
+.ot-sec{border:1px solid var(--rule);border-radius:10px;margin:8px 0;background:var(--sheet)}.ot-sec>summary{cursor:pointer;padding:9px 12px;font:600 .82rem var(--body);letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2)}.ot-sec[open]>summary{border-bottom:1px solid var(--rule-2)}
+.ot-sec>.bd{padding:10px 12px!important}.ot-ck{display:flex!important;flex-direction:row!important;gap:6px;align-items:center;font-weight:400!important}
+.ot-grid{border-collapse:collapse;font-size:.78rem}.ot-grid th,.ot-grid td{border:1px solid var(--rule);padding:3px 6px;text-align:center}.ot-grid td:first-child{text-align:left;white-space:nowrap}.ot-grid th{background:var(--paper);font-weight:600}
 </style>
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px}img{max-width:100%}[hidden]{display:none!important}</style>
 <script src="config.js?v=2"></script>
@@ -573,7 +582,7 @@ async function loadUsers(){
 }
 
 /* ===== Navegación ===== */
-const TABS=[['dash','Dashboard'],['ventas','Reportes'],['org','Unidades'],['cal','Calendario'],['req','Requerimientos'],['clientes','Ventas EIU'],...COLS.map(c=>[c,SCH[c].t])];
+const TABS=[['dash','Dashboard'],['ventas','Reportes'],['org','Unidades'],['cal','Calendario'],['req','Requerimientos'],['clientes','Ventas EIU'],['prod','Producción'],...COLS.map(c=>[c,SCH[c].t])];
 let tab='dash',filterUnit='ALL',q='';
 try{const h=location.hash.slice(1);if(TABS.some(t=>t[0]===h))tab=h}catch(e){}
 function tabsList(){return canManage()&&mode==='db'?[...TABS,['users','Usuarios']]:TABS}
@@ -596,7 +605,7 @@ function render(){
   const v=$('#view');
   if(ac==='pending'){$('#tabs').innerHTML='';v.innerHTML='<div class="panel empty"><strong>Verificando acceso…</strong>Un momento, por favor.</div>';return}
   if(ac==='none'){$('#tabs').innerHTML='';v.innerHTML=viewLogin();bindView();return}
-  applyScope(ac);scopeClientes(ac);consolidate();
+  applyScope(ac);scopeClientes(ac);scopeProd(ac);consolidate();
   if(tab==='users'&&!canManage())tab='dash';
   renderTabs();
   if(tab==='dash')v.innerHTML=viewDash();
@@ -605,6 +614,7 @@ function render(){
   else if(tab==='ventas')v.innerHTML=viewVentas();
   else if(tab==='req')v.innerHTML=viewReqs();
   else if(tab==='clientes')v.innerHTML=viewClientes();
+  else if(tab==='prod')v.innerHTML=viewProdMod();
   else if(tab==='users')v.innerHTML=viewUsers();
   else v.innerHTML=viewList(tab);
   bindView();
@@ -1510,6 +1520,347 @@ function bindClientes(){
   const ex=$('#cliExp');if(ex)ex.onclick=cliExport;const im=$('#cliImp');if(im)im.onclick=openCliImport;
   document.querySelectorAll('[data-cliopen]').forEach(b=>b.onclick=()=>openCli(b.dataset.cliopen));
   document.querySelectorAll('[data-cliprint]').forEach(b=>b.onclick=()=>printCli(b.dataset.cliprint));
+}
+
+/* ===== Módulo: Producción — registro de JOB e informes ===== */
+RAW.prodJobs=RAW.prodJobs||[];S.prodJobs=S.prodJobs||[];let PRODH=[];
+const PJ_CLIENTES=['UPS','PAÑOLENCI','ACES','UPeU POSGRADO','SEHS SUR','UPN','NUEVO TIEMPO','UPeU BIENESTAR UNIVERSITARIO','SEHS NORTE/SUR','EXTERNOS','INTERNOS','UPeU TEOLOGÍA','ADRA','SEHS NORTE','UPeU MARKETING','UPeU MEDICINA','APCE','ANOP','UNIÓN PANAMÁ','MICOP','PRODUCTOS UNIÓN','UPeU COLEGIO UNIÓN','MPCS','UPeU VILLA UNIÓN','APC','GOOD HOPE','UNIVERSIDADES','IDEC','APSUR','MOP','UPeU CENTRO DE IDIOMAS','UPeU DIRECCIÓN GENERAL','UPeU SERVICIOS','UPeU SECRETARÍA GENERAL','MPLT','MPN','UPeU ADMISIÓN','UPeU FIA','UPeU IMAGEN INSTITUCIONAL','ASEAPS - AREQUIPA','MCP','UPeU CAT - JULIACA','UPeU COMUNICACIONES','UPeU DIRECCIÓN SALUDABLE','UPeU DTH','UPeU INDUSTRIAS ALIMENTARIAS','UPN/UPS','UPeU CIENCIAS EMPRESARIALES','UPeU FONDO EDITORIAL','EIU'];
+const PJ_CAMPOS=['UPEU','SUR','NORTE','EIU','ACES','SUR/NORTE','INSTITUCIONES','EXTERNOS','EXTRANJERO','UNIVERSIDADES'];
+const PJ_DEPTOS=['UPeU LIMA','PAÑOLENCI','MIN. MAYORDOMÍA','VENTAS','MIN. PUBLICACIONES','MIPES','ADMINISTRATIVO','MIN. INFANTIL Y ADOLESC.','LOGÍSTICA','MIN. DE LA MUJER','MIN. JOVEN','TESORERÍA DE IGLESIA','SECRETARÍA','UPeU JULIACA','UPeU TARAPOTO','EDUCACIÓN','MIN. DE LA FAMILIA','MIN. DE RECEPCIÓN','ÁREA CONTABLE','COMUNICACIONES'];
+const PJ_EVENTOS=['FECHA ESPECÍFICA','ANUAL','TRIMESTRAL','EVANGELISMO','MEGAFERIA','SEMANA SANTA','ECV','CAMPAÑA ESCOLAR','EXAMEN DE ADMISIÓN','MENSUAL','SUSCRIPCIÓN'];
+const PJ_CLASIF=['OTROS / ROTAFOLIO / CARTAS / DIARIO','ESTUDIO / CURSO / LECCIÓN','HOJAS','VOLANTE','MANUAL / GUÍA / PLANIFICADOR','TARJETAS / CARTILLAS','AFICHES','STICKERS / ETIQUETAS','FOLLETOS / REVISTA','CERTIFICADO','DÍPTICO','CUADERNO DE ACTIVIDADES','SOBRES','SERMONARIO','ENCARTE','LIBRO','TRÍPTICO','MARCADORES','BLOCK','BROCHURE','HOJA CONFIDENCIAL','INVITACIONES','CUADERNOS','PAPEL ESPECIAL','TALONARIO','CAJAS','CUPONES','AGENDA','CATÁLOGO','FOLDERS','TICKETS'];
+const PJ_TIPOS=['Principal','RRPP','Reposición'];
+const PJ_EST=['En proceso','Terminado','Entregado','Anulado'];
+const PJ_MES=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SET','OCT','NOV','DIC'];
+let pjF={q:'',vista:'reg',anio:'',mes:'',tipo:'',campo:'',estado:'',srt:null,rAnio:'',rFuente:'auto'},pjEd=null,pjLast=[];
+const pjFecha=j=>j.fechaEntrega||j.fechaIngreso||'';
+const pjTotal=j=>j.total!==''&&j.total!=null&&!isNaN(+j.total)?+j.total:n(j.cantidad)*n(j.pv);
+function scopeProd(ac){if(ac==='all'){S.prodJobs=RAW.prodJobs;return}const a=myAcc()||{},sc=myScopeUnits()||[];S.prodJobs=RAW.prodJobs.filter(r=>sc.includes(r.unidad)||(a.id&&r.creadoPor===a.id))}
+function pjCanEdit(r){return !readOnly&&(canManage()||!r||!r.unidad||(myScopeUnits()||[]).includes(r.unidad)||r.creadoPor===actorId())}
+function pjHist(){const L=PRODH.slice().sort((a,b)=>String(b.cargadoEn||'').localeCompare(String(a.cargadoEn||'')));const by={};L.forEach(h=>{if(!by[h.anio])by[h.anio]=h});return by}
+function pjList(){let L=S.prodJobs.filter(j=>inFilter('clientes',j));
+  if(pjF.anio)L=L.filter(j=>pjFecha(j).startsWith(pjF.anio));if(pjF.mes)L=L.filter(j=>pjFecha(j).slice(5,7)===pjF.mes);
+  ['tipo','campo','estado'].forEach(k=>{if(pjF[k])L=L.filter(j=>(j[k==='tipo'?'tipoFact':k]||(k==='tipo'?'Principal':''))===pjF[k])});
+  if(pjF.q){const q=norm(pjF.q);L=L.filter(j=>norm([j.job,j.descripcion,j.cliente,j.campo,j.departamento,j.evento,j.clasificacion,j.obs,j.codigoPedido].join(' ')).includes(q))}
+  const S0=pjF.srt;const sv={job:j=>j.job||'',fecha:pjFecha,desc:j=>j.descripcion||'',cliente:j=>j.cliente||'',campo:j=>j.campo||'',depto:j=>j.departamento||'',evento:j=>j.evento||'',clasif:j=>j.clasificacion||'',tipo:j=>j.tipoFact||'Principal',cant:j=>n(j.cantidad),pv:j=>n(j.pv),total:pjTotal,estado:j=>j.estado||''};
+  if(S0&&sv[S0.k]){const f=sv[S0.k],d=S0.d==='desc'?-1:1;L=L.slice().sort((a,b)=>{const x=f(a),y=f(b);return (typeof x==='number'?x-y:String(x).localeCompare(String(y),'es',{numeric:true}))*d})}
+  else L=L.slice().sort((a,b)=>pjFecha(b).localeCompare(pjFecha(a))||String(b.job||'').localeCompare(String(a.job||''),'es',{numeric:true}));
+  return L}
+function viewProdMod(){
+  const all=S.prodJobs.filter(j=>inFilter('clientes',j)),L=pjList();pjLast=L;const adm=canManage();const H=pjHist();
+  const yrs=[...new Set(all.map(j=>pjFecha(j).slice(0,4)).filter(y=>/^\d{4}$/.test(y)).concat(Object.keys(H)))].sort().reverse();
+  const sel=(id,lab,opts,v)=>`<select id="${id}" aria-label="${lab}"><option value="">${lab}</option>${opts.map(o=>Array.isArray(o)?o:[o,o]).map(([a,b])=>`<option value="${esc(a)}" ${a===v?'selected':''}>${esc(b)}</option>`).join('')}</select>`;
+  let h=`<div class="bar"><div class="left"><h2>Producción</h2>${unitFilterSel()}</div><div class="right"><input class="search" id="pjQ" placeholder="Buscar JOB, descripción, cliente…" value="${esc(pjF.q)}">
+   ${sel('pjAnio','Todos los años',yrs,pjF.anio)}${sel('pjMes','Todos los meses',PJ_MES.map((m,i)=>[String(i+1).padStart(2,'0'),m]),pjF.mes)}${sel('pjTipo','Todos los tipos',PJ_TIPOS,pjF.tipo)}${sel('pjCampo','Todos los campos',PJ_CAMPOS,pjF.campo)}${sel('pjEst','Todos los estados',PJ_EST,pjF.estado)}
+   <button class="btn" id="pjExp">⬇ Exportar</button>${readOnly?'':'<button class="btn" id="pjImp">⬆ Importar JOB</button>'}${adm?'<button class="btn" id="pjHistBtn" title="Cargar el informe Excel de producción (comparativos y gráficos)">⬆ Cargar informe Excel</button>':''}${readOnly?'':'<button class="btn primary" id="pjNew">+ Nuevo JOB</button>'}</div></div>
+   <div class="cr-tabs" role="tablist"><button type="button" class="${pjF.vista!=='rep'?'on':''}" data-pjv="reg">📋 Registros de JOB <span class="note">${all.length||''}</span></button><button type="button" class="${pjF.vista==='rep'?'on':''}" data-pjv="rep">📊 Reportes e informe</button></div>`;
+  if(pjF.vista==='rep')return h+pjReportHtml(all,H,yrs);
+  const tot=L.reduce((s,j)=>s+pjTotal(j),0),u=L.reduce((s,j)=>s+n(j.cantidad),0),rr=L.filter(j=>j.tipoFact==='RRPP');
+  h+=`<div class="kpis"><div class="kpi"><span class="l">JOB registrados</span><span class="v">${L.length}</span><span class="s">${L.filter(j=>j.estado==='Entregado').length} entregados · ${L.filter(j=>!j.estado||j.estado==='En proceso').length} en proceso</span></div>
+   <div class="kpi"><span class="l">Facturación según producción</span><span class="v">${money(tot)}</span><span class="s">${L.length?'promedio '+money(tot/L.length)+' por JOB':'—'}</span></div>
+   <div class="kpi"><span class="l">RRPP</span><span class="v">${money(rr.reduce((s,j)=>s+pjTotal(j),0))}</span><span class="s">${rr.length} JOB de relaciones públicas</span></div>
+   <div class="kpi"><span class="l">Unidades producidas</span><span class="v">${u.toLocaleString('es-PE')}</span><span class="s">${new Set(L.map(j=>j.cliente).filter(Boolean)).size} clientes</span></div></div>`;
+  if(!L.length)return h+`<div class="panel empty"><strong>${all.length?'Ningún JOB coincide con los filtros':'Aún no hay JOB registrados'}</strong>${readOnly?'':'Usa «+ Nuevo JOB» para registrar uno, o «⬆ Importar JOB» para cargar varios desde Excel.'}</div>`;
+  const S0=pjF.srt||{};const th=(k,l,num)=>`<th class="srt${num?' num':''}" data-pjs="${k}" tabindex="0">${l}${S0.k===k?(S0.d==='desc'?' ▼':' ▲'):' <span class="srt-h">⇅</span>'}</th>`;
+  return h+`<div class="tbl" style="overflow:auto"><table><thead><tr>${th('fecha','Mes / fecha')}${th('job','JOB N.º')}${th('desc','Descripción')}${th('cliente','Cliente')}${th('campo','Campo')}${th('depto','Departamento')}${th('evento','Evento')}${th('clasif','Clasificación')}${th('tipo','Tipo')}${th('cant','Cantidad',1)}${th('pv','P.V.',1)}${th('total','Total',1)}${th('estado','Estado')}<th></th></tr></thead><tbody>
+   ${L.map(j=>{const f=pjFecha(j);return `<tr><td style="white-space:nowrap"><strong>${f?PJ_MES[+f.slice(5,7)-1]+' '+f.slice(0,4):'—'}</strong><div class="note">${f?fdate(f):''}</div></td><td class="mono" style="white-space:nowrap"><strong>${esc(j.job||'—')}</strong>${j.codigoPedido?`<div class="note">Pedido ${esc(j.codigoPedido)}</div>`:''}</td><td>${esc(j.descripcion||'')}</td><td>${esc(j.cliente||'—')}</td><td>${esc(j.campo||'—')}</td><td>${esc(j.departamento||'—')}</td><td>${esc(j.evento||'—')}</td><td>${esc(j.clasificacion||'—')}</td>
+    <td><span class="pill ${j.tipoFact==='RRPP'?'warn':j.tipoFact==='Reposición'?'bad':''}">${esc(j.tipoFact||'Principal')}</span></td><td class="num">${j.cantidad?n(j.cantidad).toLocaleString('es-PE'):'—'}</td><td class="num">${j.pv!==''&&j.pv!=null?'S/ '+(+j.pv).toFixed(2):'—'}</td><td class="num"><strong>${pjTotal(j)?pjM2(pjTotal(j)):'—'}</strong></td><td>${pillFor(j.estado||'En proceso')}</td>
+    <td style="white-space:nowrap"><button class="btn small" data-pjopen="${j.id}">${pjCanEdit(j)?'Abrir / editar':'Ver'}</button> <button class="btn small" data-pjprint="${j.id}" title="Imprimir orden de trabajo">🖨</button></td></tr>`}).join('')}
+   <tr class="vtot"><td colspan="9"><strong>Total (${L.length} JOB)</strong></td><td class="num">${u.toLocaleString('es-PE')}</td><td></td><td class="num"><strong>${pjM2(tot)}</strong></td><td colspan="2"></td></tr></tbody></table></div>`}
+const pjM2=v=>'S/ '+(+v||0).toLocaleString('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2});
+const PJ_IMP=['DIGITAL','OFFSET','DIGITAL / OFFSET'];
+const PJ_AFE=['GRAVADO','EXONERADO','INAFECTO'];
+const PJ_MAQ_T=['KBA 74','SPM 102 - 5P','ACCURIO','RICOH'],PJ_MAQ_H=['KBA 74','SPM 102 - 5P','SPM 102 - 2P','ACCURIO','RICOH'];
+const PJ_PL=['61x86','69x89','70x100','72x102'];
+function numLetras(n0){n0=Math.floor(+n0||0);if(!n0)return '';const U=['','uno','dos','tres','cuatro','cinco','seis','siete','ocho','nueve','diez','once','doce','trece','catorce','quince','dieciséis','diecisiete','dieciocho','diecinueve','veinte','veintiuno','veintidós','veintitrés','veinticuatro','veinticinco','veintiséis','veintisiete','veintiocho','veintinueve'];
+  const D=['','','','treinta','cuarenta','cincuenta','sesenta','setenta','ochenta','noventa'],C=['','ciento','doscientos','trescientos','cuatrocientos','quinientos','seiscientos','setecientos','ochocientos','novecientos'];
+  const c3=x=>{if(x===100)return 'cien';const c=Math.floor(x/100),r=x%100;let s=C[c];if(r){s+=(s?' ':'')+(r<30?U[r]:D[Math.floor(r/10)]+(r%10?' y '+U[r%10]:''))}return s};
+  const mill=Math.floor(n0/1e6),miles=Math.floor(n0%1e6/1000),rest=n0%1000;let s='';
+  if(mill)s+=(mill===1?'un millón':c3(mill).replace(/uno$/,'un')+' millones');if(miles)s+=(s?' ':'')+(miles===1?'mil':c3(miles).replace(/uno$/,'un')+' mil');if(rest)s+=(s?' ':'')+c3(rest);
+  return s.charAt(0).toUpperCase()+s.slice(1)}
+function openPJ(id){
+  const j=id?{...S.prodJobs.find(x=>x.id===id)}:{kind:'job',tipoFact:'Principal',estado:'En proceso',tipoImpresion:'DIGITAL',afectacion:'GRAVADO',fechaIngreso:today(),unidad:filterUnit!=='ALL'&&filterUnit!=='GG!'?fUnit():((myScopeUnits()||[]).find(u=>['GP','CPP','JPR','JPP'].includes(u))||(myScopeUnits()||[])[0]||'GP')};
+  j.ot={...(j.ot||{})};
+  const ro=pjCanEdit(id?j:null)?'':'disabled';pjEd={id,j,ro:!!ro};const O=j.ot;
+  let dl=$('#pjDlg');if(!dl){dl=document.createElement('dialog');dl.id='pjDlg';dl.style.width='min(1060px,calc(100vw - 24px))';document.body.appendChild(dl)}
+  const F=(k,l,type='text',extra='',ph='')=>`<label ${extra}>${l}<input name="${k}" type="${type}" value="${esc(j[k]??'')}" ${type==='number'?'step="any" min="0"':''} ${ph?`placeholder="${esc(ph)}"`:''} ${ro}></label>`;
+  const SL=(k,l,list,extra='')=>`<label ${extra}>${l}<select name="${k}" ${ro}>${list.map(o=>`<option ${o===(j[k]||list[0])?'selected':''}>${esc(o)}</option>`).join('')}</select></label>`;
+  const SO=(k,l,list,extra='')=>{const v=j[k]||'',inL=!v||list.includes(v);return `<label ${extra}>${l}<select name="${k}" data-pjotro="${k}" ${ro}><option value="">— Elegir —</option>${list.map(o=>`<option ${o===v?'selected':''}>${esc(o)}</option>`).join('')}<option value="__otro" ${inL?'':'selected'}>Otro (escribir)…</option></select><input name="${k}Otro" value="${inL?'':esc(v)}" placeholder="Escribe" ${inL?'hidden':''} ${ro} style="margin-top:6px"></label>`};
+  const CK=(k,l)=>`<label class="ot-ck"><input type="checkbox" data-ot="${k}" ${O[k]?'checked':''} ${ro}> ${l}</label>`;
+  const TX=(k,l,type='text',extra='')=>`<label ${extra}>${l}<input data-ot="${k}" type="${type}" value="${esc(O[k]??'')}" ${type==='number'?'step="any" min="0"':''} ${ro}></label>`;
+  const box=(k)=>`<input type="checkbox" data-ot="${k}" ${O[k]?'checked':''} ${ro} aria-label="${esc(k)}">`;
+  const sec=(t,body,open)=>`<details class="ot-sec" ${open?'open':''}><summary>${t}</summary><div class="bd" style="grid-template-columns:repeat(4,minmax(0,1fr));padding:10px 2px 4px">${body}</div></details>`;
+  const peds=(S.clientes||[]).filter(c=>c.codigo).sort((a,b)=>String(b.codigo).localeCompare(String(a.codigo))).slice(0,400);
+  const grid=(part,maqs)=>`<div style="grid-column:1/-1;overflow:auto"><table class="ot-grid"><thead><tr><th rowspan="2">${part==='tapa'?'TAPA':'HOJA'}</th>${['CMYK','B/N','Color especial'].map(g=>`<th colspan="3">${g}</th>`).join('')}<th rowspan="2">Tiraje</th></tr><tr>${['cmyk','bn','ce'].map(()=>['Tira','Ret.','T/R'].map(x=>`<th>${x}</th>`).join('')).join('')}</tr></thead><tbody>
+    ${maqs.map(m=>`<tr><td>${m}</td>${['cmyk','bn','ce'].map(g=>['tira','ret','tr'].map(x=>`<td>${box(`pr.${part}.${m}.${g}.${x}`)}</td>`).join('')).join('')}<td><input data-ot="pr.${part}.${m}.tiraje" type="number" min="0" value="${esc(O[`pr.${part}.${m}.tiraje`]??'')}" ${ro} style="width:90px"></td></tr>`).join('')}</tbody></table></div>
+    ${TX(`pr.${part}.ingPlacasF`,'Ingreso de placas · fecha','date')}${TX(`pr.${part}.ingPlacasH`,'Hora','time')}${TX(`pr.${part}.salImpF`,'Salida de impresión · fecha','date')}${TX(`pr.${part}.salImpH`,'Hora','time')}`;
+  dl.innerHTML=`<form id="pjFrm" method="dialog" novalidate><div class="hd"><h2>${id?(ro?'Ver':'Editar'):'Nuevo'} JOB · orden de trabajo</h2><div class="note">Todos los datos de la hoja del JOB. Las secciones técnicas se abren con un clic.</div></div>
+   <div style="padding:0 20px">
+   ${sec('1. JOB y fechas',`${F('job','JOB N.º *','text','','2611-2860')}${SL('tipoImpresion','Tipo de impresión',PJ_IMP)}${SL('afectacion','Afectación',PJ_AFE)}
+     <label>Unidad *<select name="unidad" ${ro}><option value="">—</option>${myUnitOpts().map(([v,l])=>`<option value="${v}" ${v===j.unidad?'selected':''}>${esc(l)}</option>`).join('')}</select></label>
+     ${F('fechaIngreso','Fecha de emisión','date')}${F('fechaEntrega','Fecha de entrega','date')}<label>Estado<select name="estado" ${ro}>${PJ_EST.map(e=>`<option ${e===(j.estado||'En proceso')?'selected':''}>${e}</option>`).join('')}</select></label>
+     <label>Pedido de Ventas EIU<select name="codigoPedido" id="pjPed" ${ro}><option value="">— Ninguno —</option>${peds.map(c=>`<option value="${esc(c.codigo)}" ${c.codigo===j.codigoPedido?'selected':''}>${esc(c.codigo+' · '+(c.cliente||'')+' · '+(c.trabajo||''))}</option>`).join('')}</select></label>`,true)}
+   ${sec('2. Cliente',`${SO('cliente','Cliente *',PJ_CLIENTES,'style="grid-column:span 2"')}${F('contacto','Contacto')}${F('celular','Celular','tel')}
+     ${F('correo','Correo','email','style="grid-column:span 2"')}${F('ruc','RUC / DNI')}${F('asesor','Asesor')}${F('atencion','At. (atención a)','text','style="grid-column:span 2"')}`,true)}
+   ${sec('3. Descripción del trabajo',`<label style="grid-column:span 4">Descripción del trabajo *<input name="descripcion" value="${esc(j.descripcion||'')}" placeholder="Ej. CERTIFICADO MODULAR" ${ro}></label>
+     ${F('cantidad','Cantidad','number')}<label>En letras<input id="pjLet" value="${esc(numLetras(j.cantidad))}" disabled></label>${F('formato','Formato en centímetros','text','','29.5 x 21')}
+     <label>Formato<span style="display:flex;gap:12px;padding:8px 0">${CK('fmtCerrado','Cerrado')}${CK('fmtExtendido','Extendido')}</span></label>
+     ${F('tapa','Tapa','text','style="grid-column:span 2"','Papel EIU AMARILLO')}${F('hojas','Hojas','text','style="grid-column:span 2"')}${F('encartes','Encartes','text','style="grid-column:span 2"')}${F('otros','Otros','text','style="grid-column:span 2"')}`,true)}
+   ${sec('4. Datos originales e información adicional',`<div style="grid-column:span 4;display:flex;gap:18px;flex-wrap:wrap">${CK('orUsb','USB / correo')}${CK('orPrueba','Prueba impresa')}${CK('orDisenoListo','Entrega diseño listo')}</div>
+     ${TX('orTexto','Texto en')}${TX('orImagenes','Imágenes en')}${TX('orGraficos','Gráficos en')}${TX('orIlustr','Ilustraciones en')}
+     ${F('disenador','Diseñador a cargo','text','style="grid-column:span 2"')}${F('proforma','N.º proforma')}${F('pi','PI (pedido interno)')}
+     <label style="grid-column:1/-1">Impresión<input name="impresionTxt" value="${esc(j.impresionTxt||'')}" placeholder="Ej. 4/4 colores; Seguridad T/R; Personalizado; Escudo en Hot Stamping dorado" ${ro}></label>
+     <label style="grid-column:1/-1">Observaciones<input name="observaciones" value="${esc(j.observaciones||'')}" ${ro}></label>`,!!id)}
+   ${sec('5. Información técnica · Diseño',`<div style="grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px">${CK('dsNuevo','Nuevo diseño')}${CK('dsIlustracion','Ilustración')}${CK('dsModificar','Modificar')}${CK('dsModTexto','Modificar texto')}${CK('dsSolo','Sólo diseño')}${CK('dsCorreccion','Corrección')}</div>
+     ${TX('ds1Prueba','1.ª prueba','date')}${TX('ds2Prueba','2.ª prueba','date')}${TX('dsPruebaFinal','Prueba final','date')}<span></span>`,false)}
+   ${sec('6. Preprensa',`<div style="grid-column:1/-1;overflow:auto"><table class="ot-grid"><thead><tr><th>Procesado de placas</th><th>Tapa</th><th>Interior</th><th>Encarte</th><th>100%</th></tr></thead><tbody>
+       ${[['eu','Planta EU'],['ext','Externo']].map(([k,l])=>`<tr><td>${l}</td>${['tapa','interior','encarte','cien'].map(x=>`<td>${box(`pp.${k}.${x}`)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+     <div style="grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px">${CK('ppCmyk','CMYK')}${CK('ppBn','B/N')}${CK('ppMono','Monocromía')}${CK('ppColorEsp','Color especial')}${CK('ppDuotono','Duotono')}${CK('ppCliche','Cliché')}${CK('ppTroquel','Nuevo troquel')}${CK('ppMachote','Incl. machote')}${CK('ppMuestra','Incl. muestra')}</div>
+     ${TX('ppImpoF','Salida de imposición · fecha','date')}${TX('ppImpoH','Hora','time')}${TX('ppPlacasF','Salida de placas · fecha','date')}${TX('ppPlacasH','Hora','time')}`,false)}
+   ${sec('7. Prensa',`${grid('tapa',PJ_MAQ_T)}${grid('hoja',PJ_MAQ_H)}
+     <div style="grid-column:1/-1;overflow:auto"><table class="ot-grid"><thead><tr><th>Corte de papel</th><th>Cantidad de pliegos</th>${PJ_PL.map(p=>`<th>${p}</th>`).join('')}</tr></thead><tbody>
+       ${['tapas','hojas','encartes'].map(p=>`<tr><td>${p.toUpperCase()}</td><td><input data-ot="pz.${p}.pliegos" type="number" min="0" value="${esc(O['pz.'+p+'.pliegos']??'')}" ${ro} style="width:100px"></td>${PJ_PL.map(f=>`<td><input data-ot="pz.${p}.${f}" type="number" min="0" value="${esc(O['pz.'+p+'.'+f]??'')}" ${ro} style="width:70px"></td>`).join('')}</tr>`).join('')}</tbody></table></div>
+     ${TX('pzCorteEsp','Corte a formato especial','text','style="grid-column:span 2"')}${TX('pzInfo','Información adicional','text','style="grid-column:span 2"')}
+     ${TX('przRecep','Fecha de recepción','date')}${TX('przSalida','Fecha de salida','date')}`,false)}
+   ${sec('8. Posprensa',`<div style="grid-column:1/-1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px">
+       ${CK('poAngulo','Doblez: ángulo recto')}${CK('poZigzag','Doblez: zig zag')}${CK('poCuadernillos','Compaginado: cuadernillos')}${CK('poHojasSueltas','Compaginado: hojas sueltas')}
+       ${CK('poCabeza','Encolado: cabeza / lomo')}${CK('poHotmelt','Encolado: hot melt')}${CK('poAlambre','Cosido: alambre')}${CK('poHilo','Cosido: hilo')}${CK('poDobleRing','Anillado: doble ring')}</div>
+     <div style="grid-column:1/-1;font:600 .75rem var(--body);color:var(--ink-2);margin-top:4px">TAPA</div>
+     <div style="grid-column:1/-1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px">${CK('tpBarnizSimple','Barniz simple')}${CK('tpBarnizUv','Barniz UV')}${CK('tpBarnizSect','Barniz sectorizado')}${CK('tpPlastBrillante','Plastificado brillante')}${CK('tpPlastMate','Plastificado mate')}${CK('tpGofCatedral','Gofrado catedral')}${CK('tpGofHilo','Gofrado hilo')}${CK('tpEmbuchado','Embuchado')}</div>
+     ${TX('tpEmbolsado','Embolsado (cantidad)','number')}<span></span>${TX('poRecep','Fecha de recepción','date')}${TX('poSalida','Fecha de salida','date')}
+     <label style="grid-column:1/-1">Otras indicaciones<input name="otrasInd" value="${esc(j.otrasInd||'')}" placeholder="Ej. TERCEROS: ESCUDO NACIONAL EN HOT STAMPING DORADO" ${ro}></label>`,false)}
+   ${sec('9. Datos para el informe de producción',`${SO('campo','Campo',PJ_CAMPOS)}${SO('departamento','Departamento',PJ_DEPTOS)}${SO('evento','Evento',PJ_EVENTOS)}${SO('clasificacion','Clasificación',PJ_CLASIF)}
+     <label>Tipo de facturación<select name="tipoFact" ${ro}>${PJ_TIPOS.map(e=>`<option ${e===(j.tipoFact||'Principal')?'selected':''}>${e}</option>`).join('')}</select></label>
+     ${F('pv','Precio unitario P.V. (S/)','number')}<label>Total (S/)<input name="total" type="number" step="any" min="0" value="${esc(j.total??'')}" placeholder="Cantidad × P.V." ${ro}></label>${F('obs','Nota interna')}
+     <div class="note" id="pjTotNote" style="grid-column:1/-1"></div>`,true)}
+   </div>
+   <div class="ft"><div><b class="pjMsg" hidden style="display:block;color:var(--bad);margin-bottom:6px"></b>${id&&!ro?'<button type="button" class="btn danger" id="pjDel">Eliminar</button>':''} ${id?'<button type="button" class="btn" id="pjPrint">🖨 Imprimir JOB</button>':''}</div><div style="display:flex;gap:10px"><button type="button" class="btn" id="pjCancel">${ro?'Cerrar':'Cancelar'}</button>${ro?'':'<button type="submit" class="btn" data-pjpr="1">🖨 Guardar e imprimir</button><button type="submit" class="btn primary">Guardar</button>'}</div></div></form>`;
+  const upd=()=>{const c=+($('#pjFrm [name=cantidad]').value||0),p=+($('#pjFrm [name=pv]').value||0),t=$('#pjFrm [name=total]').value;$('#pjLet').value=numLetras(c);$('#pjTotNote').textContent=t!==''?`Total registrado: ${pjM2(t)}${c&&p?` (cantidad × P.V. = ${pjM2(c*p)})`:''}`:c&&p?`Total calculado: ${pjM2(c*p)} (cantidad × P.V.). Puedes escribir otro total si corresponde.`:''};
+  ['cantidad','pv','total'].forEach(k=>$('#pjFrm [name='+k+']').addEventListener('input',upd));upd();
+  dl.querySelectorAll('[data-pjotro]').forEach(s=>s.addEventListener('change',()=>{const i=$('#pjFrm [name='+s.dataset.pjotro+'Otro]');i.hidden=s.value!=='__otro';if(!i.hidden)i.focus()}));
+  const ps=$('#pjPed');if(ps&&!ro)ps.addEventListener('change',()=>{const c=(S.clientes||[]).find(x=>x.codigo===ps.value);if(!c)return;const set=(k,v)=>{const el=$('#pjFrm [name='+k+']');if(el&&!el.value&&v!=null&&v!=='')el.value=v};
+    const cs=$('#pjFrm [name=cliente]');if(cs&&!cs.value&&c.cliente){if([...cs.options].some(o=>o.value===c.cliente))cs.value=c.cliente;else{cs.value='__otro';const i=$('#pjFrm [name=clienteOtro]');i.hidden=false;i.value=c.cliente}}
+    set('contacto',c.responsable);set('celular',c.telefono);set('correo',c.email);set('ruc',c.ruc);set('asesor',c.asesor?pname(c.asesor):c.asesorTxt);set('descripcion',c.trabajo);set('cantidad',c.cantidad);set('formato',c.formato);set('tapa',c.tapa);set('hojas',c.hojas);set('encartes',c.encarte);set('otros',c.otros);set('proforma',c.proforma);set('pi',c.pedidoInterno);set('fechaEntrega',cliFechaVig(c));set('job',c.job);upd();toast('Datos copiados del pedido '+c.codigo+' (solo en campos vacíos).')});
+  $('#pjCancel').onclick=()=>dl.close();const pp=$('#pjPrint');if(pp)pp.onclick=()=>printPJ(pjEd.j);
+  const dd=$('#pjDel');if(dd)dd.onclick=async()=>{if(!dd.dataset.arm){dd.dataset.arm=1;dd.textContent='Confirmar eliminación';return}try{await del('clientes',pjEd.id);dl.close();toast('JOB eliminado.')}catch(e){dbErr(e)}};
+  $('#pjFrm').onsubmit=async e=>{e.preventDefault();if(pjEd.ro)return;const fd=new FormData($('#pjFrm'));const o={...pjEd.j,kind:'job'};
+    ['job','descripcion','fechaIngreso','fechaEntrega','unidad','estado','cliente','campo','departamento','evento','clasificacion','tipoFact','cantidad','pv','total','codigoPedido','obs','tipoImpresion','afectacion','contacto','celular','correo','ruc','asesor','atencion','formato','tapa','hojas','encartes','otros','disenador','proforma','pi','impresionTxt','observaciones','otrasInd'].forEach(k=>{const v=fd.get(k);if(v!==null)o[k]=String(v).trim()});
+    ['cliente','campo','departamento','evento','clasificacion'].forEach(k=>{if(o[k]==='__otro')o[k]=String(fd.get(k+'Otro')||'').trim()});
+    ['cantidad','pv','total'].forEach(k=>o[k]=o[k]===''?'':+o[k]);
+    const ot={};dl.querySelectorAll('[data-ot]').forEach(el=>{const k=el.dataset.ot;if(el.type==='checkbox'){if(el.checked)ot[k]=true}else if(el.value!=='')ot[k]=el.type==='number'?+el.value:el.value});o.ot=ot;
+    const err=(m,f)=>{toast(m);const b=$('#pjDlg .pjMsg');b.textContent='⚠ '+m;b.hidden=false;const el=f&&$('#pjFrm [name='+f+']');if(el){el.closest('details')&&(el.closest('details').open=true);el.classList.add('cli-bad');el.focus()}};
+    if(!o.job)return err('Escribe el N.º de JOB.','job');if(!o.descripcion)return err('Escribe la descripción del trabajo.','descripcion');if(!o.cliente)return err('Elige el cliente.','cliente');if(!o.unidad)return err('Elige la unidad.','unidad');
+    if(!o.fechaIngreso&&!o.fechaEntrega)return err('Registra al menos la fecha de emisión o de entrega.','fechaIngreso');
+    if(o.fechaIngreso&&o.fechaEntrega&&o.fechaEntrega<o.fechaIngreso)return err('La fecha de entrega no puede ser antes de la de emisión.','fechaEntrega');
+    const dup=RAW.prodJobs.find(x=>x.id!==pjEd.id&&norm(x.job)===norm(o.job));if(dup&&!pjEd.dupOk){pjEd.dupOk=1;return err(`Ya existe el JOB ${o.job} (${dup.descripcion||''}). Pulsa Guardar otra vez si es correcto registrarlo de nuevo.`,'job')}
+    if(!pjEd.id){o.id=uid();o.creado=new Date().toISOString();o.creadoPor=actorId()}o.actualizado=new Date().toISOString();
+    const wantPr=!!e.submitter?.dataset?.pjpr;
+    try{await put('clientes',o);dl.close();toast('JOB guardado.'+(wantPr?' En la ventana de impresión puedes elegir «Guardar como PDF».':''));if(wantPr)printPJ(o)}catch(x){dbErr(x)}};
+  dl.querySelectorAll('#pjFrm input,#pjFrm select').forEach(el=>el.addEventListener('input',()=>el.classList.remove('cli-bad')));
+  dl.showModal()}
+function printPJ(j){const O=j.ot||{},X=k=>O[k]?'☒':'☐',V=k=>esc(O[k]??''),D=v=>v?fdate(v):'',d3=v=>{if(!v)return '<span>—</span><span>—</span><span>—</span>';const [y,m,dd]=v.split('-');return `<span>${dd}</span><span>${m}</span><span>${y.slice(2)}</span>`};
+  const ck=(k,l)=>`<span class="c">${X(k)} ${l}</span>`;
+  const grid=(part,maqs)=>`<table class="g"><tr><th>${part==='tapa'?'TAPA':'HOJA'}</th>${['CMYK','B/N','COLOR ESPECIAL'].map(g=>`<th colspan="3">${g}</th>`).join('')}<th>TIRAJE</th></tr><tr><th></th>${[0,1,2].map(()=>'<th>Tira</th><th>Ret.</th><th>T/R</th>').join('')}<th></th></tr>
+    ${maqs.map(m=>`<tr><td class="l">${m}</td>${['cmyk','bn','ce'].map(g=>['tira','ret','tr'].map(x=>`<td>${O[`pr.${part}.${m}.${g}.${x}`]?'X':''}</td>`).join('')).join('')}<td>${V(`pr.${part}.${m}.tiraje`)}</td></tr>`).join('')}</table>
+    <div class="s">Ingreso de placas: ${D(O[`pr.${part}.ingPlacasF`])} ${V(`pr.${part}.ingPlacasH`)} · Salida de impresión: ${D(O[`pr.${part}.salImpF`])} ${V(`pr.${part}.salImpH`)}</div>`;
+  document.getElementById('pjOtBox')?.remove();document.getElementById('pjOtCss')?.remove();
+  const st=document.createElement('style');st.id='pjOtCss';st.textContent=`@page{size:A4 portrait;margin:7mm 8mm}@media screen{#pjOtBox{display:none}}
+   @media print{body>*:not(#pjOtBox){display:none!important}#pjOtBox{display:block;font:7.6pt/1.25 Arial,Helvetica,sans-serif;color:#111}
+   #pjOtBox .hd{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:4px}#pjOtBox .brand{background:#1f2937;color:#fff;border-radius:8px;padding:6px 12px;font:700 13pt Arial}#pjOtBox .brand small{display:block;font:400 7pt Arial;letter-spacing:.2em}
+   #pjOtBox .afe{border:2px solid #d9822b;color:#c0392b;font:700 11pt Arial;padding:3px 14px;margin-top:6px}#pjOtBox .job{text-align:right}#pjOtBox .job .n{background:#1f2937;color:#fff;font:700 15pt Arial;padding:3px 12px;border-radius:6px}#pjOtBox .job .t{border:2px solid #1f2937;font:700 13pt Arial;text-align:center;margin-top:3px;border-radius:6px}
+   #pjOtBox .fe{display:flex;gap:6px;margin-top:3px;justify-content:flex-end}#pjOtBox .fe div{border:1.5px solid #1f2937;border-radius:4px;text-align:center}#pjOtBox .fe b{display:block;background:#4b5563;color:#fff;font-size:6.5pt;padding:1px 6px}#pjOtBox .fe span{display:inline-block;font:700 10pt Arial;padding:1px 5px}
+   #pjOtBox .box{border:1.5px solid #1f2937;border-radius:5px;margin-top:4px;overflow:hidden}#pjOtBox .row{display:flex;border-bottom:1px solid #999}#pjOtBox .row:last-child{border:0}#pjOtBox .row>div{padding:2px 5px;border-right:1px solid #ccc}#pjOtBox .row>div:last-child{border:0}
+   #pjOtBox .k{font-weight:700;font-size:7pt}#pjOtBox .big{font:700 13pt Arial}#pjOtBox .sec{display:flex}#pjOtBox .sec>.lab{writing-mode:vertical-rl;transform:rotate(180deg);background:#1f2937;color:#fff;font:700 6.8pt/1.1 Arial;padding:4px 2px;text-align:center}#pjOtBox .sec>.ct{flex:1;padding:3px 5px}
+   #pjOtBox .c{display:inline-block;margin:1px 10px 1px 0;white-space:nowrap}#pjOtBox table.g{border-collapse:collapse;width:100%;margin:2px 0}#pjOtBox table.g th,#pjOtBox table.g td{border:1px solid #999;padding:1px 3px;text-align:center;font-size:6.8pt}#pjOtBox table.g td.l{text-align:left;white-space:nowrap}#pjOtBox .s{font-size:6.8pt;color:#333;margin-bottom:3px}
+   #pjOtBox .t2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px}#pjOtBox .t2 table.g{table-layout:fixed}#pjOtBox .t2 table.g th:first-child,#pjOtBox .t2 table.g td.l{width:19%}#pjOtBox .t2 table.g th,#pjOtBox .t2 table.g td{font-size:6.2pt;padding:1px}#pjOtBox .ttl{background:#1f2937;color:#fff;text-align:center;font:700 9pt Arial;padding:2px}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}`;
+  document.head.appendChild(st);const b=document.createElement('div');b.id='pjOtBox';
+  b.innerHTML=`<div class="hd"><div class="brand">UNIÓN<small>editorial imprenta</small></div><div class="afe">${esc(j.afectacion||'GRAVADO')}</div><div class="job"><div class="n">JOB ${esc(j.job||'')}</div><div class="t">${esc(j.tipoImpresion||'')}</div>
+    <div class="fe"><div><b>FECHA EMISIÓN</b>${d3(j.fechaIngreso)}</div><div><b>FECHA DE ENTREGA</b>${d3(j.fechaEntrega)}</div></div></div></div>
+   <div class="box"><div class="row"><div style="flex:1"><span class="k">CLIENTE:</span> <span class="big">${esc(j.cliente||'')}</span></div></div>
+    <div class="row"><div style="flex:2"><span class="k">CONTACTO:</span> ${esc(j.contacto||'')}</div><div style="flex:1"><span class="k">CELULAR:</span> ${esc(j.celular||'')}</div><div style="flex:1"><span class="k">RUC / DNI:</span> ${esc(j.ruc||'')}</div></div>
+    <div class="row"><div style="flex:3"><span class="k">CORREO:</span> ${esc(j.correo||'')}</div><div style="flex:1"><span class="k">Asesor:</span> ${esc(j.asesor||'')}</div></div></div>
+   <div class="box sec"><div class="lab">DESCRIPCIÓN<br>DEL TRABAJO</div><div class="ct" style="display:grid;grid-template-columns:2fr 1fr;gap:6px">
+    <div><div class="big" style="font-size:15pt">${esc(j.descripcion||'')}</div><div style="display:flex;gap:16px;margin-top:4px"><div><span class="k">CANTIDAD:</span> <span class="big">${j.cantidad?n(j.cantidad).toLocaleString('es-PE'):''}</span> <span style="font-size:7pt">${esc(numLetras(j.cantidad))}</span></div><div><span class="k">FORMATO (cm):</span> <span class="big">${esc(j.formato||'')}</span> ${ck('fmtCerrado','Cerrado')}${ck('fmtExtendido','Extendido')}</div></div></div>
+    <div><div><span class="k">Tapa:</span> ${esc(j.tapa||'')}</div><div><span class="k">Hojas:</span> ${esc(j.hojas||'')}</div><div><span class="k">Encartes:</span> ${esc(j.encartes||'')}</div><div><span class="k">Otros:</span> ${esc(j.otros||'')}</div></div></div></div>
+   <div class="box sec"><div class="lab">DATOS<br>ORIGINALES</div><div class="ct"><div style="display:grid;grid-template-columns:1fr 1.2fr 1.2fr;gap:6px"><div>${ck('orUsb','USB / Correo')}<br>${ck('orPrueba','Prueba impresa')}<br>${ck('orDisenoListo','Entrega diseño listo')}</div>
+     <div>Texto en: ${V('orTexto')}<br>Imágenes en: ${V('orImagenes')}<br>Gráficos en: ${V('orGraficos')}<br>Ilustraciones en: ${V('orIlustr')}</div><div><span class="k">Diseñador a cargo:</span> ${esc(j.disenador||'')}<br><span class="k">Observaciones:</span> ${esc(j.observaciones||'')}</div></div>
+     <div style="margin-top:3px;border-top:1px solid #ccc;padding-top:2px"><span class="k">PROF.</span> <b>${esc(j.proforma||'')}</b> &nbsp; <span class="k">PI:</span> ${esc(j.pi||'')} &nbsp; <span class="k">Impresión:</span> <i>${esc(j.impresionTxt||'')}</i></div></div></div>
+   <div class="ttl" style="margin-top:4px">INFORMACIÓN TÉCNICA</div>
+   <div class="t2"><div class="box sec" style="margin-top:2px"><div class="lab">DISEÑO</div><div class="ct">${ck('dsNuevo','Nuevo diseño')}${ck('dsIlustracion','Ilustración')}<br>${ck('dsModificar','Modificar')}${ck('dsModTexto','Modificar texto')}<br>${ck('dsSolo','Sólo diseño')}${ck('dsCorreccion','Corrección')}<br>1.ª prueba: ${D(O.ds1Prueba)} · 2.ª prueba: ${D(O.ds2Prueba)} · Prueba final: ${D(O.dsPruebaFinal)}</div></div>
+    <div class="box sec" style="margin-top:2px"><div class="lab">PREPRENSA</div><div class="ct"><table class="g"><tr><th>Placas</th><th>Tapa</th><th>Interior</th><th>Encarte</th><th>100%</th></tr>${[['eu','Planta EU'],['ext','Externo']].map(([k,l])=>`<tr><td class="l">${l}</td>${['tapa','interior','encarte','cien'].map(x=>`<td>${O[`pp.${k}.${x}`]?'X':''}</td>`).join('')}</tr>`).join('')}</table>
+     ${ck('ppCmyk','CMYK')}${ck('ppBn','B/N')}${ck('ppMono','Monocromía')}${ck('ppColorEsp','Color especial')}${ck('ppDuotono','Duotono')}${ck('ppCliche','Cliché')}${ck('ppTroquel','Nuevo troquel')}${ck('ppMachote','Incl. machote')}${ck('ppMuestra','Incl. muestra')}
+     <div class="s">Salida de imposición: ${D(O.ppImpoF)} ${V('ppImpoH')} · Salida de placas: ${D(O.ppPlacasF)} ${V('ppPlacasH')}</div></div></div></div>
+   <div class="box sec"><div class="lab">PRENSA</div><div class="ct"><div class="t2"><div>${grid('tapa',PJ_MAQ_T)}</div><div>${grid('hoja',PJ_MAQ_H)}</div></div>
+    <table class="g"><tr><th>Corte de papel</th><th>Pliegos</th>${PJ_PL.map(p=>`<th>${p}</th>`).join('')}</tr>${['tapas','hojas','encartes'].map(p=>`<tr><td class="l">${p.toUpperCase()}</td><td>${V('pz.'+p+'.pliegos')}</td>${PJ_PL.map(f=>`<td>${V('pz.'+p+'.'+f)}</td>`).join('')}</tr>`).join('')}</table>
+    <div class="s">Corte a formato especial: ${V('pzCorteEsp')} · Información adicional: ${V('pzInfo')} · Recepción: ${D(O.przRecep)} · Salida: ${D(O.przSalida)}</div></div></div>
+   <div class="box sec"><div class="lab">POSPRENSA</div><div class="ct">${ck('poAngulo','Doblez ángulo recto')}${ck('poZigzag','Zig zag')}${ck('poCuadernillos','Compaginado cuadernillos')}${ck('poHojasSueltas','Hojas sueltas')}${ck('poCabeza','Encolado cabeza / lomo')}${ck('poHotmelt','Hot melt')}${ck('poAlambre','Cosido alambre')}${ck('poHilo','Hilo')}${ck('poDobleRing','Anillado doble ring')}
+    <br><b>TAPA:</b> ${ck('tpBarnizSimple','Barniz simple')}${ck('tpBarnizUv','UV')}${ck('tpBarnizSect','Sect.')}${ck('tpPlastBrillante','Plastificado brillante')}${ck('tpPlastMate','Mate')}${ck('tpGofCatedral','Gofrado catedral')}${ck('tpGofHilo','Hilo')}${ck('tpEmbuchado','Embuchado')} Embolsado: ${V('tpEmbolsado')}
+    <div class="s">Recepción: ${D(O.poRecep)} · Salida: ${D(O.poSalida)}</div><div style="font:700 italic 9pt Arial;margin-top:2px">${esc(j.otrasInd||'')}</div></div></div>
+   <div class="box" style="padding:4px 6px;min-height:22mm"><span class="big" style="font-size:11pt">At. ${esc(j.atencion||j.contacto||'')}</span><div style="text-align:right;font-size:6.5pt;color:#555;margin-top:14mm">V.º B.º ASESOR COMERCIAL · CUPS EDITORIAL IMPRENTA UNIÓN</div></div>`;
+  document.body.appendChild(b);const oldT=document.title;document.title='JOB '+(j.job||'')+' - '+(j.cliente||'');const clean=()=>{b.remove();st.remove();document.title=oldT;window.removeEventListener('afterprint',clean)};window.addEventListener('afterprint',clean);setTimeout(()=>window.print(),60)}
+
+/* --- reportes --- */
+function pjAgg(L,fn){const m=new Map();L.forEach(j=>{const k=(fn(j)||'(sin dato)').trim();const g=m.get(k)||{k,n:0,t:0,u:0};g.n++;g.t+=pjTotal(j);g.u+=n(j.cantidad);m.set(k,g)});return [...m.values()].sort((a,b)=>b.n-a.n||b.t-a.t)}
+function pjBars(rows,opt={}){if(!rows.length)return '<div class="note">Sin datos.</div>';const mx=Math.max(1,...rows.map(r=>r[1])),T=rows.reduce((s,r)=>s+r[1],0);
+  return `<div class="pj-bars">${rows.map(([k,v,x])=>`<div class="pj-b"><span class="pj-bl" title="${esc(k)}">${esc(k)}</span><span class="pj-bt"><i style="width:${(v/mx*100).toFixed(1)}%"></i></span><span class="pj-bv">${opt.money?pjM2(v):v.toLocaleString('es-PE')}${opt.pct&&T?` <em>${(v/T*100).toLocaleString('es-PE',{maximumFractionDigits:1})}%</em>`:''}${x!=null?`<em>${x}</em>`:''}</span></div>`).join('')}
+   <div class="pj-b pj-tot"><span class="pj-bl">Total</span><span></span><span class="pj-bv">${opt.money?pjM2(T):T.toLocaleString('es-PE')}</span></div></div>`}
+function pjLine(series,labels){const W=760,H=210,pl=40,pb=24,all=series.flatMap(s=>s.v.filter(v=>v!=null)),mx=Math.max(1,...all);const x=i=>pl+i*(W-pl-14)/11,y=v=>H-pb-(v/mx)*(H-pb-12);
+  const cols=['var(--rule)','#9aa7b8','var(--yellow)','var(--cyan)','var(--magenta)'];
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-height:250px" role="img" aria-label="Trabajos por mes">${[0,.25,.5,.75,1].map(t=>`<line x1="${pl}" x2="${W-8}" y1="${y(t*mx)}" y2="${y(t*mx)}" stroke="var(--rule)"/><text x="${pl-6}" y="${y(t*mx)+3}" text-anchor="end" font-size="10" fill="var(--ink-2)">${Math.round(t*mx)}</text>`).join('')}
+   ${labels.map((l,i)=>`<text x="${x(i)}" y="${H-7}" text-anchor="middle" font-size="10" fill="var(--ink-2)">${l}</text>`).join('')}
+   ${series.map((s,si)=>{const c=cols[(si+cols.length-series.length)%cols.length];const pts=s.v.map((v,i)=>v==null?null:[x(i),y(v)]);let d='';pts.forEach((p,i)=>{if(!p)return;d+=(d&&pts[i-1]?' L':' M')+p[0].toFixed(1)+' '+p[1].toFixed(1)});
+     return `<path d="${d}" fill="none" stroke="${c}" stroke-width="${si===series.length-1?2.6:1.6}"/>${pts.map((p,i)=>p?`<circle cx="${p[0]}" cy="${p[1]}" r="${si===series.length-1?3.2:2.2}" fill="${c}"><title>${labels[i]} ${s.n}: ${s.v[i]}</title></circle>`:'').join('')}`}).join('')}</svg>
+   <div class="note">${series.map((s,si)=>`<span style="display:inline-block;width:12px;height:3px;background:${cols[(si+cols.length-series.length)%cols.length]};vertical-align:middle"></span> ${s.n}`).join(' &nbsp; ')}</div>`}
+function pjReportHtml(all,H,yrs){
+  const Y=pjF.rAnio||yrs[0]||String(new Date().getFullYear());const hy=H[Y];const jy=all.filter(j=>pjFecha(j).startsWith(Y));
+  const fuente=!hy?'jobs':pjF.rFuente;const useH=!!hy&&fuente!=='jobs';const comb=useH&&fuente==='auto';
+  const cov=new Set();if(hy){const mv=(hy.mensual||{})[Y]||[];mv.forEach((v,i)=>{if(v!=null)cov.add(i)});(hy.factMes||[]).forEach((r,i)=>{if(r&&r[1]!=null)cov.add(i)})}
+  const jx=comb?jy.filter(j=>!cov.has(+pjFecha(j).slice(5,7)-1)):[];
+  const mesJobs=y=>PJ_MES.map((_,i)=>all.filter(j=>pjFecha(j).startsWith(`${y}-${String(i+1).padStart(2,'0')}`)).length);
+  const yearsCmp=[...new Set([...Object.values(H).flatMap(h=>Object.keys(h.mensual||{})),...all.map(j=>pjFecha(j).slice(0,4)).filter(Boolean)])].filter(y=>/^\d{4}$/.test(y)).sort().slice(-5);
+  const serie=y=>{const hv=Object.values(H).map(h=>h.mensual&&h.mensual[y]).find(Boolean)||[];const jv=mesJobs(y);return PJ_MES.map((_,i)=>hv[i]!=null?hv[i]:(jv[i]||null))};
+  const cmp=yearsCmp.map(y=>({n:y,v:serie(y)}));const totY=s=>s.v.reduce((a,b)=>a+(b||0),0);
+  const cur=(cmp.find(s=>s.n===Y)||{v:[]}).v.filter(v=>v!=null);
+  const ctrl=`<div class="bar" style="justify-content:flex-start;gap:8px;flex-wrap:wrap"><label class="note" style="display:flex;gap:6px;align-items:center">Año<select id="pjRA">${(yrs.length?yrs:[Y]).map(y=>`<option ${y===Y?'selected':''}>${y}</option>`).join('')}</select></label>
+   <label class="note" style="display:flex;gap:6px;align-items:center">Datos de los cuadros<select id="pjRF"><option value="auto" ${pjF.rFuente==='auto'?'selected':''} ${hy?'':'disabled'}>Combinado: informe Excel + JOB de los meses que el informe no tiene</option><option value="hist" ${pjF.rFuente==='hist'?'selected':''} ${hy?'':'disabled'}>Solo el informe Excel cargado${hy?'':' (no hay para '+Y+')'}</option><option value="jobs" ${pjF.rFuente==='jobs'||!hy?'selected':''}>Solo JOB registrados en el sistema (${jy.length})</option></select></label>
+   <span style="flex:1"></span><button class="btn" id="pjRX">⬇ Exportar reporte</button><button class="btn" id="pjRP">🖨 Imprimir reporte</button></div>`;
+  let b=`<div class="note">${useH?`Fuente: <b>${esc(hy.titulo||'Informe '+Y)}</b> (cargado el ${fdate(String(hy.cargadoEn||'').slice(0,10))})${comb?` + <b>${jx.length} JOB registrados</b> en los meses que el informe no cubre`:''}.`:`Fuente: <b>${jy.length} JOB registrados</b> en el sistema para ${Y}, con los filtros de unidad aplicados.`} El comparativo por meses combina el informe cargado con los JOB registrados en los meses que el informe no tiene.</div>`;
+  const mx=cur.length?Math.max(...cur):0,mn=cur.length?Math.min(...cur):0,pr=cur.length?cur.reduce((a,c)=>a+c,0)/cur.length:0;
+  const T=useH?(hy.porCampo||[]).reduce((s,r)=>s+r[1],0)+jx.length:jy.length;
+  const fact=useH?(hy.factMes||[]).reduce((s,r)=>s+(+r[1]||0)+(+r[2]||0)+(+r[3]||0),0)+jx.reduce((s,j)=>s+pjTotal(j),0):jy.reduce((s,j)=>s+pjTotal(j),0);
+  b+=`<div class="kpis"><div class="kpi"><span class="l">Trabajos (JOB) ${Y}</span><span class="v">${T.toLocaleString('es-PE')}</span><span class="s">${cur.length} meses con datos</span></div>
+   <div class="kpi"><span class="l">Promedio por mes</span><span class="v">${pr.toLocaleString('es-PE',{maximumFractionDigits:1})}</span><span class="s">mínimo ${mn} · máximo ${mx}</span></div>
+   <div class="kpi"><span class="l">Facturación según producción</span><span class="v">${money(fact)}</span><span class="s">principal + RRPP + reposición</span></div>
+   <div class="kpi"><span class="l">Variación vs ${+Y-1}</span><span class="v">${(()=>{const a=cmp.find(s=>s.n===Y),p=cmp.find(s=>s.n===String(+Y-1));if(!a||!p)return '—';const k=a.v.map((v,i)=>v!=null?i:-1).filter(i=>i>=0);const sa=k.reduce((s,i)=>s+(a.v[i]||0),0),sp=k.reduce((s,i)=>s+(p.v[i]||0),0);return sp?((sa-sp)/sp*100>=0?'+':'')+((sa-sp)/sp*100).toLocaleString('es-PE',{maximumFractionDigits:1})+'%':'—'})()}</span><span class="s">mismos meses del año anterior</span></div></div>`;
+  b+=`<div class="panel cr-sec"><h3>Cantidad de trabajos por mes · comparativo ${yearsCmp[0]||''}–${yearsCmp[yearsCmp.length-1]||''}</h3>${pjLine(cmp,PJ_MES)}
+   <div class="tbl" style="border:0;overflow:auto"><table class="cr-mx"><thead><tr><th>Mes</th>${cmp.map(s=>`<th class="num">${s.n}</th>`).join('')}${cmp.length>1?`<th class="num">Var. ${cmp[cmp.length-1].n} vs ${cmp[cmp.length-2].n}</th>`:''}</tr></thead><tbody>
+   ${PJ_MES.map((m,i)=>{const a=cmp.length?cmp[cmp.length-1].v[i]:null,p=cmp.length>1?cmp[cmp.length-2].v[i]:null;return `<tr><td>${m}</td>${cmp.map(s=>`<td class="num">${s.v[i]??'—'}</td>`).join('')}${cmp.length>1?`<td class="num">${a!=null&&p?cliVar(a,p):'—'}</td>`:''}</tr>`}).join('')}
+   <tr class="vtot"><td><strong>Total</strong></td>${cmp.map(s=>`<td class="num"><strong>${totY(s)}</strong></td>`).join('')}${cmp.length>1?`<td class="num">${cliVar(totY(cmp[cmp.length-1]),totY(cmp[cmp.length-2]))}</td>`:''}</tr></tbody></table></div><div class="note">La variación del total compara años completos; si el año actual aún no termina, compárala con los mismos meses en los indicadores de arriba.</div></div>`;
+  const grp=(title,rows,o)=>`<div class="panel cr-sec"><h3>${title} · ${Y}</h3>${pjBars(rows,o)}</div>`;
+  const merge=(a,b2)=>{const m=new Map();a.forEach(([k,v])=>{const kk=norm(k);const g=m.get(kk)||[String(k).trim(),0];g[1]+=+v||0;m.set(kk,g)});b2.forEach(([k,v])=>{const kk=norm(k);const g=m.get(kk)||[String(k).trim(),0];g[1]+=+v||0;m.set(kk,g)});return [...m.values()].sort((x,y)=>y[1]-x[1])};
+  const jf={porCampo:j=>j.campo,porEvento:j=>j.evento,porCliente:j=>j.cliente,porDepto:j=>j.departamento,porClasif:j=>j.clasificacion};
+  const R=k=>useH?(comb?merge(hy[k]||[],pjAgg(jx,jf[k]).map(g=>[g.k,g.n])):(hy[k]||[])):null;
+  const fromJ=fn=>pjAgg(jy,fn).map(g=>[g.k,g.n]);
+  b+=`<div class="grid2">${grp('Trabajos por campo',R('porCampo')||fromJ(j=>j.campo),{pct:1})}${grp('Trabajos por evento',R('porEvento')||fromJ(j=>j.evento),{pct:1})}</div>`;
+  b+=grp('Trabajos por cliente',R('porCliente')||fromJ(j=>j.cliente),{pct:1});
+  b+=`<div class="grid2">${grp('Trabajos por departamento',R('porDepto')||fromJ(j=>j.departamento),{pct:1})}${grp('Trabajos por clasificación',R('porClasif')||fromJ(j=>j.clasificacion),{pct:1})}</div>`;
+  // facturación por mes
+  const fmJ=L0=>PJ_MES.map((m,i)=>{const L=L0.filter(j=>pjFecha(j).slice(5,7)===String(i+1).padStart(2,'0'));const s=t=>L.filter(j=>(j.tipoFact||'Principal')===t).reduce((a,j)=>a+pjTotal(j),0);return [m,s('Principal'),s('RRPP'),s('Reposición')]});
+  const fm=useH?PJ_MES.map((m,i)=>{const r=(hy.factMes||[])[i];if(r&&r[1]!=null)return [m,+r[1]||0,+r[2]||0,+r[3]||0];return comb?fmJ(jx)[i]:[m,0,0,0]}):PJ_MES.map((m,i)=>{const L=jy.filter(j=>pjFecha(j).slice(5,7)===String(i+1).padStart(2,'0'));const s=t=>L.filter(j=>(j.tipoFact||'Principal')===t).reduce((a,j)=>a+pjTotal(j),0);return [m,s('Principal'),s('RRPP'),s('Reposición')]});
+  const ft=[1,2,3].map(c=>fm.reduce((s,r)=>s+r[c],0));
+  b+=`<div class="panel cr-sec"><h3>Cuánto se debería facturar según producción · ${Y}</h3><div class="tbl" style="border:0;overflow:auto"><table class="cr-mx"><thead><tr><th>Mes</th><th class="num">Monto principal</th><th class="num">RRPP</th><th class="num">Reposición</th><th class="num">Total</th></tr></thead><tbody>
+   ${fm.map(r=>`<tr><td>${r[0]}</td>${[1,2,3].map(c=>`<td class="num">${r[c]?pjM2(r[c]):'—'}</td>`).join('')}<td class="num"><strong>${r[1]+r[2]+r[3]?pjM2(r[1]+r[2]+r[3]):'—'}</strong></td></tr>`).join('')}
+   <tr class="vtot"><td><strong>Total</strong></td>${ft.map(v=>`<td class="num"><strong>${pjM2(v)}</strong></td>`).join('')}<td class="num"><strong>${pjM2(ft[0]+ft[1]+ft[2])}</strong></td></tr></tbody></table></div></div>`;
+  // facturación por campo
+  let fc;if(useH&&hy.factCampo){const cols=hy.factCampo.cols.slice();const ci=c=>{let i=cols.findIndex(x=>norm(x)===norm(c));if(i<0){cols.push(c);i=cols.length-1}return i};
+    const rows=PJ_MES.map((m,i)=>{const r=hy.factCampo.rows[i]||[];const has=r.slice(1).some(v=>v!=null);const vals=cols.map((_,k)=>+r[k+1]||0);return {m,has,vals}});
+    if(comb)jx.forEach(j=>{const i=+pjFecha(j).slice(5,7)-1;if(rows[i].has)return;const k=ci(j.campo||'(sin campo)');rows[i].vals[k]=(rows[i].vals[k]||0)+pjTotal(j)});
+    fc={cols,rows:rows.map(r=>[r.m,...cols.map((_,k)=>r.vals[k]||0)])}}else{const cs=[...new Set(jy.map(j=>j.campo||'(sin campo)'))];fc={cols:cs,rows:PJ_MES.map((m,i)=>[m,...cs.map(c=>jy.filter(j=>(j.campo||'(sin campo)')===c&&pjFecha(j).slice(5,7)===String(i+1).padStart(2,'0')).reduce((a,j)=>a+pjTotal(j),0))])}}
+  if(fc.cols.length){const ct=fc.cols.map((_,ci)=>fc.rows.reduce((s,r)=>s+(r[ci+1]||0),0));
+   b+=`<div class="panel cr-sec"><h3>Cuánto se debería facturar por campo · ${Y}</h3><div class="tbl" style="border:0;overflow:auto"><table class="cr-mx"><thead><tr><th>Mes</th>${fc.cols.map(c=>`<th class="num">${esc(c)}</th>`).join('')}<th class="num">Total</th></tr></thead><tbody>
+    ${fc.rows.map(r=>`<tr><td>${r[0]}</td>${r.slice(1).map(v=>`<td class="num">${v?pjM2(v):'—'}</td>`).join('')}<td class="num"><strong>${r.slice(1).reduce((a,v)=>a+v,0)?pjM2(r.slice(1).reduce((a,v)=>a+v,0)):'—'}</strong></td></tr>`).join('')}
+    <tr class="vtot"><td><strong>Total</strong></td>${ct.map(v=>`<td class="num"><strong>${pjM2(v)}</strong></td>`).join('')}<td class="num"><strong>${pjM2(ct.reduce((a,v)=>a+v,0))}</strong></td></tr></tbody></table></div></div>`}
+  // RRPP
+  const rrJ=L0=>L0.filter(j=>j.tipoFact==='RRPP').map(j=>{const f=pjFecha(j);return {mes:f?PJ_MES[+f.slice(5,7)-1]:'',job:j.job,desc:j.descripcion,cliente:j.cliente,cant:n(j.cantidad),pv:n(j.pv),total:pjTotal(j)}});
+  const rr=useH?(hy.rrpp||[]).concat(comb?rrJ(jx):[]):jy.filter(j=>j.tipoFact==='RRPP').map(j=>{const f=pjFecha(j);return {mes:f?PJ_MES[+f.slice(5,7)-1]:'',job:j.job,desc:j.descripcion,cliente:j.cliente,cant:n(j.cantidad),pv:n(j.pv),total:pjTotal(j)}});
+  if(rr.length)b+=`<div class="panel cr-sec"><h3>Detalle de RRPP · ${Y} (${rr.length} JOB)</h3><div class="tbl" style="border:0;overflow:auto"><table><thead><tr><th>Mes</th><th>N.º</th><th>JOB</th><th>Descripción – RRPP</th><th>Cliente</th><th class="num">Cantidad</th><th class="num">P.V.</th><th class="num">Total</th></tr></thead><tbody>
+   ${rr.map((x,i)=>`<tr><td>${esc(x.mes||'')}</td><td>${i+1}</td><td class="mono">${esc(x.job||'')}</td><td>${esc(x.desc||'')}</td><td>${esc(x.cliente||'')}</td><td class="num">${x.cant!=null?(+x.cant).toLocaleString('es-PE'):''}</td><td class="num">${x.pv!=null?'S/ '+(+x.pv).toFixed(3).replace(/0$/,''):''}</td><td class="num">${pjM2(x.total)}</td></tr>`).join('')}
+   <tr class="vtot"><td colspan="7"><strong>Total RRPP</strong></td><td class="num"><strong>${pjM2(rr.reduce((s,x)=>s+(+x.total||0),0))}</strong></td></tr></tbody></table></div></div>`;
+  if(useH&&(hy.participacion||[]).length)b+=grp('Porcentaje de participación por cliente (según informe)',hy.participacion,{pct:1});
+  return ctrl+`<div id="pjRBody">${b}</div>`}
+function pjRepPrint(){const src=$('#pjRBody');if(!src)return;document.getElementById('pjPrBox')?.remove();document.getElementById('pjPrCss')?.remove();
+  const st=document.createElement('style');st.id='pjPrCss';st.textContent=`@page{size:A4 portrait;margin:9mm}@media screen{#pjPrBox{display:none}}@media print{body>*:not(#pjPrBox){display:none!important}#pjPrBox{display:block;font:8pt/1.3 Arial,Helvetica,sans-serif;color:#111}#pjPrBox h1{font-size:14pt;margin:0}#pjPrBox .sub{color:#555;margin-bottom:6px}
+   #pjPrBox .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:6px 0}#pjPrBox .kpi{border:1px solid #bbb;padding:5px;border-radius:4px}#pjPrBox .kpi .v{font-size:13pt;font-weight:700;display:block}#pjPrBox .kpi .l,#pjPrBox .kpi .s{display:block;font-size:7.5pt;color:#444}
+   #pjPrBox .panel{border:0;padding:0;margin:8px 0;box-shadow:none}#pjPrBox .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}#pjPrBox h3{font-size:10pt;margin:6px 0 2px;break-after:avoid}#pjPrBox table{width:100%;border-collapse:collapse}#pjPrBox th,#pjPrBox td{border:1px solid #999;padding:2px 4px;font-size:7.5pt}#pjPrBox .num{text-align:right}#pjPrBox tr{break-inside:avoid}
+   #pjPrBox svg{max-height:200px}#pjPrBox .pj-b{break-inside:avoid}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}`;
+  document.head.appendChild(st);const box=document.createElement('div');box.id='pjPrBox';box.innerHTML=`<h1>Informe de Producción · ${esc(pjF.rAnio||$('#pjRA')?.value||'')}</h1><div class="sub">Editorial · Planes Gerenciales · Producción · Impreso el ${fdate(today())}</div>${src.innerHTML}`;
+  document.body.appendChild(box);const oldT=document.title;document.title='Informe de Produccion '+today();const clean=()=>{box.remove();st.remove();document.title=oldT;window.removeEventListener('afterprint',clean)};window.addEventListener('afterprint',clean);setTimeout(()=>window.print(),60)}
+function pjRepExport(){const src=$('#pjRBody');if(!src)return;loadXLSX().then(X=>{const wb=X.utils.book_new();let i=0;
+  src.querySelectorAll('.panel').forEach(p=>{const t=(p.querySelector('h3')?.textContent||'Hoja').replace(/[\\/?*\[\]:]/g,' ').slice(0,28);let aoa=[];const tb=p.querySelector('table');
+    if(tb)aoa=[...tb.querySelectorAll('tr')].map(tr=>[...tr.children].map(c=>{const s=c.textContent.trim();const num=s.replace(/^S\/\s*/,'').replace(/,/g,'');return /^-?\d+(\.\d+)?$/.test(num)?+num:s}));
+    else aoa=[['Concepto','Cantidad'],...[...p.querySelectorAll('.pj-b')].map(r=>{const v=r.querySelector('.pj-bv')?.childNodes[0]?.textContent.trim()||'';return [r.querySelector('.pj-bl')?.textContent.trim()||'',+v.replace(/,/g,'').replace(/^S\/\s*/,'')||v]})];
+    if(aoa.length){aoa.unshift([t],[]);const ws=X.utils.aoa_to_sheet(aoa);ws['!cols']=[{wch:38},...Array(12).fill({wch:13})];X.utils.book_append_sheet(wb,ws,`${++i}. ${t}`.slice(0,31))}});
+  X.writeFile(wb,`informe_produccion_${pjF.rAnio||today().slice(0,4)}.xlsx`);toast('Reporte exportado a Excel.')}).catch(()=>toast('No se pudo generar el Excel.'))}
+/* --- carga del informe Excel (mismo formato del archivo de la Gerencia de Producción) --- */
+function pjParseInforme(wb,X){const G=n=>X.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:null});
+  const find=(g,re)=>{for(let r=0;r<g.length;r++)for(let c=0;c<(g[r]||[]).length;c++){const v=g[r][c];if(typeof v==='string'&&re.test(norm(v)))return [r,c]}return null};
+  const num=v=>typeof v==='number'?v:null;
+  const list=(g,re,skipHdr)=>{const p=find(g,re);if(!p)return [];let [r,c]=p;r++;if(skipHdr)r++;const out=[];let blank=0;for(;r<g.length&&blank<4;r++){const k=(g[r]||[])[c];if(k==null||k===''){blank++;continue}blank=0;if(/^total/i.test(norm(k)))break;out.push([String(k).trim(),num(g[r][c+1])||0])}return out};
+  const names=wb.SheetNames;const gSh=names.find(s=>/grafic/i.test(norm(s)))||names[0],cSh=names.find(s=>/compar/i.test(norm(s)));const g=G(gSh);
+  const t=find(g,/trabajos entregados/);const anio=t?((String(g[t[0]][t[1]]).match(/20\d\d/)||[])[0]):((gSh.match(/20\d\d/)||[])[0]);
+  const H={anio:anio||String(new Date().getFullYear()),porCliente:list(g,/^trabajos por cliente/),porCampo:list(g,/trabajos por campo/),porDepto:list(g,/trabajos por departamento/),porEvento:list(g,/trabajos por evento/),porClasif:list(g,/trabajos por clasificaci/),participacion:list(g,/participacion por cliente/,true),mensual:{},factMes:[],factCampo:{cols:[],rows:[]},rrpp:[]};
+  const st=k=>{const p=find(g,k);return p?num(g[p[0]][p[1]+1]):null};H.stats={min:st(/minima de trabajos/),max:st(/maxima de trabajos/),prom:st(/promedio de trabajos/)};
+  let p=find(g,/facturar segun produccion/);if(p){for(let r=p[0]+2,i=0;i<12&&r<g.length;r++,i++){const row=g[r]||[];H.factMes.push([PJ_MES[i],num(row[p[1]+1]),num(row[p[1]+2]),num(row[p[1]+3])])}}
+  p=find(g,/facturar por campo/);if(p){const hr=g[p[0]+1]||[];const cols=[];for(let c=p[1]+1;c<hr.length&&hr[c];c++)cols.push(String(hr[c]).trim());H.factCampo.cols=cols.map(c=>{const t=c.charAt(0)+c.slice(1).toLowerCase();return ({Upeu:'UPeU',Aces:'ACES',Eiu:'EIU'})[t]||t});
+    for(let r=p[0]+2,i=0;i<12&&r<g.length;r++,i++){const row=g[r]||[];H.factCampo.rows.push([PJ_MES[i],...cols.map((_,k)=>num(row[p[1]+1+k]))])}}
+  p=find(g,/descripcion - rrpp/);if(p){let mes='';const c=p[1];for(let r=p[0]+1;r<g.length;r++){const row=g[r]||[];const m=row[c-3];if(m)mes=String(m).trim().toUpperCase().replace('SEP','SET').slice(0,3);const job=row[c-1];if(!job){if(row.some(v=>typeof v==='string'&&/total/i.test(v)))break;continue}
+    const cl=row[c+1];H.rrpp.push({mes,job:String(job),desc:String(row[c]||'').trim(),cliente:typeof cl==='string'?cl.trim():'—',cant:num(row[c+2]),pv:num(row[c+3]),total:Math.round((num(row[c+4])||0)*100)/100})}}
+  if(cSh){const cg=G(cSh);let q=find(cg,/2023 - 20|\d{4} - \d{4}/);let hr=null;if(q){for(let r=q[0];r<q[0]+4&&r<cg.length;r++)if(norm((cg[r]||[])[q[1]])==='mes'){hr=r;break}}
+    if(hr==null){const m=find(cg,/^mes$/);hr=m?m[0]:null;q=m}
+    if(hr!=null){const row=cg[hr],c0=q[1];for(let c=c0+1;c<row.length;c++){const y=row[c];if(!/^\d{4}$/.test(String(y)))continue;H.mensual[String(y)]=[];for(let i=0;i<12;i++)H.mensual[String(y)].push(num((cg[hr+1+i]||[])[c]))}}}
+  if(!H.mensual[H.anio]&&t){const L=list(g,/trabajos entregados/,true);H.mensual[H.anio]=PJ_MES.map((_,i)=>L[i]?L[i][1]:null)}
+  return H}
+function openPJHist(){let dl=$('#pjHDlg');if(!dl){dl=document.createElement('dialog');dl.id='pjHDlg';dl.style.width='min(720px,calc(100vw - 24px))';document.body.appendChild(dl)}
+  const H=pjHist();
+  dl.innerHTML=`<div class="hd"><h2>Cargar informe Excel de Producción</h2><div class="note">Sube el Excel del informe (con las hojas «COMPARATIVOS» y «GRÁFICOS»). El sistema lee los comparativos 2023–2026, los cuadros por cliente, campo, departamento, evento y clasificación, la facturación y el detalle de RRPP. Cada carga se guarda como una nueva versión.</div></div>
+   <div class="bd" style="display:block"><label class="btn primary" for="pjHFile" style="display:inline-block">Elegir archivo Excel…</label><input id="pjHFile" type="file" accept=".xlsx,.xls,.json" hidden><div id="pjHBody" style="margin-top:10px"></div>
+   ${Object.keys(H).length?`<div class="note" style="margin-top:10px">Informes cargados: ${Object.values(H).map(h=>`${h.anio} (${fdate(String(h.cargadoEn||'').slice(0,10))})`).join(' · ')}</div>`:''}</div>
+   <div class="ft"><div></div><div style="display:flex;gap:10px"><button type="button" class="btn" id="pjHX">Cerrar</button><button type="button" class="btn primary" id="pjHGo" disabled>Guardar informe</button></div></div>`;
+  let parsed=null;$('#pjHX').onclick=()=>dl.close();
+  $('#pjHFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;const b=$('#pjHBody');b.innerHTML='<div class="note">Leyendo…</div>';
+    try{if(/\.json$/i.test(f.name)){const d=JSON.parse(await f.text());parsed=(d.produccion_hist||[d])[0]}else{const X=await loadXLSX();parsed=pjParseInforme(X.read(await f.arrayBuffer(),{type:'array'}),X)}
+      parsed.fuente=f.name;parsed.titulo=parsed.titulo||`Informe de producción ${parsed.anio}`;const tot=(parsed.porCampo||[]).reduce((s,r)=>s+r[1],0);
+      b.innerHTML=`<div class="note"><b>${esc(f.name)}</b> · año ${esc(parsed.anio)}</div><ul class="note" style="margin:6px 0 0 18px">
+       <li>Comparativo mensual: ${Object.keys(parsed.mensual||{}).join(', ')||'—'}</li><li>Trabajos: ${tot} (por campo) · ${(parsed.porCliente||[]).length} clientes · ${(parsed.porDepto||[]).length} departamentos · ${(parsed.porEvento||[]).length} eventos · ${(parsed.porClasif||[]).length} clasificaciones</li>
+       <li>Facturación según producción: ${pjM2((parsed.factMes||[]).reduce((s,r)=>s+(+r[1]||0),0))} principal · ${pjM2((parsed.factMes||[]).reduce((s,r)=>s+(+r[2]||0),0))} RRPP</li><li>Detalle RRPP: ${(parsed.rrpp||[]).length} JOB</li></ul>`;$('#pjHGo').disabled=false}
+    catch(x){parsed=null;b.innerHTML='<div class="note" style="color:var(--bad)">No se pudo leer el archivo. Usa el Excel del informe de producción con el mismo formato.</div>'}};
+  $('#pjHGo').onclick=async()=>{if(!parsed)return;const o={...parsed,id:parsed.anio+'-'+Date.now().toString(36),cargadoEn:new Date().toISOString(),cargadoPor:actorId()};
+    try{await put('produccion_hist',o);if(!PRODH.some(x=>x.id===o.id))PRODH.push(o);dl.close();pjF.vista='rep';pjF.rAnio=o.anio;pjF.rFuente='auto';toast('Informe de producción guardado.');render()}catch(x){dbErr(x)}};
+  dl.showModal()}
+/* --- importar / exportar JOB --- */
+const PJ_XCOLS=[['job','JOB N.º'],['tipoImpresion','Tipo de impresión'],['afectacion','Afectación'],['fechaIngreso','Fecha de emisión','d'],['fechaEntrega','Fecha de entrega','d'],['descripcion','Descripción'],['cliente','Cliente'],['contacto','Contacto'],['celular','Celular'],['correo','Correo'],['ruc','RUC / DNI'],['asesor','Asesor'],['formato','Formato (cm)'],['tapa','Tapa'],['hojas','Hojas'],['encartes','Encartes'],['otros','Otros'],['proforma','N.º proforma'],['pi','PI'],['impresionTxt','Impresión'],['disenador','Diseñador a cargo'],['otrasInd','Otras indicaciones'],['atencion','At.'],['campo','Campo'],['departamento','Departamento'],['evento','Evento'],['clasificacion','Clasificación'],['tipoFact','Tipo (Principal/RRPP/Reposición)'],['cantidad','Cantidad','n'],['pv','P.V.','n'],['total','Total','n'],['estado','Estado'],['unidad','Unidad'],['codigoPedido','Pedido Ventas EIU'],['obs','Observaciones']];
+function pjExport(){loadXLSX().then(X=>{const L=pjLast;if(!L.length){toast('No hay JOB en la vista para exportar.');return}
+  const aoa=[PJ_XCOLS.map(c=>c[1]),...L.map(j=>PJ_XCOLS.map(c=>c[0]==='unidad'?(U[j.unidad]?.n||j.unidad||''):c[0]==='total'?pjTotal(j):c[0]==='tipoFact'?(j.tipoFact||'Principal'):j[c[0]]??''))];
+  const ws=X.utils.aoa_to_sheet(aoa);ws['!cols']=PJ_XCOLS.map(c=>({wch:c[0]==='descripcion'?50:16}));const wb=X.utils.book_new();X.utils.book_append_sheet(wb,ws,'JOB');X.writeFile(wb,`produccion_job_${today()}.xlsx`);toast(`Exportados ${L.length} JOB.`)}).catch(()=>toast('No se pudo generar el Excel.'))}
+function pjTemplate(){loadXLSX().then(X=>{const aoa=[PJ_XCOLS.map(c=>c[1]),['2609-2649','2026-09-02','2026-09-20','Blocks: Encuentro de Secretarios de Iglesias','MPCS','SUR','SECRETARÍA','FECHA ESPECÍFICA','BLOCK','RRPP',240,3.2,768,'Entregado','Gerencia de Producción','','']];
+  const ws=X.utils.aoa_to_sheet(aoa);ws['!cols']=PJ_XCOLS.map(c=>({wch:c[0]==='descripcion'?50:16}));const ins=X.utils.aoa_to_sheet([['Cómo llenar'],['Una fila por JOB. Obligatorios: JOB N.º, Descripción, Cliente y una fecha (ingreso o entrega). Fechas dd/mm/aaaa o aaaa-mm-dd.'],['El mes del informe se toma de la fecha de entrega (o de ingreso si no hay entrega).'],['Si el Total está vacío se calcula Cantidad × P.V. Tipo: Principal, RRPP o Reposición.'],['Si el JOB N.º ya existe en el sistema, la fila lo actualiza.'],['Borra la fila de ejemplo antes de importar.'],[''],['Campos: '+PJ_CAMPOS.join(', ')],['Eventos: '+PJ_EVENTOS.join(', ')],['Clasificaciones: '+PJ_CLASIF.join(', ')]]);ins['!cols']=[{wch:140}];
+  const wb=X.utils.book_new();X.utils.book_append_sheet(wb,ws,'JOB');X.utils.book_append_sheet(wb,ins,'Instrucciones');X.writeFile(wb,'plantilla_job_produccion.xlsx')}).catch(()=>toast('No se pudo generar la plantilla.'))}
+function openPJImport(){let dl=$('#pjIDlg');if(!dl){dl=document.createElement('dialog');dl.id='pjIDlg';dl.style.width='min(980px,calc(100vw - 24px))';document.body.appendChild(dl)}
+  dl.innerHTML=`<div class="hd"><h2>Importar JOB desde Excel</h2><div class="note">Descarga la plantilla, llénala con tus JOB (o usa un archivo exportado desde aquí) y súbela. Verás una vista previa antes de guardar.</div></div>
+   <div class="bd" style="display:block"><div class="bar" style="justify-content:flex-start;gap:8px"><button type="button" class="btn" id="pjTpl">⬇ Descargar plantilla</button><label class="btn primary" for="pjIFile" style="display:inline-block">Elegir archivo Excel…</label><input id="pjIFile" type="file" accept=".xlsx,.xls,.ods,.csv" hidden></div><div id="pjIBody" style="margin-top:10px"><div class="note">Aún no has elegido un archivo.</div></div></div>
+   <div class="ft"><div></div><div style="display:flex;gap:10px"><button type="button" class="btn" id="pjIX">Cerrar</button><button type="button" class="btn primary" id="pjIGo" disabled>Importar</button></div></div>`;
+  let rows=[];$('#pjTpl').onclick=pjTemplate;$('#pjIX').onclick=()=>dl.close();
+  $('#pjIFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;const B=$('#pjIBody');
+    try{const X=await loadXLSX();const wb=X.read(await f.arrayBuffer(),{type:'array',cellDates:true});const ws=wb.Sheets[wb.SheetNames.find(s=>norm(s)==='job')||wb.SheetNames[0]];const g=X.utils.sheet_to_json(ws,{header:1,raw:true,defval:''});
+      let hi=g.findIndex(r=>r.some(v=>/^job/i.test(norm(v))));if(hi<0)throw 0;const hd=g[hi].map(xKey),idx={};PJ_XCOLS.forEach(c=>{const i=hd.findIndex(x=>x===xKey(c[1])||x===norm(c[0])||(c[0]==='descripcion'&&/descripcion/.test(x))||(c[0]==='pv'&&/^p\s?v$/.test(x.replace(/\./g,'')))||(c[0]==='job'&&/^job/.test(x)));if(i>=0)idx[c[0]]=i});
+      const units=myUnitOpts(),seen=new Set();
+      rows=g.slice(hi+1).filter(r=>r.some(v=>String(v??'').trim()!=='')).map((r,k)=>{const o={},err=[],warn=[];PJ_XCOLS.forEach(c=>{if(idx[c[0]]==null)return;const v=r[idx[c[0]]];o[c[0]]=c[2]==='d'?toDate(v):c[2]==='n'?toNum(v):String(v??'').trim()});
+        if(!o.job)err.push('falta el JOB');if(!o.descripcion)err.push('falta la descripción');if(!o.cliente)err.push('falta el cliente');if(!o.fechaIngreso&&!o.fechaEntrega)err.push('falta una fecha');
+        if(o.job&&seen.has(norm(o.job)))warn.push('JOB repetido en el archivo');seen.add(norm(o.job||''));
+        const ut=o.unidad||'';let u=units.find(([v])=>v===ut.toUpperCase())||units.find(([,l])=>norm(l)===norm(ut));if(!u)u=units.find(([v])=>v==='GP')||units[0];if(!u)err.push('sin unidad con permiso');o.unidad=u?u[0]:'';
+        if(o.tipoFact){const t=cliPick(o.tipoFact,PJ_TIPOS);o.tipoFact=t||'Principal'}else o.tipoFact='Principal';if(o.estado){o.estado=cliPick(o.estado,PJ_EST)||'Entregado'}else o.estado='Entregado';
+        const ex=o.job?RAW.prodJobs.find(x=>norm(x.job)===norm(o.job)&&!warn.length):null;if(ex&&!pjCanEdit(ex))err.push('existe y no tienes permiso');
+        return {fila:hi+2+k,o,ex,err,warn}});
+      const ok=rows.filter(x=>!x.err.length);
+      B.innerHTML=`<div class="note"><b>${esc(f.name)}</b>: ${rows.length} filas · <span style="color:var(--ok)">${ok.filter(x=>!x.ex).length} nuevos</span> · ${ok.filter(x=>x.ex).length} actualizan · <span style="color:var(--bad)">${rows.length-ok.length} con errores</span></div>
+       <div class="tbl" style="max-height:340px;overflow:auto;margin-top:8px"><table><thead><tr><th class="num">Fila</th><th>JOB</th><th>Descripción</th><th>Cliente</th><th class="num">Total</th><th>Acción</th><th>Detalle</th></tr></thead><tbody>${rows.slice(0,400).map(x=>`<tr><td class="num">${x.fila}</td><td class="mono">${esc(x.o.job||'—')}</td><td>${esc(x.o.descripcion||'')}</td><td>${esc(x.o.cliente||'')}</td><td class="num">${pjM2(x.o.total!==''&&x.o.total!=null?x.o.total:n(x.o.cantidad)*n(x.o.pv))}</td><td>${x.err.length?'<span class="pill bad">Error</span>':x.ex?'<span class="pill info">Actualiza</span>':'<span class="pill ok">Nuevo</span>'}</td><td class="note">${esc([...x.err,...x.warn].join('; '))}</td></tr>`).join('')}</tbody></table></div>`;
+      const go=$('#pjIGo');go.disabled=!ok.length;go.textContent=ok.length?`Importar ${ok.length} JOB`:'Nada para importar'}
+    catch(x){rows=[];B.innerHTML='<div class="note" style="color:var(--bad)">No se pudo leer el archivo. Usa la plantilla (la primera fila con encabezados debe incluir «JOB N.º»).</div>';$('#pjIGo').disabled=true}};
+  $('#pjIGo').onclick=async()=>{const go=$('#pjIGo');const L=rows.filter(x=>!x.err.length);go.disabled=true;let ok=0,fail=0;const now=new Date().toISOString();
+    for(const [i,x] of L.entries()){go.textContent=`Importando ${i+1} de ${L.length}…`;const o={...(x.ex||{id:uid(),creado:now,creadoPor:actorId(),importado:now}),kind:'job'};Object.entries(x.o).forEach(([k,v])=>{if(v!==''&&v!=null)o[k]=v});o.actualizado=now;
+      try{await put('clientes',o);ok++}catch(e){fail++}}
+    dl.close();toast(`Importación terminada: ${ok} JOB guardados${fail?' · '+fail+' con error':''}.`);render()};
+  dl.showModal()}
+function bindProdMod(){
+  const qi=$('#pjQ');if(qi)qi.oninput=e=>{pjF.q=e.target.value;clearTimeout(window.__pjT);window.__pjT=setTimeout(()=>{const p=e.target.selectionStart;render();const n2=$('#pjQ');if(n2){n2.focus();try{n2.setSelectionRange(p,p)}catch(_){}}},250)};
+  [['pjAnio','anio'],['pjMes','mes'],['pjTipo','tipo'],['pjCampo','campo'],['pjEst','estado']].forEach(([id,k])=>{const s=$('#'+id);if(s)s.onchange=e=>{pjF[k]=e.target.value;render()}});
+  document.querySelectorAll('[data-pjv]').forEach(b=>b.onclick=()=>{pjF.vista=b.dataset.pjv;render()});
+  document.querySelectorAll('[data-pjs]').forEach(th=>{const go=()=>{const k=th.dataset.pjs,c=pjF.srt;pjF.srt=!c||c.k!==k?{k,d:'asc'}:c.d==='asc'?{k,d:'desc'}:null;render()};th.onclick=go;th.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go()}}});
+  document.querySelectorAll('[data-pjopen]').forEach(b=>b.onclick=()=>openPJ(b.dataset.pjopen));
+  document.querySelectorAll('[data-pjprint]').forEach(b=>b.onclick=()=>{const j=S.prodJobs.find(x=>x.id===b.dataset.pjprint);if(j)printPJ(j)});
+  const nb=$('#pjNew');if(nb)nb.onclick=()=>openPJ(null);const ex=$('#pjExp');if(ex)ex.onclick=pjExport;const im=$('#pjImp');if(im)im.onclick=openPJImport;const hb=$('#pjHistBtn');if(hb)hb.onclick=openPJHist;
+  const ra=$('#pjRA');if(ra)ra.onchange=e=>{pjF.rAnio=e.target.value;render()};const rf=$('#pjRF');if(rf)rf.onchange=e=>{pjF.rFuente=e.target.value;render()};
+  const rx=$('#pjRX');if(rx)rx.onclick=pjRepExport;const rp=$('#pjRP');if(rp)rp.onclick=pjRepPrint;
 }
 
 /* ===== Módulo: Requerimientos centralizados ===== */
@@ -3206,6 +3557,7 @@ function bindView(){
   if(tab==='ventas')bindVentas();
   if(tab==='req')bindReqs();
   if(tab==='clientes')bindClientes();
+  if(tab==='prod')bindProdMod();
   const lf=$('#loginF');if(lf){lf.onsubmit=doLogin;const lu=$('#lgUser');if(lu&&!lu.value)lu.focus()}
   const ba=$('#baGo');if(ba)ba.onclick=becomeAdmin;
   const l2=$('#lgOut2');if(l2)l2.onclick=logout;
@@ -3281,7 +3633,8 @@ render();
     db.collection('aces_denominacional').onSnapshot(snap=>{ADEN=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
     db.collection('educacion_aces').onSnapshot(snap=>{EDU=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
     db.collection('upn_material').onSnapshot(snap=>{UPNM=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
-    db.collection('clientes').onSnapshot(snap=>{const all=snap.docs.map(d=>({...d.data(),id:d.id}));RAW.clientes=all.filter(r=>r.kind!=='act');RAW.cliAct=all.filter(r=>r.kind==='act');render()},()=>{});
+    db.collection('clientes').onSnapshot(snap=>{const all=snap.docs.map(d=>({...d.data(),id:d.id}));RAW.clientes=all.filter(r=>r.kind!=='act'&&r.kind!=='job');RAW.cliAct=all.filter(r=>r.kind==='act');RAW.prodJobs=all.filter(r=>r.kind==='job');render()},()=>{});
+    db.collection('produccion_hist').onSnapshot(snap=>{PRODH=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='prod')render()},()=>{});
     db.collection('ventas_hist').onSnapshot(snap=>{VHIST=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
     COLS.forEach(c=>db.collection(c).onSnapshot(snap=>{const rows=snap.docs.map(d=>({...d.data(),id:d.id}));if(c==='personal'){PUBP.length=0;PUBP.push(...rows);mergeP();migrate()}else RAW[c]=rows;render()},()=>toast('No se pudieron cargar los datos. Revisa tu conexión.')))};
   sb.auth.onAuthStateChange((ev,sess)=>{const had=!!SESSION;SESSION=sess;if(sess){loadUsers().then(startData)}else{USR=[];USR_READY=false;if(had){COLS.forEach(c=>RAW[c]=[]);db.clear()}loadUsers()}});
