@@ -715,11 +715,12 @@ function viewUnits(){
 }
 
 /* ===== Vista: calendario ===== */
-const CAL_TYPES=[['proyectos','Proyecto','var(--cyan)'],['actividades','Actividad','var(--ok)'],['tareas','Tarea','var(--yellow)'],['comisiones','Comisión','var(--magenta)']];
-let calPrMode='full',calMonth=today().slice(0,7),calOn={proyectos:true,actividades:true,tareas:true,comisiones:true},calDay=null;
+const CAL_TYPES=[['proyectos','Proyecto','var(--cyan)'],['actividades','Actividad','var(--ok)'],['tareas','Tarea','var(--yellow)'],['comisiones','Comisión','var(--magenta)'],['agenda','Agenda','#7c5cc4']];
+let calPrMode='full',calMonth=today().slice(0,7),calOn={proyectos:true,actividades:true,tareas:true,comisiones:true,agenda:true},calDay=null;
 function calEvents(){
   const out=[];
   CAL_TYPES.forEach(([col,lab,color])=>{if(!calOn[col])return;
+    if(col==='agenda'){(S.cliAct||[]).filter(a=>inFilter('clientes',a)).forEach(a=>{const [i,f]=actRange(a);if(!i)return;out.push({col,lab:a.tipo||'Agenda',color,id:a.id,name:a.titulo||'',ctx:[a.cliente,a.lugar].filter(Boolean).join(' · '),desc:[a.horaIni?(a.horaIni+(a.horaFin?'–'+a.horaFin:'')):'',a.participantes?'Participan: '+a.participantes:''].filter(Boolean).join(' · '),ini:i,fin:f,estado:actSt(a)[0],resp:a.responsable?pname(a.responsable):(a.responsableTxt||''),uni:U[a.unidad]?.n||''})});return}
     S[col].filter(r=>inFilter(col,r)).forEach(r=>{
       const name=col==='comisiones'?`${pname(r.persona)}: ${r.encargo||''}`:col==='proyectos'?`${r.codigo?r.codigo+' · ':''}${r.nombre||''}`:(r.nombre||'');
       const ctx=col==='actividades'?byId('proyectos',r.proyecto)?.nombre:col==='tareas'?byId('actividades',r.actividad)?.nombre:col==='comisiones'?byId('tareas',r.tarea)?.nombre:U[r.unidad]?.n;
@@ -742,7 +743,7 @@ function viewCal(){
    <input type="month" id="calPick" value="${calMonth}" aria-label="Elegir mes">${unitFilterSel()}
    <select id="calPrMode" aria-label="Detalle al imprimir"><option value="full" ${calPrMode==='full'?'selected':''}>Imprimir: detalle completo en cada día</option><option value="start" ${calPrMode==='start'?'selected':''}>Imprimir: detalle al inicio, nombre en los demás días</option></select>
    <button class="btn small primary" id="calPrint">🖨 Imprimir calendario</button></div></div>
-   <div class="legend" style="gap:8px">${CAL_TYPES.map(([c,l,col])=>`<label style="display:inline-flex;gap:6px;align-items:center;cursor:pointer;padding:4px 10px;border:1px solid var(--rule);border-radius:999px;${calOn[c]?'':'opacity:.45'}"><input type="checkbox" data-calt="${c}" ${calOn[c]?'checked':''} style="accent-color:${col}"><i style="background:${col}"></i>${l==='Comisión'?'Comisiones':l+'s'}</label>`).join('')}</div>`;
+   <div class="legend" style="gap:8px">${CAL_TYPES.map(([c,l,col])=>`<label style="display:inline-flex;gap:6px;align-items:center;cursor:pointer;padding:4px 10px;border:1px solid var(--rule);border-radius:999px;${calOn[c]?'':'opacity:.45'}"><input type="checkbox" data-calt="${c}" ${calOn[c]?'checked':''} style="accent-color:${col}"><i style="background:${col}"></i>${l==='Comisión'?'Comisiones':l==='Actividad'?'Actividades':l==='Agenda'?'Agenda (citas, viajes, capacitaciones…)':l+'s'}</label>`).join('')}${readOnly?'':`<button class="btn small" id="calActNew" style="margin-left:auto" title="Registrar una cita, viaje, capacitación, entrevista u otra actividad">+ Actividad${calDay?' el '+fdate(calDay):''}</button>`}</div>`;
   h+=`<div class="tbl" style="overflow-x:auto"><div style="display:grid;grid-template-columns:repeat(7,minmax(96px,1fr));min-width:680px">`;
   ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].forEach(d=>h+=`<div style="padding:6px 8px;font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);background:var(--paper);border-bottom:1px solid var(--rule)">${d}</div>`);
   for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1)){
@@ -751,7 +752,7 @@ function viewCal(){
     const shown=es.slice(0,3);
     h+=`<div style="min-height:104px;padding:6px;border-right:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2);display:flex;flex-direction:column;gap:3px;min-width:0;${out?'background:var(--paper);opacity:.6;':''}${sel?'box-shadow:inset 0 0 0 2px var(--cyan);':''}">
       <button class="link" data-calday="${k}" style="align-self:flex-start;font-family:var(--mono);font-size:.78rem;${isT?'background:var(--magenta);color:var(--sheet);border-radius:999px;padding:1px 7px;':'color:var(--ink-2)'}" aria-label="Ver el ${fdate(k)}">${d.getDate()}</button>
-      ${shown.map(e=>{const st=e.ini===k||d.getDay()===0,en=e.fin===k;return `<button data-edit="${e.col}:${e.id}" title="${esc(e.lab+': '+e.name+(e.desc?' ('+e.desc+')':'')+' · '+fdate(e.ini)+' → '+fdate(e.fin))}" style="all:unset;cursor:pointer;display:block;font-size:.72rem;line-height:1.3;padding:1px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:color-mix(in srgb,${e.color} 22%,transparent);border-left:3px solid ${e.color};border-radius:${st?'3px':'0'} ${en?'3px 3px':'0 0'} ${st?'3px':'0'};color:var(--ink)">${st?esc(e.name):'&nbsp;'}</button>`}).join('')}
+      ${shown.map(e=>{const st=e.ini===k||d.getDay()===0,en=e.fin===k;return `<button data-edit="${e.col}:${e.id}" title="${esc(e.lab+': '+e.name+(e.desc?' ('+e.desc+')':'')+' · '+fdate(e.ini)+' → '+fdate(e.fin))}" style="all:unset;cursor:pointer;display:block;font-size:.72rem;line-height:1.3;padding:1px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:color-mix(in srgb,${e.color} 22%,transparent);border-left:3px solid ${e.color};border-radius:${st?'3px':'0'} ${en?'3px 3px':'0 0'} ${st?'3px':'0'};color:var(--ink)">${st?esc((e.col==='agenda'?e.lab+': ':'')+e.name):'&nbsp;'}</button>`}).join('')}
       ${es.length>3?`<button class="link" data-calday="${k}" style="font-size:.72rem">+${es.length-3} más</button>`:''}
     </div>`;
   }
@@ -759,8 +760,8 @@ function viewCal(){
   // Agenda
   const list=calDay?ev.filter(e=>e.ini<=calDay&&e.fin>=calDay):inMonth;
   h+=`<div class="panel"><div class="bar"><h3>${calDay?'Agenda del '+fdate(calDay):'Agenda del mes'}</h3>${calDay?'<button class="link" id="calAll">Ver todo el mes</button>':''}</div>`;
-  if(!list.length)h+=`<div class="empty">No hay periodos ${calDay?'ese día':'en este mes'} con los filtros elegidos. Registra fechas en los Periodos de ejecución de cada proyecto, actividad, tarea o comisión.</div>`;
-  else h+=`<div class="tbl" style="border:0"><table><thead><tr><th>Tipo</th><th>Nombre</th><th>Pertenece a</th><th>Desde</th><th>Hasta</th><th>Estado</th></tr></thead><tbody>${list.map(e=>{const late=e.fin<t&&!['Cerrado','Completada','Hecha','Cumplida'].includes(e.estado);return `<tr><td><span class="pill" style="background:color-mix(in srgb,${e.color} 20%,transparent);color:var(--ink)">${e.lab}</span></td><td><button class="link" data-edit="${e.col}:${e.id}" style="color:var(--ink);text-align:left">${esc(e.name)}</button>${e.desc?`<div class="note">${esc(e.desc)}</div>`:''}</td><td class="note">${esc(e.ctx)}</td><td>${fdate(e.ini)}</td><td>${fdate(e.fin)}${late?' <span class="pill bad">Vencido</span>':''}</td><td>${pillFor(e.estado)}</td></tr>`}).join('')}</tbody></table></div>`;
+  if(!list.length)h+=`<div class="empty">No hay periodos ${calDay?'ese día':'en este mes'} con los filtros elegidos. Registra fechas en los Periodos de ejecución de cada proyecto, actividad, tarea o comisión, o agrega una actividad de agenda con «+ Actividad».</div>`;
+  else h+=`<div class="tbl" style="border:0"><table><thead><tr><th>Tipo</th><th>Nombre</th><th>Pertenece a</th><th>Desde</th><th>Hasta</th><th>Estado</th></tr></thead><tbody>${list.map(e=>{const late=e.fin<t&&!['Cerrado','Completada','Hecha','Cumplida','Realizada','Cancelada'].includes(e.estado);return `<tr><td><span class="pill" style="background:color-mix(in srgb,${e.color} 20%,transparent);color:var(--ink)">${e.lab}</span></td><td><button class="link" data-edit="${e.col}:${e.id}" style="color:var(--ink);text-align:left">${esc(e.name)}</button>${e.desc?`<div class="note">${esc(e.desc)}</div>`:''}</td><td class="note">${esc(e.ctx)}</td><td>${fdate(e.ini)}</td><td>${fdate(e.fin)}${late?' <span class="pill bad">Vencido</span>':''}</td><td>${pillFor(e.estado)}</td></tr>`}).join('')}</tbody></table></div>`;
   return h+`</div>`;
 }
 
@@ -772,9 +773,9 @@ function printCal(){
   const ev=calEvents(),mFrom=ymd(first),mTo=ymd(last),inMonth=ev.filter(e=>e.ini<=mTo&&e.fin>=mFrom);
   const title=first.toLocaleDateString('es-PE',{month:'long',year:'numeric'});
   const sd=k=>{const d=new Date(k+'T12:00:00');return d.toLocaleDateString('es-PE',{day:'2-digit',month:'short'}).replace('.','')};
-  const COLP={proyectos:'#1f8fb3',actividades:'#2e8b57',tareas:'#c99a06',comisiones:'#b5307a'};
+  const COLP={proyectos:'#1f8fb3',actividades:'#2e8b57',tareas:'#c99a06',comisiones:'#b5307a',agenda:'#7c5cc4'};
   const scope=filterUnit==='ALL'?(canManage()?'Toda la organización':'Toda mi información'):(filterUnit==='GG!'?'Gerencia General (solo lo registrado por GG)':filterUnit==='GG'?'Gerencia General — ALL (todas las unidades)':(U[filterUnit]?.n||''));
-  const tipos=CAL_TYPES.filter(([c])=>calOn[c]).map(t=>t[1]==='Comisión'?'Comisiones':t[1]+'s').join(', ');
+  const tipos=CAL_TYPES.filter(([c])=>calOn[c]).map(t=>t[1]==='Comisión'?'Comisiones':t[1]==='Actividad'?'Actividades':t[1]==='Agenda'?'Agenda':t[1]+'s').join(', ');
   const item=(e,k,d)=>{const c=COLP[e.col];const first=e.ini===k||(k===mFrom&&e.ini<mFrom)||(d.getDay()===0&&e.ini<k&&calPrMode==='full');
     const full=calPrMode==='full'||e.ini===k||(k===ymd(start)&&e.ini<k)||(k===mFrom&&e.ini<mFrom);
     const rng=e.ini===e.fin?sd(e.ini):`${sd(e.ini)} → ${sd(e.fin)}`;
@@ -820,6 +821,7 @@ function bindCal(){
   const ca=$('#calAll');if(ca)ca.onclick=()=>{calDay=null;render()};
   const pm=$('#calPrMode');if(pm)pm.onchange=e=>{calPrMode=e.target.value};
   const pb=$('#calPrint');if(pb)pb.onclick=printCal;
+  const an=$('#calActNew');if(an)an.onclick=()=>openAct(null,calDay?{fechaIni:calDay}:{});
 }
 
 /* ===== Módulo: Ventas EIU — clientes y pedidos (ficha «Información del cliente», precio aprobado y requerimientos) ===== */
@@ -3210,7 +3212,7 @@ function bindView(){
   const fu=$('#fu');if(fu)fu.onchange=e=>{filterUnit=e.target.value;render()};
   const qi=$('#q');if(qi){qi.oninput=e=>{q=e.target.value;const pos=e.target.selectionStart;render();const n2=$('#q');n2.focus();try{n2.setSelectionRange(pos,pos)}catch(_){}}}
   document.querySelectorAll('[data-new]').forEach(b=>b.onclick=()=>openForm(b.dataset.new));
-  document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>{const [c,i]=b.dataset.edit.split(':');openForm(c,i)});
+  document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>{const [c,i]=b.dataset.edit.split(':');if(c==='agenda')openAct(i);else openForm(c,i)});
   document.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>{const [c,k,v]=b.dataset.add.split(':');openForm(c,null,k?{[k]:v}:{})});
   document.querySelectorAll('[data-unit]').forEach(b=>b.onclick=()=>{selUnit=b.dataset.unit;render();window.scrollTo({top:0})});
   const su=$('#su');if(su)su.onchange=e=>{selUnit=e.target.value;render()};
