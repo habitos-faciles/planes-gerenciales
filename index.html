@@ -2126,8 +2126,8 @@ const COT_ITEMS=[
  ...COT_PARTS.map(([k,l])=>({id:'pap_'+k,sec:'PAPELES',l,mon:'$',p:0,papel:k,q:(C,Q)=>{const P=C.p[k];return P.act&&P.pz?Q*(P.N/2)*(1+P.m)/P.pz/P.resma:0}})),
  {id:'dis_forro',sec:'DISEÑO y ARTE',l:'Forro',mon:'$',p:0,q:()=>1},{id:'dis_guarda',sec:'DISEÑO y ARTE',l:'Guarda',mon:'$',p:0,q:()=>1},{id:'dis_tapa',sec:'DISEÑO y ARTE',l:'Tapa',mon:'$',p:10,q:()=>1},
  {id:'dis_hojas',sec:'DISEÑO y ARTE',l:'Hojas interiores (por página)',mon:'$',p:1,q:C=>C.p.hojas.N},{id:'dis_enc1',sec:'DISEÑO y ARTE',l:'Encartes 1 (por página)',mon:'$',p:0,q:C=>C.p.enc1.N},{id:'dis_enc2',sec:'DISEÑO y ARTE',l:'Encartes 2',mon:'$',p:0,q:()=>1},
- {id:'cor_1',sec:'CORRECCIÓN',l:'1ra prueba',mon:'$',p:2,q:C=>{const t=C.p.tapa,h=C.p.hojas;const d=((t.pz*2)+(h.pz*2))/2;return d?t.N+h.N/d:0}},
- {id:'cor_2',sec:'CORRECCIÓN',l:'2da prueba',mon:'$',p:10,q:C=>{const t=C.p.tapa,h=C.p.hojas;const d=(t.pz*2)+(h.pz*2);return d?(t.N+h.N)/d:0}},
+ {id:'cor_1',sec:'CORRECCIÓN',l:'1ra prueba',mon:'$',p:2,cor:2,q:C=>cotCorF(C,2)},
+ {id:'cor_2',sec:'CORRECCIÓN',l:'2da prueba',mon:'$',p:10,cor:1,q:C=>cotCorF(C,1)},
  {id:'otr_isbn',sec:'OTROS',l:'ISBN',mon:'S/',p:0,q:()=>1},{id:'otr_issn',sec:'OTROS',l:'ISSN / copyright',mon:'S/',p:0,q:(C,Q)=>Q},
  {id:'pl_kba_t',sec:'PROCESO DE PLACAS (por juego)',l:'Tapa · KBA 74 (74.5 x 57.5)',mon:'$',p:0,q:()=>1},{id:'pl_spm5_t',sec:'PROCESO DE PLACAS (por juego)',l:'Tapa · SPM SX-5P (103 x 79)',mon:'$',p:50,q:()=>1},
  {id:'pl_kba_h',sec:'PROCESO DE PLACAS (por juego)',l:'Hojas · KBA 74 (74.5 x 57.5)',mon:'$',p:0,q:()=>1},{id:'pl_spm5_h',sec:'PROCESO DE PLACAS (por juego)',l:'Hojas · SPM SX-5P (103 x 79)',mon:'$',p:50,q:C=>{const h=C.p.hojas;return h.pz?h.N/h.pz:0}},
@@ -2163,19 +2163,22 @@ const COT_ITEMS=[
  {id:'ac_otros',sec:'ACABADOS',l:'Otros (incluye ½ del revisado)',mon:'S/',p:1,q:()=>0,otros:1}];
 const COT_PLIEGOS=['61 x 86','65 x 90','69 x 89','70 x 100','72 x 102','74.5 x 57.5','103 x 79'];
 function cotPliego(v){const m=String(v||'').replace(/,/g,'.').match(/(\d+(?:\.\d+)?)\s*[x×*]\s*(\d+(?:\.\d+)?)/i);return m?[+m[1],+m[2]]:null}
+// Corrección: suma de págs. ÷ (suma de Págs. Plgos ÷ div) de las partes con papel y piezas
+function cotCorS(C){let n=0,pp=0;COT_PARTS.forEach(([k])=>{const P=C.p[k];if(P.act&&P.pz){n+=P.N;pp+=P.pz*2}});return {n,pp}}
+function cotCorF(C,div){const x=cotCorS(C);return x.pp?x.n/(x.pp/div):0}
 function cotCtx(c,cfg){const P={};const A=+c.ancho||0,H=+c.alto||0;
   COT_PARTS.forEach(([k])=>{const x=(c.partes||{})[k]||{};const N=x.pags===''||x.pags==null?2:+x.pags;const anch=x.ancho!==''&&x.ancho!=null?+x.ancho:(k==='tapa'||k==='forro'||k==='guarda'?A*2:A),alt=x.alto!==''&&x.alto!=null?+x.alto:H;
     const PL=cotPliego(x.pliego);let ph=+x.ph||0,pv=+x.pv||0,auto=false;if(PL&&anch>0&&alt>0){if(!ph){ph=Math.floor(PL[0]/anch);auto=true}if(!pv){pv=Math.floor(PL[1]/alt);auto=true}}const pz=ph*pv,act=!!(x.papel||x.precio);const m=x.merma===''||x.merma==null?({tapa:0.08,hojas:0.0125,enc1:0.07}[k]??0.2):+x.merma/100;
     P[k]={N,ancho:anch,alto:alt,pz,ph,pv,auto,PL,m,act,resma:+x.resma>0?+x.resma:(cfg.resma||500),lados:+x.lados||(k==='tapa'||k==='hojas'?2:1)};});
   return {p:P,resma:cfg.resma||500,cuad:P.hojas.pz?P.hojas.N/P.hojas.pz/2:0}}
 // Cantidades de la proyección (columnas de la hoja de costos); la 1.ª es «Cantidad» de la sección 3
-const COT_SECHDR={'DISEÑO y ARTE':['Precio por servicio $','En soles S/.','Páginas','Total S/'],'CORRECCIÓN':['Precio por servicio $','En soles S/.','Páginas','Total S/'],'PROCESO DE PLACAS (por juego)':['Precio por placa $','En soles S/.','Unidades de placas<div style="font-weight:400;text-transform:none">(Páginas / (Págs. Plgos / 2))</div>','Total S/'],'IMPRESIÓN (por millar)':['Precio por servicio $','En soles S/.','Factor<div style="font-weight:400;text-transform:none">(Placa × Cant. / 1000 + 5%)</div>','Total S/'],'DIGITAL (por clic)':['Precio × pág. en soles','En soles S/.','Factor<div style="font-weight:400;text-transform:none">(Pliegos c/merma × factor 4)</div>','Total S/']};
+const COT_SECHDR={'DISEÑO y ARTE':['Precio por servicio $','En soles S/.','Páginas','Total S/'],'CORRECCIÓN':['Precio por servicio $','En soles S/.','Factor<div style="font-weight:400;text-transform:none;white-space:normal;min-width:150px;max-width:190px;margin:auto">(Unids. columna Págs. / (Unids. columna Págs. Plgos / 2 ó 1))</div>','Total S/'],'PROCESO DE PLACAS (por juego)':['Precio por placa $','En soles S/.','Unidades de placas<div style="font-weight:400;text-transform:none">(Páginas / (Págs. Plgos / 2))</div>','Total S/'],'IMPRESIÓN (por millar)':['Precio por servicio $','En soles S/.','Factor<div style="font-weight:400;text-transform:none">(Placa × Cant. / 1000 + 5%)</div>','Total S/'],'DIGITAL (por clic)':['Precio × pág. en soles','En soles S/.','Factor<div style="font-weight:400;text-transform:none">(Pliegos c/merma × factor 4)</div>','Total S/']};
 function cotQs(c){const a=Array.isArray(c.cantidades)&&c.cantidades.length?c.cantidades.slice():[c.cantidad,c.cantidad2];a[0]=c.cantidad;return a.map(v=>v===''||v==null?'':+v)}
 const cotQKey=j=>j?'q'+j:'q';
 function cotCalc(c,Q,useOv=true,col=0){const cfg=cotCfg(),tc=+(c.tc??cfg.tc)||cfg.tc,C=cotCtx(c,cfg);COT_PARTS.forEach(([k])=>{const P=C.p[k];P.plM=P.ancho>1&&P.pz?Q*P.N/(P.pz*2)*(1+P.m):0});const qk=cotQKey(col),ovA=useOv?(c.items||{}):{},ov={};Object.keys(ovA).forEach(id=>{if(ovA[id]&&ovA[id][qk]!==undefined)ov[id]={q:ovA[id][qk]}});const qv={},rows=[];
   const g=id=>qv[id]??0;
   COT_ITEMS.forEach(it=>{const o=(c.items||{})[it.id]||{};let p=o.p!==undefined&&o.p!==''?+o.p:(it.papel?+(((c.partes||{})[it.papel]||{}).precio||0):(cfg.precios[it.id]!==undefined?+cfg.precios[it.id]:it.p));
-    let q=!it.papel&&!it.auto&&!it.dg&&ov[it.id]&&ov[it.id].q!==undefined&&ov[it.id].q!==''?+ov[it.id].q:(()=>{try{return +it.q(C,Q,g)||0}catch(e){return 0}})();qv[it.id]=q;
+    let q=!it.papel&&!it.auto&&!it.dg&&!it.cor&&ov[it.id]&&ov[it.id].q!==undefined&&ov[it.id].q!==''?+ov[it.id].q:(()=>{try{return +it.q(C,Q,g)||0}catch(e){return 0}})();qv[it.id]=q;
     const pu=it.mon==='$'?p*tc:p;let tot=q*pu;rows.push({it,p,q,pu,tot})});
   const ot=rows.find(r=>r.it.otros),rv=rows.find(r=>r.it.id==='ac_revis');if(ot){const man=+(((c.items||{}).ac_otros||{}).p)||0;ot.p=man;ot.q=1;ot.pu=man;ot.tot=(rv?rv.tot/2:0)+man}
   const cp=rows.reduce((s,r)=>s+(isFinite(r.tot)?r.tot:0),0),adm=+(c.adm??cfg.adm),util=+(c.util??cfg.util),igv=+(c.igv??cfg.igv);
@@ -2288,6 +2291,7 @@ function openCot(id){const cfg=cotCfg();
       const cols=QS.map((q,j)=>{const kk=K[j];if(!kk)return `<td class="hc-c"></td><td class="num hc-t">—</td>`;const rr=kk.rows[i],qk=cotQKey(j),has=o[qk]!==undefined&&o[qk]!=='';
         const auto=has?cotCalc({...c,items:{...c.items,[r.it.id]:{...o,[qk]:''}}},+q,true,j).rows[i].q:rr.q;
         if(r.it.papel){const P=cotCtx(c,cfg).p[r.it.papel],pa=P.act&&P.pz?(+q)*P.N/(P.pz*2)*(1+P.m):0;return `<td class="hc-c num" title="${pa?Math.round(pa).toLocaleString('es-PE')+' pliegos c/merma ÷ '+P.resma+' pliegos por resma':''}" style="padding-right:10px">${rr.q?f4(rr.q):'—'}</td><td class="num hc-t"><strong>${rr.tot?f2(rr.tot):'—'}</strong></td>`}
+        if(r.it.cor){const x=cotCorS(cotCtx(c,cfg));return `<td class="hc-c num" title="${x.pp?x.n+' págs. ÷ ('+x.pp+' Págs. Plgos ÷ '+r.it.cor+')':''}" style="padding-right:10px">${rr.q?f4(rr.q):'—'}</td><td class="num hc-t"><strong>${rr.tot?f2(rr.tot):'—'}</strong></td>`}
         if(r.it.dg){const P=cotCtx(c,cfg).p[r.it.dg],pa=P.act&&P.pz?(+q)*P.N/(P.pz*2)*(1+P.m):0;return `<td class="hc-c num" title="${pa?Math.round(pa).toLocaleString('es-PE')+' pliegos c/merma × 4':''}" style="padding-right:10px">${rr.q?f4(rr.q):'—'}</td><td class="num hc-t"><strong>${rr.tot?f2(rr.tot):'—'}</strong></td>`}
         if(r.it.auto){const pq=kk.rows.find(x=>x.it.id===r.it.auto);return `<td class="hc-c num" title="${pq?f4(pq.q)+' placas × '+(+q).toLocaleString('es-PE')+' ÷ 1000 + 5%':''}" style="padding-right:10px">${rr.q?f4(rr.q):'—'}</td><td class="num hc-t"><strong>${rr.tot?f2(rr.tot):'—'}</strong></td>`}
         return `<td class="hc-c">${r.it.otros?'—':`<input data-ci="${r.it.id}:${qk}" type="number" step="any" value="${has?o[qk]:''}" placeholder="${f4(auto)}" style="width:82px" ${ro}>`}</td><td class="num hc-t"><strong>${rr.tot?f2(rr.tot):'—'}</strong></td>`}).join('');
