@@ -2168,7 +2168,7 @@ function cotCorS(C){let n=0,pp=0;COT_PARTS.forEach(([k])=>{const P=C.p[k];if(P.a
 function cotCorF(C,div){const x=cotCorS(C);return x.pp?x.n/(x.pp/div):0}
 // Placas: cada fila se prepara para una parte (Forro, Guarda, Tapa, Hojas, Encartes)
 const cotPlPart=(c,id,def)=>(((c&&c.items)||{})[id]||{}).parte||def;
-function cotPlQ(C,id,def,base){const k=cotPlPart(C.c,id,def),P=C.p[k];return P&&P.act&&P.pz?Math.max(1,Math.ceil(P.N/P.pz)):(base?1:0)}
+function cotPlQ(C,id,def,base){const k=cotPlPart(C.c,id,def),P=C.p[k];return P&&P.pz?P.N/(P.pz*2/2):0}
 function cotItemLbl(c,it){const nm=k=>(COT_PARTS.find(x=>x[0]===k)||['',k])[1];if(it.plate)return nm(cotPlPart(c,it.id,it.plate))+' · '+it.mach;if(it.auto&&it.mach){const pl=COT_ITEMS.find(x=>x.id===it.auto);return nm(cotPlPart(c,it.auto,pl&&pl.plate))+' · '+it.mach}return it.l}
 function cotCtx(c,cfg){const P={};const A=+c.ancho||0,H=+c.alto||0;
   COT_PARTS.forEach(([k])=>{const x=(c.partes||{})[k]||{};const N=x.pags===''||x.pags==null?2:+x.pags;const anch=x.ancho!==''&&x.ancho!=null?+x.ancho:(k==='tapa'||k==='forro'||k==='guarda'?A*2:A),alt=x.alto!==''&&x.alto!=null?+x.alto:H;
@@ -2182,7 +2182,7 @@ const cotQKey=j=>j?'q'+j:'q';
 function cotCalc(c,Q,useOv=true,col=0){const cfg=cotCfg(),tc=+(c.tc??cfg.tc)||cfg.tc,C=cotCtx(c,cfg);COT_PARTS.forEach(([k])=>{const P=C.p[k];P.plM=P.ancho>1&&P.pz?Q*P.N/(P.pz*2)*(1+P.m):0});const qk=cotQKey(col),ovA=useOv?(c.items||{}):{},ov={};Object.keys(ovA).forEach(id=>{if(ovA[id]&&ovA[id][qk]!==undefined)ov[id]={q:ovA[id][qk]}});const qv={},rows=[];
   const g=id=>qv[id]??0;
   COT_ITEMS.forEach(it=>{const o=(c.items||{})[it.id]||{};let p=o.p!==undefined&&o.p!==''?+o.p:(it.papel?+(((c.partes||{})[it.papel]||{}).precio||0):(cfg.precios[it.id]!==undefined?+cfg.precios[it.id]:it.p));
-    let q=!it.papel&&!it.auto&&!it.dg&&!it.cor&&ov[it.id]&&ov[it.id].q!==undefined&&ov[it.id].q!==''?+ov[it.id].q:(()=>{try{return +it.q(C,Q,g)||0}catch(e){return 0}})();qv[it.id]=q;
+    let q=!it.papel&&!it.auto&&!it.dg&&!it.cor&&!it.plate&&ov[it.id]&&ov[it.id].q!==undefined&&ov[it.id].q!==''?+ov[it.id].q:(()=>{try{return +it.q(C,Q,g)||0}catch(e){return 0}})();qv[it.id]=q;
     const pu=it.mon==='$'?p*tc:p;let tot=q*pu;rows.push({it,p,q,pu,tot})});
   const ot=rows.find(r=>r.it.otros),rv=rows.find(r=>r.it.id==='ac_revis');if(ot){const man=+(((c.items||{}).ac_otros||{}).p)||0;ot.p=man;ot.q=1;ot.pu=man;ot.tot=(rv?rv.tot/2:0)+man}
   const cp=rows.reduce((s,r)=>s+(isFinite(r.tot)?r.tot:0),0),adm=+(c.adm??cfg.adm),util=+(c.util??cfg.util),igv=+(c.igv??cfg.igv);
@@ -2295,6 +2295,7 @@ function openCot(id){const cfg=cotCfg();
       const cols=QS.map((q,j)=>{const kk=K[j];if(!kk)return `<td class="hc-c"></td><td class="num hc-t">—</td>`;const rr=kk.rows[i],qk=cotQKey(j),has=o[qk]!==undefined&&o[qk]!=='';
         const auto=has?cotCalc({...c,items:{...c.items,[r.it.id]:{...o,[qk]:''}}},+q,true,j).rows[i].q:rr.q;
         if(r.it.papel){const P=cotCtx(c,cfg).p[r.it.papel],pa=P.act&&P.pz?(+q)*P.N/(P.pz*2)*(1+P.m):0;return `<td class="hc-c num" title="${pa?Math.round(pa).toLocaleString('es-PE')+' pliegos c/merma ÷ '+P.resma+' pliegos por resma':''}" style="padding-right:10px">${rr.q?f4(rr.q):'—'}</td><td class="num hc-t"><strong>${rr.tot?f2(rr.tot):'—'}</strong></td>`}
+        if(r.it.plate){const P=cotCtx(c,cfg).p[cotPlPart(c,r.it.id,r.it.plate)];return `<td class="hc-c num" title="${P&&P.pz?P.N+' págs. ÷ ('+(P.pz*2)+' Págs. Plgos ÷ 2)':'La parte elegida aún no tiene piezas por pliego'}" style="padding-right:10px">${rr.q?f4(rr.q):'—'}</td><td class="num hc-t"><strong>${rr.tot?f2(rr.tot):'—'}</strong></td>`}
         if(r.it.cor){const x=cotCorS(cotCtx(c,cfg));return `<td class="hc-c num" title="${x.pp?x.n+' págs. ÷ ('+x.pp+' Págs. Plgos ÷ '+r.it.cor+')':''}" style="padding-right:10px">${rr.q?f4(rr.q):'—'}</td><td class="num hc-t"><strong>${rr.tot?f2(rr.tot):'—'}</strong></td>`}
         if(r.it.dg){const P=cotCtx(c,cfg).p[r.it.dg],pa=P.act&&P.pz?(+q)*P.N/(P.pz*2)*(1+P.m):0;return `<td class="hc-c num" title="${pa?Math.round(pa).toLocaleString('es-PE')+' pliegos c/merma × 4':''}" style="padding-right:10px">${rr.q?f4(rr.q):'—'}</td><td class="num hc-t"><strong>${rr.tot?f2(rr.tot):'—'}</strong></td>`}
         if(r.it.auto){const pq=kk.rows.find(x=>x.it.id===r.it.auto);return `<td class="hc-c num" title="${pq?f4(pq.q)+' placas × '+(+q).toLocaleString('es-PE')+' ÷ 1000 + 5%':''}" style="padding-right:10px">${rr.q?f4(rr.q):'—'}</td><td class="num hc-t"><strong>${rr.tot?f2(rr.tot):'—'}</strong></td>`}
