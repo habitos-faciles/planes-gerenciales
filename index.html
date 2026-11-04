@@ -2170,7 +2170,7 @@ function cotCtx(c,cfg){const P={};const A=+c.ancho||0,H=+c.alto||0;
     P[k]={N,ancho:anch,alto:alt,pz,ph,pv,auto,PL,m,act,resma:+x.resma>0?+x.resma:(cfg.resma||500),lados:+x.lados||(k==='tapa'||k==='hojas'?2:1)};});
   return {p:P,resma:cfg.resma||500,cuad:P.hojas.pz?P.hojas.N/P.hojas.pz/2:0}}
 // Cantidades de la proyección (columnas de la hoja de costos); la 1.ª es «Cantidad» de la sección 3
-const COT_SECHDR={'DISEÑO y ARTE':['Precio por servicio $','En soles S/.','Páginas','Total S/']};
+const COT_SECHDR={'DISEÑO y ARTE':['Precio por servicio $','En soles S/.','Páginas','Total S/'],'CORRECCIÓN':['Precio por servicio $','En soles S/.','Páginas','Total S/'],'PROCESO DE PLACAS (por juego)':['Precio por placa $','En soles S/.','Unidades de placas<div style="font-weight:400;text-transform:none">(Páginas / Págs. Plgos)</div>','Total S/']};
 function cotQs(c){const a=Array.isArray(c.cantidades)&&c.cantidades.length?c.cantidades.slice():[c.cantidad,c.cantidad2];a[0]=c.cantidad;return a.map(v=>v===''||v==null?'':+v)}
 const cotQKey=j=>j?'q'+j:'q';
 function cotCalc(c,Q,useOv=true,col=0){const cfg=cotCfg(),tc=+(c.tc??cfg.tc)||cfg.tc,C=cotCtx(c,cfg);COT_PARTS.forEach(([k])=>{const P=C.p[k];P.plM=P.ancho>1&&P.pz?Q*P.N/(P.pz*2)*(1+P.m):0});const qk=cotQKey(col),ovA=useOv?(c.items||{}):{},ov={};Object.keys(ovA).forEach(id=>{if(ovA[id]&&ovA[id][qk]!==undefined)ov[id]={q:ovA[id][qk]}});const qv={},rows=[];
