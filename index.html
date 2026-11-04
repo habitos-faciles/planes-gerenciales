@@ -2132,12 +2132,12 @@ const COT_ITEMS=[
  {id:'pl_kba_t',sec:'PROCESO DE PLACAS (por juego)',l:'Tapa · KBA 74 (74.5 x 57.5)',mon:'$',p:0,q:()=>1},{id:'pl_spm5_t',sec:'PROCESO DE PLACAS (por juego)',l:'Tapa · SPM SX-5P (103 x 79)',mon:'$',p:50,q:()=>1},
  {id:'pl_kba_h',sec:'PROCESO DE PLACAS (por juego)',l:'Hojas · KBA 74 (74.5 x 57.5)',mon:'$',p:0,q:()=>1},{id:'pl_spm5_h',sec:'PROCESO DE PLACAS (por juego)',l:'Hojas · SPM SX-5P (103 x 79)',mon:'$',p:50,q:C=>{const h=C.p.hojas;return h.pz?h.N/h.pz:0}},
  {id:'pl_spm2_h',sec:'PROCESO DE PLACAS (por juego)',l:'Hojas · SPM SX-2P (103 x 79)',mon:'$',p:0,q:C=>{const h=C.p.hojas;return h.pz?h.N/h.pz:0}},{id:'pl_spm2_e',sec:'PROCESO DE PLACAS (por juego)',l:'Encartes · SPM SX-2P (103 x 79)',mon:'$',p:0,q:()=>1},
- {id:'im_kba_t',sec:'IMPRESIÓN (por millar)',l:'Tapa · KBA 74',mon:'$',p:0,div:2,q:(C,Q,g)=>g('pl_kba_t')*Q*(C.p.tapa.N/2)/1000/2+0.05},
- {id:'im_spm5_t',sec:'IMPRESIÓN (por millar)',l:'Tapa · SPM SX-5P',mon:'$',p:50,q:(C,Q,g)=>g('pl_spm5_t')*Q*(C.p.tapa.N/2)/1000/8+0.05},
- {id:'im_kba_h',sec:'IMPRESIÓN (por millar)',l:'Hojas · KBA 74',mon:'$',p:0,q:(C,Q,g)=>g('pl_kba_h')*Q*(C.p.hojas.N/2)/1000/8+0.05},
- {id:'im_spm5_h',sec:'IMPRESIÓN (por millar)',l:'Hojas · SPM SX-5P',mon:'$',p:42,q:(C,Q,g)=>g('pl_spm5_h')*Q/1000+0.05},
- {id:'im_spm2_h',sec:'IMPRESIÓN (por millar)',l:'Hojas · SPM SX-2P',mon:'$',p:0,q:(C,Q,g)=>g('pl_spm2_h')*Q/1000+0.05},
- {id:'im_spm2_e',sec:'IMPRESIÓN (por millar)',l:'Encartes · SPM SX-2P',mon:'$',p:0,q:(C,Q,g)=>g('pl_spm2_e')*Q*(C.p.hojas.N/2)/1000/30+0.05},
+ {id:'im_kba_t',sec:'IMPRESIÓN (por millar)',l:'Tapa · KBA 74',mon:'$',p:0,auto:'pl_kba_t',q:(C,Q,g)=>g('pl_kba_t')*Q/1000*1.05},
+ {id:'im_spm5_t',sec:'IMPRESIÓN (por millar)',l:'Tapa · SPM SX-5P',mon:'$',p:50,auto:'pl_spm5_t',q:(C,Q,g)=>g('pl_spm5_t')*Q/1000*1.05},
+ {id:'im_kba_h',sec:'IMPRESIÓN (por millar)',l:'Hojas · KBA 74',mon:'$',p:0,auto:'pl_kba_h',q:(C,Q,g)=>g('pl_kba_h')*Q/1000*1.05},
+ {id:'im_spm5_h',sec:'IMPRESIÓN (por millar)',l:'Hojas · SPM SX-5P',mon:'$',p:42,auto:'pl_spm5_h',q:(C,Q,g)=>g('pl_spm5_h')*Q/1000*1.05},
+ {id:'im_spm2_h',sec:'IMPRESIÓN (por millar)',l:'Hojas · SPM SX-2P',mon:'$',p:0,auto:'pl_spm2_h',q:(C,Q,g)=>g('pl_spm2_h')*Q/1000*1.05},
+ {id:'im_spm2_e',sec:'IMPRESIÓN (por millar)',l:'Encartes · SPM SX-2P',mon:'$',p:0,auto:'pl_spm2_e',q:(C,Q,g)=>g('pl_spm2_e')*Q/1000*1.05},
  {id:'dg_guarda',sec:'DIGITAL (por clic)',l:'Forro y guarda',mon:'S/',p:0,ref:'0.6 por lado',q:C=>(C.p.forro.plM+C.p.guarda.plM)*4},{id:'dg_tapa',sec:'DIGITAL (por clic)',l:'Tapa',mon:'S/',p:0,ref:'0.6 por lado',q:C=>C.p.tapa.plM*4},
  {id:'dg_hojas',sec:'DIGITAL (por clic)',l:'Hojas',mon:'S/',p:0,ref:'1.2 dos lados',q:C=>C.p.hojas.plM*4},{id:'dg_enc',sec:'DIGITAL (por clic)',l:'Encarte',mon:'S/',p:0,ref:'0.6 por lado',q:C=>C.p.enc1.plM*4},
  {id:'ac_corte',sec:'ACABADOS',l:'Corte previo',mon:'S/',p:1,q:C=>COT_PARTS.reduce((s,[k])=>s+(C.p[k].act?C.p[k].plM/(C.p[k].resma*2)*3:0),0)},
@@ -2170,13 +2170,13 @@ function cotCtx(c,cfg){const P={};const A=+c.ancho||0,H=+c.alto||0;
     P[k]={N,ancho:anch,alto:alt,pz,ph,pv,auto,PL,m,act,resma:+x.resma>0?+x.resma:(cfg.resma||500),lados:+x.lados||(k==='tapa'||k==='hojas'?2:1)};});
   return {p:P,resma:cfg.resma||500,cuad:P.hojas.pz?P.hojas.N/P.hojas.pz/2:0}}
 // Cantidades de la proyección (columnas de la hoja de costos); la 1.ª es «Cantidad» de la sección 3
-const COT_SECHDR={'DISEÑO y ARTE':['Precio por servicio $','En soles S/.','Páginas','Total S/'],'CORRECCIÓN':['Precio por servicio $','En soles S/.','Páginas','Total S/'],'PROCESO DE PLACAS (por juego)':['Precio por placa $','En soles S/.','Unidades de placas<div style="font-weight:400;text-transform:none">(Páginas / Págs. Plgos)</div>','Total S/']};
+const COT_SECHDR={'DISEÑO y ARTE':['Precio por servicio $','En soles S/.','Páginas','Total S/'],'CORRECCIÓN':['Precio por servicio $','En soles S/.','Páginas','Total S/'],'PROCESO DE PLACAS (por juego)':['Precio por placa $','En soles S/.','Unidades de placas<div style="font-weight:400;text-transform:none">(Páginas / Págs. Plgos)</div>','Total S/'],'IMPRESIÓN (por millar)':['Precio por servicio $','En soles S/.','Factor<div style="font-weight:400;text-transform:none">(Placa × Cant. / 1000 + 5%)</div>','Total S/']};
 function cotQs(c){const a=Array.isArray(c.cantidades)&&c.cantidades.length?c.cantidades.slice():[c.cantidad,c.cantidad2];a[0]=c.cantidad;return a.map(v=>v===''||v==null?'':+v)}
 const cotQKey=j=>j?'q'+j:'q';
 function cotCalc(c,Q,useOv=true,col=0){const cfg=cotCfg(),tc=+(c.tc??cfg.tc)||cfg.tc,C=cotCtx(c,cfg);COT_PARTS.forEach(([k])=>{const P=C.p[k];P.plM=P.ancho>1&&P.pz?Q*P.N/(P.pz*2)*(1+P.m):0});const qk=cotQKey(col),ovA=useOv?(c.items||{}):{},ov={};Object.keys(ovA).forEach(id=>{if(ovA[id]&&ovA[id][qk]!==undefined)ov[id]={q:ovA[id][qk]}});const qv={},rows=[];
   const g=id=>qv[id]??0;
   COT_ITEMS.forEach(it=>{const o=(c.items||{})[it.id]||{};let p=o.p!==undefined&&o.p!==''?+o.p:(it.papel?+(((c.partes||{})[it.papel]||{}).precio||0):(cfg.precios[it.id]!==undefined?+cfg.precios[it.id]:it.p));
-    let q=!it.papel&&ov[it.id]&&ov[it.id].q!==undefined&&ov[it.id].q!==''?+ov[it.id].q:(()=>{try{return +it.q(C,Q,g)||0}catch(e){return 0}})();qv[it.id]=q;
+    let q=!it.papel&&!it.auto&&ov[it.id]&&ov[it.id].q!==undefined&&ov[it.id].q!==''?+ov[it.id].q:(()=>{try{return +it.q(C,Q,g)||0}catch(e){return 0}})();qv[it.id]=q;
     const pu=it.mon==='$'?p*tc:p;let tot=q*pu;rows.push({it,p,q,pu,tot})});
   const ot=rows.find(r=>r.it.otros),rv=rows.find(r=>r.it.id==='ac_revis');if(ot){const man=+(((c.items||{}).ac_otros||{}).p)||0;ot.p=man;ot.q=1;ot.pu=man;ot.tot=(rv?rv.tot/2:0)+man}
   const cp=rows.reduce((s,r)=>s+(isFinite(r.tot)?r.tot:0),0),adm=+(c.adm??cfg.adm),util=+(c.util??cfg.util),igv=+(c.igv??cfg.igv);
@@ -2289,6 +2289,7 @@ function openCot(id){const cfg=cotCfg();
       const cols=QS.map((q,j)=>{const kk=K[j];if(!kk)return `<td class="hc-c"></td><td class="num hc-t">—</td>`;const rr=kk.rows[i],qk=cotQKey(j),has=o[qk]!==undefined&&o[qk]!=='';
         const auto=has?cotCalc({...c,items:{...c.items,[r.it.id]:{...o,[qk]:''}}},+q,true,j).rows[i].q:rr.q;
         if(r.it.papel){const P=cotCtx(c,cfg).p[r.it.papel],pa=P.act&&P.pz?(+q)*P.N/(P.pz*2)*(1+P.m):0;return `<td class="hc-c num" title="${pa?Math.round(pa).toLocaleString('es-PE')+' pliegos c/merma ÷ '+P.resma+' pliegos por resma':''}" style="padding-right:10px">${rr.q?f4(rr.q):'—'}</td><td class="num hc-t"><strong>${rr.tot?f2(rr.tot):'—'}</strong></td>`}
+        if(r.it.auto){const pq=kk.rows.find(x=>x.it.id===r.it.auto);return `<td class="hc-c num" title="${pq?f4(pq.q)+' placas × '+(+q).toLocaleString('es-PE')+' ÷ 1000 + 5%':''}" style="padding-right:10px">${rr.q?f4(rr.q):'—'}</td><td class="num hc-t"><strong>${rr.tot?f2(rr.tot):'—'}</strong></td>`}
         return `<td class="hc-c">${r.it.otros?'—':`<input data-ci="${r.it.id}:${qk}" type="number" step="any" value="${has?o[qk]:''}" placeholder="${f4(auto)}" style="width:82px" ${ro}>`}</td><td class="num hc-t"><strong>${rr.tot?f2(rr.tot):'—'}</strong></td>`}).join('');
       return hd+`<tr><td style="text-align:left;white-space:normal;min-width:190px">${lab}</td><td>${r.it.mon}</td><td>${pr}</td><td class="num">${r.it.otros?'':(+r.pu||0).toLocaleString('es-PE',{maximumFractionDigits:3})}</td>${cols}</tr>`}).join('');
     const T=(l,fn,st)=>`<tr style="${st||''}"><td colspan="4" style="text-align:left"><strong>${l}</strong></td>${K.map(kk=>`<td colspan="2" class="num"><strong>${kk?fn(kk):''}</strong></td>`).join('')}</tr>`;
