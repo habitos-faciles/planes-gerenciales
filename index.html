@@ -2138,7 +2138,7 @@ const COT_ITEMS=[
  {id:'im_spm5_h',sec:'IMPRESIÓN (por millar)',l:'Hojas · SPM SX-5P',mon:'$',p:42,auto:'pl_spm5_h',q:(C,Q,g)=>g('pl_spm5_h')*Q/1000*1.05},
  {id:'im_spm2_h',sec:'IMPRESIÓN (por millar)',l:'Hojas · SPM SX-2P',mon:'$',p:0,auto:'pl_spm2_h',q:(C,Q,g)=>g('pl_spm2_h')*Q/1000*1.05},
  {id:'im_spm2_e',sec:'IMPRESIÓN (por millar)',l:'Encartes · SPM SX-2P',mon:'$',p:0,auto:'pl_spm2_e',q:(C,Q,g)=>g('pl_spm2_e')*Q/1000*1.05},
- ...[['forro','dg_forro','0.6 por lado'],['guarda','dg_guarda','0.6 por lado'],['tapa','dg_tapa','0.6 por lado'],['hojas','dg_hojas','1.2 dos lados'],['enc1','dg_enc','0.6 por lado'],['enc2','dg_enc2','0.6 por lado']].map(([k,id,ref])=>({id,sec:'DIGITAL (por clic)',l:COT_PARTS.find(x=>x[0]===k)[1],mon:'S/',p:0,ref,q:C=>C.p[k].plM*4})),
+ ...[['forro','dg_forro','0.6 por lado'],['guarda','dg_guarda','0.6 por lado'],['tapa','dg_tapa','0.6 por lado'],['hojas','dg_hojas','1.2 dos lados'],['enc1','dg_enc','0.6 por lado'],['enc2','dg_enc2','0.6 por lado']].map(([k,id,ref])=>({id,sec:'DIGITAL (por clic)',l:COT_PARTS.find(x=>x[0]===k)[1],mon:'S/',p:0,ref,dg:k,q:C=>C.p[k].plM*4})),
  {id:'ac_corte',sec:'ACABADOS',l:'Corte previo',mon:'S/',p:1,q:C=>COT_PARTS.reduce((s,[k])=>s+(C.p[k].act?C.p[k].plM/(C.p[k].resma*2)*3:0),0)},
  {id:'ac_dobla',sec:'ACABADOS',l:'Dobladora (por millar)',mon:'$',p:4,q:(C,Q)=>(1+C.cuad)*Q/1000},
  {id:'ac_compa',sec:'ACABADOS',l:'Compaginado',mon:'$',p:24,q:(C,Q)=>(1+C.cuad)*Q/1000/4.5},
@@ -2175,7 +2175,7 @@ const cotQKey=j=>j?'q'+j:'q';
 function cotCalc(c,Q,useOv=true,col=0){const cfg=cotCfg(),tc=+(c.tc??cfg.tc)||cfg.tc,C=cotCtx(c,cfg);COT_PARTS.forEach(([k])=>{const P=C.p[k];P.plM=P.ancho>1&&P.pz?Q*P.N/(P.pz*2)*(1+P.m):0});const qk=cotQKey(col),ovA=useOv?(c.items||{}):{},ov={};Object.keys(ovA).forEach(id=>{if(ovA[id]&&ovA[id][qk]!==undefined)ov[id]={q:ovA[id][qk]}});const qv={},rows=[];
   const g=id=>qv[id]??0;
   COT_ITEMS.forEach(it=>{const o=(c.items||{})[it.id]||{};let p=o.p!==undefined&&o.p!==''?+o.p:(it.papel?+(((c.partes||{})[it.papel]||{}).precio||0):(cfg.precios[it.id]!==undefined?+cfg.precios[it.id]:it.p));
-    let q=!it.papel&&!it.auto&&ov[it.id]&&ov[it.id].q!==undefined&&ov[it.id].q!==''?+ov[it.id].q:(()=>{try{return +it.q(C,Q,g)||0}catch(e){return 0}})();qv[it.id]=q;
+    let q=!it.papel&&!it.auto&&!it.dg&&ov[it.id]&&ov[it.id].q!==undefined&&ov[it.id].q!==''?+ov[it.id].q:(()=>{try{return +it.q(C,Q,g)||0}catch(e){return 0}})();qv[it.id]=q;
     const pu=it.mon==='$'?p*tc:p;let tot=q*pu;rows.push({it,p,q,pu,tot})});
   const ot=rows.find(r=>r.it.otros),rv=rows.find(r=>r.it.id==='ac_revis');if(ot){const man=+(((c.items||{}).ac_otros||{}).p)||0;ot.p=man;ot.q=1;ot.pu=man;ot.tot=(rv?rv.tot/2:0)+man}
   const cp=rows.reduce((s,r)=>s+(isFinite(r.tot)?r.tot:0),0),adm=+(c.adm??cfg.adm),util=+(c.util??cfg.util),igv=+(c.igv??cfg.igv);
@@ -2288,6 +2288,7 @@ function openCot(id){const cfg=cotCfg();
       const cols=QS.map((q,j)=>{const kk=K[j];if(!kk)return `<td class="hc-c"></td><td class="num hc-t">—</td>`;const rr=kk.rows[i],qk=cotQKey(j),has=o[qk]!==undefined&&o[qk]!=='';
         const auto=has?cotCalc({...c,items:{...c.items,[r.it.id]:{...o,[qk]:''}}},+q,true,j).rows[i].q:rr.q;
         if(r.it.papel){const P=cotCtx(c,cfg).p[r.it.papel],pa=P.act&&P.pz?(+q)*P.N/(P.pz*2)*(1+P.m):0;return `<td class="hc-c num" title="${pa?Math.round(pa).toLocaleString('es-PE')+' pliegos c/merma ÷ '+P.resma+' pliegos por resma':''}" style="padding-right:10px">${rr.q?f4(rr.q):'—'}</td><td class="num hc-t"><strong>${rr.tot?f2(rr.tot):'—'}</strong></td>`}
+        if(r.it.dg){const P=cotCtx(c,cfg).p[r.it.dg],pa=P.act&&P.pz?(+q)*P.N/(P.pz*2)*(1+P.m):0;return `<td class="hc-c num" title="${pa?Math.round(pa).toLocaleString('es-PE')+' pliegos c/merma × 4':''}" style="padding-right:10px">${rr.q?f4(rr.q):'—'}</td><td class="num hc-t"><strong>${rr.tot?f2(rr.tot):'—'}</strong></td>`}
         if(r.it.auto){const pq=kk.rows.find(x=>x.it.id===r.it.auto);return `<td class="hc-c num" title="${pq?f4(pq.q)+' placas × '+(+q).toLocaleString('es-PE')+' ÷ 1000 + 5%':''}" style="padding-right:10px">${rr.q?f4(rr.q):'—'}</td><td class="num hc-t"><strong>${rr.tot?f2(rr.tot):'—'}</strong></td>`}
         return `<td class="hc-c">${r.it.otros?'—':`<input data-ci="${r.it.id}:${qk}" type="number" step="any" value="${has?o[qk]:''}" placeholder="${f4(auto)}" style="width:82px" ${ro}>`}</td><td class="num hc-t"><strong>${rr.tot?f2(rr.tot):'—'}</strong></td>`}).join('');
       return hd+`<tr><td style="text-align:left;white-space:normal;min-width:190px">${lab}</td><td>${r.it.mon}</td><td>${pr}</td><td class="num">${r.it.otros?'':(+r.pu||0).toLocaleString('es-PE',{maximumFractionDigits:3})}</td>${cols}</tr>`}).join('');
