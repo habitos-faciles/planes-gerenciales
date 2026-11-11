@@ -2139,7 +2139,7 @@ const COT_ITEMS=[
  {id:'im_spm2_h',sec:'IMPRESIÓN (por millar)',l:'SPM SX-2P',mach:'SPM SX-2P',mon:'$',p:0,auto:'pl_spm2_h',q:(C,Q,g)=>g('pl_spm2_h')*Q/1000*1.05},
  {id:'im_spm2_e',sec:'IMPRESIÓN (por millar)',l:'SPM SX-2P',mach:'SPM SX-2P',mon:'$',p:0,auto:'pl_spm2_e',q:(C,Q,g)=>g('pl_spm2_e')*Q/1000*1.05},
  ...[['forro','dg_forro','0.6 por lado'],['guarda','dg_guarda','0.6 por lado'],['tapa','dg_tapa','0.6 por lado'],['hojas','dg_hojas','1.2 dos lados'],['enc1','dg_enc','0.6 por lado'],['enc2','dg_enc2','0.6 por lado']].map(([k,id,ref])=>({id,sec:'DIGITAL (por clic)',l:COT_PARTS.find(x=>x[0]===k)[1],mon:'S/',p:0,ref,dg:k,q:C=>C.p[k].plM*4})),
- {id:'ac_corte',sec:'ACABADOS',l:'Corte previo',mon:'S/',p:1,q:C=>COT_PARTS.reduce((s,[k])=>s+(C.p[k].act?C.p[k].plM/(C.p[k].resma*2)*3:0),0)},
+ {id:'ac_corte',sec:'ACABADOS',l:'Corte previo',mon:'S/',p:1,fx:1,ref:'Σ partes: Pliegos c/merma ÷ (Resma × 2) × 3',q:(C,Q)=>COT_PARTS.reduce((s,[k])=>s+cotCortePart(C.p[k],Q),0)},
  {id:'ac_dobla',sec:'ACABADOS',l:'Dobladora (por millar)',mon:'$',p:4,q:(C,Q)=>(1+C.cuad)*Q/1000},
  {id:'ac_compa',sec:'ACABADOS',l:'Compaginado',mon:'$',p:24,q:(C,Q)=>(1+C.cuad)*Q/1000/4.5},
  ...COT_PARTS.slice(0,5).map(([k,l])=>({id:'ac_plas_'+k,sec:'ACABADOS',l:'Plastificado - '+l+' (por cm² / 3000)',mon:'$',p:0,ref:'0.06 brillante · 0.07 mate',q:(C,Q)=>{const P=C.p[k];return P.act?P.ancho*P.alto*(P.lados||1)*Q*(k==='hojas'||k==='enc1'?P.N/2:1)/3000*1.035:0}})),
@@ -2167,6 +2167,9 @@ function cotPliego(v){const m=String(v||'').replace(/,/g,'.').match(/(\d+(?:\.\d
 function cotCorS(C){let n=0,pp=0;COT_PARTS.forEach(([k])=>{const P=C.p[k];if(P.act&&P.pz){n+=P.N;pp+=P.pz*2}});return {n,pp}}
 function cotCorF(C,div){const x=cotCorS(C);return x.pp?x.n/(x.pp/div):0}
 // Placas: cada fila se prepara para una parte (Forro, Guarda, Tapa, Hojas, Encartes)
+/* Corte previo por parte: Pliegos c/merma ÷ (Resma pliegos × 2) × 3 (mismos pliegos de la sección «Tamaño de pliegos») */
+function cotCortePl(P,Q){const pp=(P.ph||0)*(P.pv||0)*2;return (P.act||P.ph||P.pv)&&pp?(+Q||0)*P.N/pp*(1+P.m):0}
+function cotCortePart(P,Q){const pa=cotCortePl(P,Q);return pa?pa/((P.resma||500)*2)*3:0}
 const cotPlPart=(c,id,def)=>(((c&&c.items)||{})[id]||{}).parte||def;
 function cotPlQ(C,id,def,base){const k=cotPlPart(C.c,id,def),P=C.p[k];return P&&P.pz?P.N/(P.pz*2/2):0}
 function cotItemLbl(c,it){const nm=k=>(COT_PARTS.find(x=>x[0]===k)||['',k])[1];if(it.plate)return nm(cotPlPart(c,it.id,it.plate))+' · '+it.mach;if(it.auto&&it.mach){const pl=COT_ITEMS.find(x=>x.id===it.auto);return nm(cotPlPart(c,it.auto,pl&&pl.plate))+' · '+it.mach}return it.l}
@@ -2182,7 +2185,7 @@ const cotQKey=j=>j?'q'+j:'q';
 function cotCalc(c,Q,useOv=true,col=0){const cfg=cotCfg(),tc=+(c.tc??cfg.tc)||cfg.tc,C=cotCtx(c,cfg);COT_PARTS.forEach(([k])=>{const P=C.p[k];P.plM=P.ancho>1&&P.pz?Q*P.N/(P.pz*2)*(1+P.m):0});const qk=cotQKey(col),ovA=useOv?(c.items||{}):{},ov={};Object.keys(ovA).forEach(id=>{if(ovA[id]&&ovA[id][qk]!==undefined)ov[id]={q:ovA[id][qk]}});const qv={},rows=[];
   const g=id=>qv[id]??0;
   COT_ITEMS.forEach(it=>{const o=(c.items||{})[it.id]||{};let p=o.p!==undefined&&o.p!==''?+o.p:(it.papel?+(((c.partes||{})[it.papel]||{}).precio||0):(cfg.precios[it.id]!==undefined?+cfg.precios[it.id]:it.p));
-    let q=!it.papel&&!it.auto&&!it.dg&&!it.cor&&!it.plate&&ov[it.id]&&ov[it.id].q!==undefined&&ov[it.id].q!==''?+ov[it.id].q:(()=>{try{return +it.q(C,Q,g)||0}catch(e){return 0}})();qv[it.id]=q;
+    let q=!it.papel&&!it.auto&&!it.dg&&!it.cor&&!it.plate&&!it.fx&&ov[it.id]&&ov[it.id].q!==undefined&&ov[it.id].q!==''?+ov[it.id].q:(()=>{try{return +it.q(C,Q,g)||0}catch(e){return 0}})();qv[it.id]=q;
     const pu=it.mon==='$'?p*tc:p;let tot=q*pu;rows.push({it,p,q,pu,tot})});
   const ot=rows.find(r=>r.it.otros),rv=rows.find(r=>r.it.id==='ac_revis');if(ot){const man=+(((c.items||{}).ac_otros||{}).p)||0;ot.p=man;ot.q=1;ot.pu=man;ot.tot=(rv?rv.tot/2:0)+man}
   const cp=rows.reduce((s,r)=>s+(isFinite(r.tot)?r.tot:0),0),adm=+(c.adm??cfg.adm),util=+(c.util??cfg.util),igv=+(c.igv??cfg.igv);
@@ -2298,7 +2301,8 @@ function openCot(id){const cfg=cotCfg();
         if(r.it.plate){const P=cotCtx(c,cfg).p[cotPlPart(c,r.it.id,r.it.plate)];return `<td class="hc-c num" title="${P&&P.pz?P.N+' págs. ÷ ('+(P.pz*2)+' Págs. Plgos ÷ 2)':'La parte elegida aún no tiene piezas por pliego'}" style="padding-right:10px">${rr.q?f4(rr.q):'—'}</td><td class="num hc-t"><strong>${rr.tot?f2(rr.tot):'—'}</strong></td>`}
         if(r.it.cor){const x=cotCorS(cotCtx(c,cfg));return `<td class="hc-c num" title="${x.pp?x.n+' págs. ÷ ('+x.pp+' Págs. Plgos ÷ '+r.it.cor+')':''}" style="padding-right:10px">${rr.q?f4(rr.q):'—'}</td><td class="num hc-t"><strong>${rr.tot?f2(rr.tot):'—'}</strong></td>`}
         if(r.it.dg){const P=cotCtx(c,cfg).p[r.it.dg],pa=P.act&&P.pz?(+q)*P.N/(P.pz*2)*(1+P.m):0;return `<td class="hc-c num" title="${pa?Math.round(pa).toLocaleString('es-PE')+' pliegos c/merma × 4':''}" style="padding-right:10px">${rr.q?f4(rr.q):'—'}</td><td class="num hc-t"><strong>${rr.tot?f2(rr.tot):'—'}</strong></td>`}
-        if(r.it.auto){const pq=kk.rows.find(x=>x.it.id===r.it.auto);return `<td class="hc-c num" title="${pq?f4(pq.q)+' placas × '+(+q).toLocaleString('es-PE')+' ÷ 1000 + 5%':''}" style="padding-right:10px">${rr.q?f4(rr.q):'—'}</td><td class="num hc-t"><strong>${rr.tot?f2(rr.tot):'—'}</strong></td>`}
+        if(r.it.fx){const PP=cotCtx(c,cfg).p,det=COT_PARTS.map(([k,l])=>{const pa=cotCortePl(PP[k],+q);return pa?l+': '+Math.round(pa).toLocaleString('es-PE')+' pl. c/merma ÷ ('+PP[k].resma+' × 2) × 3 = '+f4(cotCortePart(PP[k],+q)):''}).filter(Boolean).join(' · ');return `<td class="hc-c num" title="${esc(det||'Ninguna parte tiene pliegos calculados')}" style="padding-right:10px">${rr.q?f4(rr.q):'—'}</td><td class="num hc-t"><strong>${rr.tot?f2(rr.tot):'—'}</strong></td>`}
+         if(r.it.auto){const pq=kk.rows.find(x=>x.it.id===r.it.auto);return `<td class="hc-c num" title="${pq?f4(pq.q)+' placas × '+(+q).toLocaleString('es-PE')+' ÷ 1000 + 5%':''}" style="padding-right:10px">${rr.q?f4(rr.q):'—'}</td><td class="num hc-t"><strong>${rr.tot?f2(rr.tot):'—'}</strong></td>`}
         return `<td class="hc-c">${r.it.otros?'—':`<input data-ci="${r.it.id}:${qk}" type="number" step="any" value="${has?o[qk]:''}" placeholder="${f4(auto)}" style="width:82px" ${ro}>`}</td><td class="num hc-t"><strong>${rr.tot?f2(rr.tot):'—'}</strong></td>`}).join('');
       return hd+`<tr><td style="text-align:left;white-space:normal;min-width:190px">${lab}</td><td>${r.it.plate?`<select data-cpl="${r.it.id}" title="Parte para la que se preparan las placas" style="min-width:100px;height:30px;padding:2px 6px;line-height:1.2;font-size:.78rem" ${ro}>${COT_PARTS.map(([k,l])=>`<option value="${k}" ${k===cotPlPart(c,r.it.id,r.it.plate)?'selected':''}>${l}</option>`).join('')}</select>`:r.it.mon}</td><td>${pr}</td><td class="num">${r.it.otros?'':(+r.pu||0).toLocaleString('es-PE',{maximumFractionDigits:3})}</td>${cols}</tr>`}).join('');
     const T=(l,fn,st)=>`<tr style="${st||''}"><td colspan="4" style="text-align:left"><strong>${l}</strong></td>${K.map(kk=>`<td colspan="2" class="num"><strong>${kk?fn(kk):''}</strong></td>`).join('')}</tr>`;
