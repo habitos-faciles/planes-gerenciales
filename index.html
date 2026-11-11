@@ -2142,8 +2142,8 @@ const COT_ITEMS=[
  {id:'ac_corte',sec:'ACABADOS',l:'Corte previo',mon:'S/',p:1,fx:1,ref:'Σ partes: Pliegos c/merma ÷ (Resma × 2) × 3',q:(C,Q)=>COT_PARTS.reduce((s,[k])=>s+cotCortePart(C.p[k],Q),0)},
  {id:'ac_dobla',sec:'ACABADOS',l:'Dobladora (por millar)',mon:'$',p:4,fx:1,ref:'(Págs. ÷ (piezas a lo ancho × a lo alto) ÷ 2) × Cantidad ÷ 1000',q:(C,Q)=>C.cuad*(+Q||0)/1000,tt:(PP,Q)=>{const H=PP.hojas;return H&&H.pz?'Hojas: ('+H.N+' págs. ÷ ('+H.ph+' × '+H.pv+') ÷ 2) × '+(+Q).toLocaleString('es-PE')+' ÷ 1000':'Hojas aún sin piezas por pliego'}},
  {id:'ac_compa',sec:'ACABADOS',l:'Compaginado',mon:'$',p:24,fx:1,ref:'(1 + Págs. ÷ (piezas a lo ancho × a lo alto) ÷ 2) × Cantidad ÷ 1000 ÷ 4.5',q:(C,Q)=>(1+C.cuad)*(+Q||0)/1000/4.5,tt:(PP,Q)=>{const H=PP.hojas;return H&&H.pz?'Hojas: (1 + '+H.N+' págs. ÷ ('+H.ph+' × '+H.pv+') ÷ 2) × '+(+Q).toLocaleString('es-PE')+' ÷ 1000 ÷ 4.5':'Hojas aún sin piezas por pliego'}},
- ...COT_PARTS.map(([k,l])=>({id:'ac_plas_'+k,sec:'ACABADOS',l:'Plastificado - '+l+' (por cm² / 3000)',mon:'$',p:0,fx:1,ref:'ancho × alto × lados'+(k==='hojas'||k==='enc1'||k==='enc2'?' × págs. ÷ 2':'')+' × Cantidad ÷ 3000 × 1.035 · precio ref. 0.06 brillante · 0.07 mate',
-   q:(C,Q)=>cotPlasQ(C.p[k],k,Q),tt:(PP,Q)=>{const P=PP[k];return cotPlasQ(P,k,Q)?l+': '+P.ancho+' × '+P.alto+' × '+(P.lados||1)+((k==='hojas'||k==='enc1'||k==='enc2')?' × '+P.N+' ÷ 2':'')+' × '+(+Q).toLocaleString('es-PE')+' ÷ 3000 × 1.035':l+' sin medidas o sin usar'}})),
+ ...COT_PARTS.map(([k,l])=>({id:'ac_plas_'+k,sec:'ACABADOS',l:'Plastificado - '+l+' (por cm² / 3000)',mon:'$',p:0,fx:1,ref:'ancho × alto × '+(k==='forro'||k==='guarda'||k==='tapa'?'1':'lados')+(k==='hojas'||k==='enc1'||k==='enc2'?' × págs. ÷ 2':'')+' × Cantidad ÷ 3000 × 1.035 · precio ref. 0.06 brillante · 0.07 mate',
+   q:(C,Q)=>cotPlasQ(C.p[k],k,Q),tt:(PP,Q)=>{const P=PP[k];return cotPlasQ(P,k,Q)?l+': '+P.ancho+' × '+P.alto+' × '+cotPlasL(P,k)+((k==='hojas'||k==='enc1'||k==='enc2')?' × '+P.N+' ÷ 2':'')+' × '+(+Q).toLocaleString('es-PE')+' ÷ 3000 × 1.035':l+' sin medidas o sin usar'}})),
  {id:'ac_marca',sec:'ACABADOS',l:'Marcado / perforado (por millar)',mon:'$',p:0,ref:'7',q:(C,Q)=>Q/1000},
  {id:'ac_pega',sec:'ACABADOS',l:'Pegado',mon:'$',p:0,ref:'20',q:(C,Q)=>Q/60/12/3},
  {id:'ac_hotm',sec:'ACABADOS',l:'Encolado hot melt (por millar)',mon:'$',p:0,ref:'50',q:(C,Q)=>Q/1000},
@@ -2171,7 +2171,8 @@ function cotCorF(C,div){const x=cotCorS(C);return x.pp?x.n/(x.pp/div):0}
 /* Corte previo por parte: Pliegos c/merma ÷ (Resma pliegos × 2) × 3 (mismos pliegos de la sección «Tamaño de pliegos») */
 function cotCortePl(P,Q){const pp=(P.ph||0)*(P.pv||0)*2;return (P.act||P.ph||P.pv)&&pp?(+Q||0)*P.N/pp*(1+P.m):0}
 function cotCortePart(P,Q){const pa=cotCortePl(P,Q);return pa?pa/((P.resma||500)*2)*3:0}
-function cotPlasQ(P,k,Q){return P&&(P.act||P.ph||P.pv)&&P.ancho>0&&P.alto>0?P.ancho*P.alto*(P.lados||1)*(+Q||0)*(k==='hojas'||k==='enc1'||k==='enc2'?P.N/2:1)/3000*1.035:0}
+const cotPlasL=(P,k)=>k==='forro'||k==='guarda'||k==='tapa'?1:(P.lados||1);
+function cotPlasQ(P,k,Q){return P&&(P.act||P.ph||P.pv)&&P.ancho>0&&P.alto>0?P.ancho*P.alto*cotPlasL(P,k)*(+Q||0)*(k==='hojas'||k==='enc1'||k==='enc2'?P.N/2:1)/3000*1.035:0}
 const cotPlPart=(c,id,def)=>(((c&&c.items)||{})[id]||{}).parte||def;
 function cotPlQ(C,id,def,base){const k=cotPlPart(C.c,id,def),P=C.p[k];return P&&P.pz?P.N/(P.pz*2/2):0}
 function cotItemLbl(c,it){const nm=k=>(COT_PARTS.find(x=>x[0]===k)||['',k])[1];if(it.plate)return nm(cotPlPart(c,it.id,it.plate))+' · '+it.mach;if(it.auto&&it.mach){const pl=COT_ITEMS.find(x=>x.id===it.auto);return nm(cotPlPart(c,it.auto,pl&&pl.plate))+' · '+it.mach}return it.l}
