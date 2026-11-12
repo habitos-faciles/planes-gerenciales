@@ -1742,7 +1742,7 @@ function openPJ(id){
   const TX=(k,l,type='text',extra='')=>`<label ${extra}>${l}<input data-ot="${k}" type="${type}" value="${esc(O[k]??'')}" ${type==='number'?'step="any" min="0"':''} ${ro}></label>`;
   const box=(k)=>`<input type="checkbox" data-ot="${k}" ${O[k]?'checked':''} ${ro} aria-label="${esc(k)}">`;
   const sec=(t,body,open)=>`<details class="ot-sec" ${open?'open':''}><summary>${t}</summary><div class="bd" style="grid-template-columns:repeat(4,minmax(0,1fr));padding:10px 2px 4px">${body}</div></details>`;
-  const peds=(S.clientes||[]).filter(c=>c.codigo).sort((a,b)=>String(b.codigo).localeCompare(String(a.codigo))).slice(0,400);
+  const peds=(RAW.clientes||S.clientes||[]).filter(c=>c.codigo).sort((a,b)=>String(b.codigo).localeCompare(String(a.codigo))).slice(0,400);
   const grid=(part,maqs)=>`<div style="grid-column:1/-1;overflow:auto"><table class="ot-grid"><thead><tr><th rowspan="2">${part==='tapa'?'TAPA':'HOJA'}</th>${['CMYK','B/N','Color especial'].map(g=>`<th colspan="3">${g}</th>`).join('')}<th rowspan="2">Tiraje</th></tr><tr>${['cmyk','bn','ce'].map(()=>['Tira','Ret.','T/R'].map(x=>`<th>${x}</th>`).join('')).join('')}</tr></thead><tbody>
     ${maqs.map(m=>`<tr><td>${m}</td>${['cmyk','bn','ce'].map(g=>['tira','ret','tr'].map(x=>`<td>${box(`pr.${part}.${m}.${g}.${x}`)}</td>`).join('')).join('')}<td><input data-ot="pr.${part}.${m}.tiraje" type="number" min="0" value="${esc(O[`pr.${part}.${m}.tiraje`]??'')}" ${ro} style="width:90px"></td></tr>`).join('')}</tbody></table></div>
     ${TX(`pr.${part}.ingPlacasF`,'Ingreso de placas · fecha','date')}${TX(`pr.${part}.ingPlacasH`,'Hora','time')}${TX(`pr.${part}.salImpF`,'Salida de impresión · fecha','date')}${TX(`pr.${part}.salImpH`,'Hora','time')}`;
@@ -1812,7 +1812,7 @@ function openPJ(id){
   const hrN=()=>{const x=hrJobHoras($('#pjFrm [name=job]').value);$('#pjHrNote').innerHTML=x.h?`⏱ Horas registradas para este JOB: <b>${hrH(x.h)} h</b> (${x.n} registros de ${x.p} ${x.p===1?'persona':'personas'}).`:'⏱ Aún no hay horas registradas para este JOB en «Horas por JOB».'};hrN();$('#pjFrm [name=job]').addEventListener('change',hrN);
   const hc=$('#pjHrCalc');if(hc)hc.onclick=()=>{const x=hrJobHoras($('#pjFrm [name=job]').value),t=+$('#pjFrm [name=tarifaHora]').value;if(!x.h){toast('No hay horas registradas para este JOB.');return}if(!t){toast('Escribe el costo por hora.');$('#pjFrm [name=tarifaHora]').focus();return}$('#pjFrm [name=cMO]').value=Math.round(x.h*t*100)/100;updC();toast(`Mano de obra: ${hrH(x.h)} h × ${pjM2(t)} = ${pjM2(x.h*t)}`)};
   dl.querySelectorAll('[data-pjotro]').forEach(s=>s.addEventListener('change',()=>{const i=$('#pjFrm [name='+s.dataset.pjotro+'Otro]');i.hidden=s.value!=='__otro';if(!i.hidden)i.focus()}));
-  const ps=$('#pjPed');if(ps&&!ro)ps.addEventListener('change',()=>{const c=(S.clientes||[]).find(x=>x.codigo===ps.value);if(!c)return;const set=(k,v)=>{const el=$('#pjFrm [name='+k+']');if(el&&!el.value&&v!=null&&v!=='')el.value=v};
+  const ps=$('#pjPed');if(ps&&!ro)ps.addEventListener('change',()=>{const c=(RAW.clientes||S.clientes||[]).find(x=>x.codigo===ps.value);if(!c)return;const set=(k,v)=>{const el=$('#pjFrm [name='+k+']');if(el&&!el.value&&v!=null&&v!=='')el.value=v};
     const cs=$('#pjFrm [name=cliente]');if(cs&&!cs.value&&c.cliente){if([...cs.options].some(o=>o.value===c.cliente))cs.value=c.cliente;else{cs.value='__otro';const i=$('#pjFrm [name=clienteOtro]');i.hidden=false;i.value=c.cliente}}
     set('contacto',c.responsable);set('celular',c.telefono);set('correo',c.email);set('ruc',c.ruc);set('asesor',c.asesor?pname(c.asesor):c.asesorTxt);set('descripcion',c.trabajo);{const ps=$('#pjFrm [name=producto]');if(ps&&c.producto){if(![...ps.options].some(o=>o.value===c.producto))ps.add(new Option(c.producto,c.producto));ps.value=c.producto}}set('cantidad',c.cantidad);set('formato',c.formato);set('tapa',c.tapa);set('hojas',c.hojas);set('encartes',c.encarte);set('otros',c.otros);set('proforma',c.proforma);set('pi',c.pedidoInterno);set('job',c.job);pjSunFill(c.cliente,c.ruc);sunN();pjSyncFechas(c,true);upd();toast('Datos copiados del pedido '+c.codigo+'. Las fechas de emisión y entrega se toman de «Trabajo y entrega» del pedido.')});
   const sun=k=>$('#pjFrm [name='+k+']');
@@ -1828,7 +1828,7 @@ function openPJ(id){
   sunN();
   const pjSyncFechas=(c,msg)=>{if(!c)return;const fi=$('#pjFrm [name=fechaIngreso]'),fe=$('#pjFrm [name=fechaEntrega]'),v1=c.fechaInicio||'',v2=cliFechaVig(c)||'';if(v1&&fi)fi.value=v1;if(v2&&fe)fe.value=v2;
     const nt=$('#pjFechaNote');if(nt)nt.innerHTML=(v1||v2)?`📅 Fechas del pedido <b>${esc(c.codigo)}</b> (Ventas EIU · Trabajo y entrega): emisión = fecha de inicio ${v1?fdate(v1):'(vacía)'} · entrega = entrega al cliente ${v2?fdate(v2):'(vacía)'}${(c.reprog||[]).filter(x=>x.fecha).length?' (fecha vigente reprogramada)':''}.`:`El pedido ${esc(c.codigo)} aún no tiene fecha de inicio ni de entrega al cliente.`};
-  if(ps&&ps.value){const c0=(S.clientes||[]).find(x=>x.codigo===ps.value);if(c0&&!ro)pjSyncFechas(c0);else if(c0){const nt=$('#pjFechaNote');if(nt)nt.textContent='Pedido vinculado: '+c0.codigo}}
+  if(ps&&ps.value){const c0=(RAW.clientes||S.clientes||[]).find(x=>x.codigo===ps.value);if(c0&&!ro)pjSyncFechas(c0);else if(c0){const nt=$('#pjFechaNote');if(nt)nt.textContent='Pedido vinculado: '+c0.codigo}}
   $('#pjCancel').onclick=()=>dl.close();const pp=$('#pjPrint');if(pp)pp.onclick=()=>printPJ(pjEd.j);
   const dd=$('#pjDel');if(dd)dd.onclick=async()=>{if(!dd.dataset.arm){dd.dataset.arm=1;dd.textContent='Confirmar eliminación';return}try{await del('clientes',pjEd.id);dl.close();toast('JOB eliminado.')}catch(e){dbErr(e)}};
   $('#pjFrm').onsubmit=async e=>{e.preventDefault();if(pjEd.ro)return;const fd=new FormData($('#pjFrm'));const o={...pjEd.j,kind:'job'};
@@ -2321,7 +2321,7 @@ function cotDescAuto(c){const P=c.partes||{},ls=[];ls.push(`Formato: ${c.ancho||
 function openCot(id){const cfg=cotCfg();
   const c=id?JSON.parse(JSON.stringify((S.cotiz||[]).find(x=>x.id===id))):{kind:'cot',proforma:cotNextProf(),fechaIngreso:today(),fechaEmision:today(),tipoDoc:'Cotización',tipoTrabajo:'IMPRESIÓN',estado:'Borrador',cerrado:'Cerrado',cantidad:'',partes:{tapa:{pags:2,ph:2,pv:4},hojas:{pags:2,ph:4,pv:4}},items:{},acab:{},dis:{},correccion:'No',preprensa:'Sí',formaPago:'CRÉDITO 30 DÍAS',tc:cfg.tc,adm:cfg.adm,util:cfg.util,igv:cfg.igv,unidad:filterUnit!=='ALL'&&filterUnit!=='GG!'?fUnit():((myScopeUnits()||[])[0]||'GV')};
   c.partes=c.partes||{};c.items=c.items||{};c.acab=c.acab||{};c.dis=c.dis||{};
-  const ro=pjCanEdit(id?c:null)?'':'disabled';if(!ro&&c.codigoPedido&&!['Convertida a JOB'].includes(c.estado)){const pd=(S.clientes||[]).find(y=>y.codigo===c.codigoPedido);if(pd)cotQsFromPed(c,pd)}cotEd={id,c,ro:!!ro};const clis=cotClientes();
+  const ro=pjCanEdit(id?c:null)?'':'disabled';if(!ro&&c.codigoPedido&&!['Convertida a JOB'].includes(c.estado)){const pd=(RAW.clientes||S.clientes||[]).find(y=>y.codigo===c.codigoPedido);if(pd)cotQsFromPed(c,pd)}cotEd={id,c,ro:!!ro};const clis=cotClientes();
   let dl=$('#cotDlg');if(!dl){dl=document.createElement('dialog');dl.id='cotDlg';dl.style.width='min(1180px,calc(100vw - 16px))';document.body.appendChild(dl)}
   const F=(k,l,type='text',extra='',ph='')=>`<label ${extra}>${l}<input name="${k}" type="${type}" value="${esc(c[k]??'')}" ${type==='number'?'step="any"':''} ${ph?`placeholder="${esc(ph)}"`:''} ${ro}></label>`;
   const SL=(k,l,list,extra='')=>`<label ${extra}>${l}<select name="${k}" ${ro}>${list.map(o=>`<option ${o===c[k]?'selected':''}>${esc(o)}</option>`).join('')}</select></label>`;
@@ -2473,7 +2473,7 @@ function openCot(id){const cfg=cotCfg();
   dl.querySelectorAll('#cotFrm input').forEach(el=>el.addEventListener('input',()=>el.classList.remove('cli-bad')));
   dl.showModal()}
 function cotRazon(cli,ruc){const nr=String(ruc||'').replace(/\s/g,''),nc=norm(cli||'');const L=[...(RAW.prodJobs||[]),...(RAW.cotiz||[])].filter(x=>x.razonSocial&&((nr&&String(x.ruc||'').replace(/\s/g,'')===nr)||(nc&&norm(x.cliente)===nc))).sort((a,b)=>String(b.actualizado||'').localeCompare(String(a.actualizado||'')));return L[0]?L[0].razonSocial:''}
-function cotPeds(){return (S.clientes||[]).filter(c=>c.codigo&&!['act','job','hrs','cot','cotcli'].includes(c.kind)).sort((a,b)=>String(b.codigo).localeCompare(String(a.codigo))).slice(0,800)}
+function cotPeds(){return (RAW.clientes||S.clientes||[]).filter(c=>c.codigo&&!['act','job','hrs','cot','cotcli'].includes(c.kind)).sort((a,b)=>String(b.codigo).localeCompare(String(a.codigo))).slice(0,800)}
 const cotPedLbl=c=>[c.codigo,c.cliente,c.trabajo,c.cantidad?(+c.cantidad).toLocaleString('es-PE')+' und.':''].filter(Boolean).join(' · ');
 // Copies a Ventas EIU pedido into the open cotización form: fills empty fields; dates always follow the pedido
 function cotQsFromPed(c,x){const P=(Array.isArray(x&&x.cantidades)?x.cantidades:[]).filter(v=>v!==''&&v!=null&&+v>0).map(Number);if(P.length<2)return 0;
