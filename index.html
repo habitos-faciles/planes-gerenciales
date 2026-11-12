@@ -960,6 +960,11 @@ function cliCreatorKey(uidv){if(!uidv)return '';const cr=(typeof USR!=='undefine
   const pn=cr.persona&&(RAW.personal||[]).find(p=>p.id===cr.persona);return cliNK(pn?pn.nombre:(cr.nombre||cr.usuario||''))}
 function cliKeyLabel(k){if(k==='none')return 'Sin asesor';const nm=k.slice(2);const p=(RAW.personal||[]).find(x=>norm(x.nombre)===nm);if(p)return p.nombre;
   const u=(typeof USR!=='undefined'?USR:[]).find(x=>norm(x.nombre||x.usuario||'')===nm);return u?(u.nombre||u.usuario):nm.replace(/\b\w/g,c=>c.toUpperCase())}
+function cliKeyUnit(k,all){if(!k||k==='none')return '';const nm=k.slice(2);const p=(RAW.personal||[]).find(x=>norm(x.nombre)===nm);if(p&&p.unidad&&U[p.unidad])return p.unidad;
+  const u=(typeof USR!=='undefined'?USR:[]).find(x=>(x.persona&&p&&x.persona===p.id)||norm(x.nombre||x.usuario||'')===nm);if(u&&u.unidad&&U[u.unidad])return u.unidad;
+  const m=new Map();(all||[]).filter(r=>r.unidad&&cliAsesorKeys(r).includes(k)).forEach(r=>m.set(r.unidad,(m.get(r.unidad)||0)+1));return [...m].sort((a,b)=>b[1]-a[1])[0]?.[0]||''}
+function cliAseMatch(r,all){if(!cliF.asesor)return true;if(cliF.aseScope==='area'){const u=cliKeyUnit(cliF.asesor,all);if(u)return !!r.unidad&&desc(u).includes(r.unidad)}return cliAsesorKeys(r).includes(cliF.asesor)}
+function cliAseLbl(all){if(!cliF.asesor)return '';const u=cliF.aseScope==='area'?cliKeyUnit(cliF.asesor,all):'';return u?'Área de '+cliKeyLabel(cliF.asesor)+': '+(U[u]?.n||u):'Asesor: '+cliKeyLabel(cliF.asesor)}
 function cliAsesorOpts(all){const m=new Map();all.forEach(r=>cliAsesorKeys(r).forEach(k=>{if(!m.has(k))m.set(k,cliKeyLabel(k))}));
   return [...m].sort((a,b)=>a[0]==='none'?1:b[0]==='none'?-1:a[1].localeCompare(b[1]))}
 function scopeClientes(ac){
@@ -981,7 +986,7 @@ const rucOk=v=>true; // se acepta cualquier RUC o ID tributario (incluye empresa
 const canEditCli=r=>!readOnly&&(canManage()||!r||!r.unidad||(myScopeUnits()||[]).includes(r.unidad)||r.creadoPor===actorId());
 function viewClientes(){
   const all=S.clientes.filter(r=>inFilter('clientes',r));
-  let list=all.filter(r=>(!cliF.prod||r.producto===cliF.prod)&&(!cliF.estado||(r.estado||'Registrado')===cliF.estado)&&(!cliF.asesor||cliAsesorKeys(r).includes(cliF.asesor)));
+  let list=all.filter(r=>(!cliF.prod||r.producto===cliF.prod)&&(!cliF.estado||(r.estado||'Registrado')===cliF.estado)&&cliAseMatch(r,all));
   if(cliF.req==='pend')list=list.filter(r=>cliReqSum(r).pend>0);else if(cliF.req==='venc')list=list.filter(r=>cliReqSum(r).venc>0);else if(cliF.req==='ok')list=list.filter(r=>cliReqSum(r).completo);
   if(cliF.q){const qq=norm(cliF.q);list=list.filter(r=>norm([r.codigo,r.proforma,r.job,r.cliente,r.departamento,r.ruc,r.responsable,r.trabajo].join(' ')).includes(qq))}
   list=list.slice().sort((a,b)=>{const fa=cliFechaVig(a),fb=cliFechaVig(b);if(fa&&!fb)return -1;if(fb&&!fa)return 1;return fb.localeCompare(fa)||String(b.fechaIngreso||b.creado||'').localeCompare(String(a.fechaIngreso||a.creado||''))});cliBaseList=list;if((cliF.vista||'reg')==='reg')list=cliApplyCols(list,cliF.tabla==='full'?'full':'res');cliLastList=list;
@@ -993,6 +998,10 @@ function viewClientes(){
    <select id="cliProd" aria-label="Tipo de producto"><option value="">Todos los productos</option>${[...new Set([...CLI_PRODUCTOS,...all.map(r=>r.producto).filter(Boolean)])].map(p=>`<option ${p===cliF.prod?'selected':''}>${esc(p)}</option>`).join('')}</select>    <select id="cliEst" aria-label="Estado"><option value="">Todos los estados</option>${CLI_EST.map(e=>`<option ${e===cliF.estado?'selected':''}>${e}</option>`).join('')}</select>
    <select id="cliReq" aria-label="Requerimientos"><option value="">Todos los requerimientos</option><option value="pend" ${cliF.req==='pend'?'selected':''}>Con requerimientos pendientes</option><option value="venc" ${cliF.req==='venc'?'selected':''}>Con requerimientos vencidos</option><option value="ok" ${cliF.req==='ok'?'selected':''}>Requerimientos completos</option></select>
    <button class="btn" id="cliExp" title="Descarga en Excel los pedidos de la vista actual">⬇ Exportar</button>${readOnly?'':'<button class="btn" id="cliImp" title="Cargar información pasada desde Excel">⬆ Importar</button><button class="btn primary" id="cliNew">+ Nuevo cliente / pedido</button><button class="btn" id="actNew" title="Registrar una cita, viaje, capacitación, entrevista u otra actividad">+ Actividad</button><button class="btn" id="cliCal" title="Calendario con la fecha vigente de entrega al cliente de la lista filtrada">📅 Calendario de entregas</button>'}</div></div>
+  ${(()=>{if(!cliF.asesor||cliF.asesor==='none')return '';const u=cliKeyUnit(cliF.asesor,all),nm=cliKeyLabel(cliF.asesor);const base=r=>(!cliF.prod||r.producto===cliF.prod)&&(!cliF.estado||(r.estado||'Registrado')===cliF.estado);
+    const nMine=all.filter(r=>base(r)&&cliAsesorKeys(r).includes(cliF.asesor)).length,nArea=u?all.filter(r=>base(r)&&r.unidad&&desc(u).includes(r.unidad)).length:0,area=cliF.aseScope==='area'&&u;
+    const b=(v,on,t)=>`<button type="button" class="btn small${on?' primary':''}" data-asesc="${v}" aria-pressed="${on}">${t}</button>`;
+    return `<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:2px 0 10px"><span class="note">Ver de <b>${esc(nm)}</b>:</span>${b('mine',!area,`Pedidos registrados por ella / él (${nMine})`)}${u?b('area',area,`Toda su área · ${esc(U[u]?.n||u)} (${nArea})`):'<span class="note">— no tiene un área asignada en Personal</span>'}</div>`})()}
   @@CLITABS@@<div class="note">Ficha «Información del cliente» para la elaboración de productos: datos del cliente y del trabajo, precio aprobado en la proforma y seguimiento de la entrega de requerimientos (texto, imágenes, material complementario).</div>
   <div class="kpis">
    <div class="kpi"><span class="l">Pedidos registrados</span><span class="v">${all.length}</span><span class="s">${(o=>o+(o===1?' orden':' órdenes'))(all.filter(r=>/Orden/.test(r.tipoDoc||'')).length)} · ${(c=>c+(c===1?' cotización':' cotizaciones'))(all.filter(r=>/Cotizaci/.test(r.tipoDoc||'')).length)}</span></div>
@@ -1062,7 +1071,7 @@ function cliPrintList(v){const L=cliApplyCols(cliBaseList,v),D=cliColDefs(v);if(
     cliente:r=>v==='res'?`<b>${esc(r.cliente||'—')}</b>${r.departamento?'<br>'+esc(r.departamento):''}`:null};
   const val=(d,r)=>{const f=pv[d.k]&&pv[d.k](r);if(f!=null)return f;return v==='full'?(d.html?d.html(r):esc(d.fv(r))):esc(d.fv(r))};
   const F=Object.entries((cliF.cf||{})[v]||{}).filter(([,q])=>q&&q.trim()).map(([k,q])=>`${(D.find(d=>d.k===k)||{}).l||k}: «${q}»`);
-  const S0=(cliF.srt||{})[v];const top=[filterUnit==='ALL'?'Toda la organización':(U[fUnit()]?.n||''),cliF.asesor?'Asesor: '+cliKeyLabel(cliF.asesor):'',cliF.estado?'Estado: '+cliF.estado:'',cliF.prod?'Producto: '+cliF.prod:'',cliF.q?'Búsqueda: «'+cliF.q+'»':'',...F,S0?`Orden: ${(D.find(d=>d.k===S0.k)||{}).l} ${S0.d==='desc'?'↓':'↑'}`:''].filter(Boolean);
+  const S0=(cliF.srt||{})[v];const top=[filterUnit==='ALL'?'Toda la organización':(U[fUnit()]?.n||''),cliAseLbl(S.clientes),cliF.estado?'Estado: '+cliF.estado:'',cliF.prod?'Producto: '+cliF.prod:'',cliF.q?'Búsqueda: «'+cliF.q+'»':'',...F,S0?`Orden: ${(D.find(d=>d.k===S0.k)||{}).l} ${S0.d==='desc'?'↓':'↑'}`:''].filter(Boolean);
   let body='';
   if(v==='res')body=`<table><thead><tr><th>N.º</th>${D.map(d=>`<th class="${d.num?'num':''}">${esc(d.l)}</th>`).join('')}</tr></thead><tbody>${L.map((r,i)=>`<tr><td>${i+1}</td>${D.map(d=>`<td class="${d.num?'num':''}">${val(d,r)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
   else{const key=D[0],rest=D.slice(1),per=11,parts=[];for(let i=0;i<rest.length;i+=per)parts.push(rest.slice(i,i+per));
@@ -1082,7 +1091,7 @@ function cliXlsList(v){const L=cliApplyCols(cliBaseList,v);if(!L.length){toast('
     rows=L.map((r,i)=>{const s=cliReqSum(r),f=cliFechaVig(r);return [i+1,r.codigo||'',r.tipoDoc||'',r.proforma||'',r.job||'',r.cliente||'',r.departamento||'',r.asesor?pname(r.asesor):(r.asesorTxt||''),r.trabajo||'',f?fdate(f):'',{ent:'Entregado',venc:'Vencida',pend:'Pendiente',anu:'Anulado'}[cliEntSt(r)],num(r.cantidad),num(r.precio),s.ent,s.tot,s.venc,(r.cambios||[]).length,(r.cambios||[]).filter(x=>!x.entregado).length,r.estado||'Registrado']})}
    else{hd=['N.º',...D.map(d=>d.l)];rows=L.map((r,i)=>[i+1,...D.map(d=>{if(d.num){const x=d.sv(r);return x==null?'':x}const t=d.html?String(d.html(r)).replace(/<\/div>/g,'\n').replace(/<br\s*\/?>/g,'\n').replace(/<[^>]+>/g,'').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/[ \t]+/g,' ').replace(/\n\s*/g,'\n').trim():d.fv(r);return t})])}
    const F=Object.entries((cliF.cf||{})[v]||{}).filter(([,q])=>q&&q.trim()).map(([k,q])=>`${(D.find(d=>d.k===k)||{}).l||k}: ${q}`);
-   const info=[[`Ventas EIU · ${v==='res'?'Vista resumida':'Vista completa'} · ${L.length} registros · exportado el ${fdate(today())}`],[[filterUnit==='ALL'?'Toda la organización':(U[fUnit()]?.n||''),cliF.asesor?'Asesor: '+cliKeyLabel(cliF.asesor):'',cliF.estado?'Estado: '+cliF.estado:'',cliF.q?'Búsqueda: '+cliF.q:'',...F].filter(Boolean).join(' · ')],[]];
+   const info=[[`Ventas EIU · ${v==='res'?'Vista resumida':'Vista completa'} · ${L.length} registros · exportado el ${fdate(today())}`],[[filterUnit==='ALL'?'Toda la organización':(U[fUnit()]?.n||''),cliAseLbl(S.clientes),cliF.estado?'Estado: '+cliF.estado:'',cliF.q?'Búsqueda: '+cliF.q:'',...F].filter(Boolean).join(' · ')],[]];
    const ws=X.utils.aoa_to_sheet([...info,hd,...rows]);ws['!cols']=hd.map((x,i)=>({wch:i===0?5:Math.min(45,Math.max(10,String(x).length+2,...rows.slice(0,200).map(r=>Math.min(45,String(r[i]??'').split('\n')[0].length+2))))}));
    ws['!autofilter']={ref:X.utils.encode_range({s:{r:3,c:0},e:{r:3+rows.length,c:hd.length-1}})};ws['!freeze']={xSplit:2,ySplit:4};
    const wb=X.utils.book_new();X.utils.book_append_sheet(wb,ws,v==='res'?'Vista resumida':'Vista completa');X.writeFile(wb,`ventas_eiu_${v==='res'?'resumida':'completa'}_${today()}.xlsx`);toast(`Exportados ${L.length} registros a Excel.`)}).catch(()=>toast('No se pudo generar el Excel. Revisa tu conexión.'))}
@@ -1395,7 +1404,7 @@ function actSt(a){if(a.estado==='Cancelada')return ['Cancelada',''];if(a.estado=
 function actResp(a){return a.responsable?pname(a.responsable):(a.responsableTxt||'—')}
 function actHorario(a){const [i,f]=actRange(a);if(!i)return '—';return fdate(i)+(a.horaIni?' '+a.horaIni:'')+(f!==i?' → '+fdate(f):'')+(a.horaFin?(f!==i?' ':' – ')+a.horaFin:'')}
 function actFiltered(){const L=(S.cliAct||[]).filter(a=>inFilter('clientes',a));
-  return L.filter(a=>(!actF.tipo||a.tipo===actF.tipo)&&(!actF.estado||actSt(a)[0]===actF.estado||a.estado===actF.estado)&&(!cliF.asesor||(cliF.asesor==='none'?!a.responsable&&!a.responsableTxt:cliAsesorKeys({asesor:a.responsable,asesorTxt:a.responsableTxt,creadoPor:a.creadoPor}).includes(cliF.asesor)))
+  return L.filter(a=>(!actF.tipo||a.tipo===actF.tipo)&&(!actF.estado||actSt(a)[0]===actF.estado||a.estado===actF.estado)&&(!cliF.asesor||(cliF.aseScope==='area'&&cliKeyUnit(cliF.asesor,S.clientes)?desc(cliKeyUnit(cliF.asesor,S.clientes)).includes(a.unidad||unitOfAct(a)):cliF.asesor==='none'?!a.responsable&&!a.responsableTxt:cliAsesorKeys({asesor:a.responsable,asesorTxt:a.responsableTxt,creadoPor:a.creadoPor}).includes(cliF.asesor)))
     &&(!cliF.q||norm([a.titulo,a.tipo,a.cliente,a.lugar,a.participantes,a.descripcion,a.codigoPedido].join(' ')).includes(norm(cliF.q))))
    .sort((a,b)=>String(b.fechaIni||'').localeCompare(String(a.fechaIni||'')))}
 function viewActividades(){const L=actFiltered();actLastList=L;const t=today();
@@ -1580,7 +1589,8 @@ function cliRepPrint(){const src=$('#crBody');if(!src)return;
 function bindClientes(){
   const qi=$('#cliQ');if(qi)qi.oninput=e=>{cliF.q=e.target.value;const p=e.target.selectionStart;render();const n2=$('#cliQ');n2.focus();try{n2.setSelectionRange(p,p)}catch(_){}};
   const es=$('#cliEst');if(es)es.onchange=e=>{cliF.estado=e.target.value;render()};const cpd=$('#cliProd');if(cpd)cpd.onchange=e=>{cliF.prod=e.target.value;render()};
-  const as=$('#cliAse');if(as)as.onchange=e=>{cliF.asesor=e.target.value;render()};
+  const as=$('#cliAse');if(as)as.onchange=e=>{cliF.asesor=e.target.value;cliF.aseScope='mine';render()};
+  document.querySelectorAll('[data-asesc]').forEach(b=>b.onclick=()=>{cliF.aseScope=b.dataset.asesc;render()});
   const rq=$('#cliReq');if(rq)rq.onchange=e=>{cliF.req=e.target.value;render()};
   const nb=$('#cliNew');if(nb)nb.onclick=()=>openCli(null);
   const cc=$('#cliCal');if(cc)cc.onclick=()=>{cliCalM=null;openCliCal()};
