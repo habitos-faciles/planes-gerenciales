@@ -1012,7 +1012,7 @@ function viewClientes(){
      <td><strong>${esc(r.cliente||'—')}</strong><div class="note">RUC ${esc(r.ruc||'—')}${r.responsable?' · '+esc(r.responsable):''}</div></td>
      <td>${esc(r.trabajo||'—')}<div class="note">${[r.formato,r.encuadernacion].filter(Boolean).map(esc).join(' · ')}</div></td>
      <td style="white-space:nowrap">${fv?`<strong>${fdate(fv)}</strong>`:'—'}${r.entregaConf==='Entregado'?` <span class="pill ok">Entregado</span>${r.entregaReal?`<div class="note">el ${fdate(r.entregaReal)}</div>`:''}`:lateJob?' <span class="pill bad">Vencida</span>':fv?' <span class="pill">Pendiente</span>':''}${nrp?`<div class="note" style="white-space:normal">Reprogramada ${nrp} ${nrp===1?'vez':'veces'} · original ${fdate(r.fechaEntrega)}</div>`:''}</td>
-     <td class="num">${r.cantidad?n(r.cantidad).toLocaleString('es-PE'):'—'}</td>
+     <td class="num">${r.cantidad?n(r.cantidad).toLocaleString('es-PE'):'—'}${(r.cantidades||[]).filter(v=>v!==''&&v!=null).length>1?`<div class="note" title="Otras cantidades">+ ${(r.cantidades.slice(1).filter(v=>v!==''&&v!=null)).map(v=>n(v).toLocaleString('es-PE')).join(' · ')}</div>`:''}</td>
      <td class="num">${n(r.precio)?money(r.precio):'—'}<div class="note">${r.precioFecha?fdate(r.precioFecha):''}</div></td>
      <td>${s.tot?`${meter(s.ent/s.tot*100)}<div class="note">${s.ent} de ${s.tot} entregados${s.venc?` · <span style="color:var(--bad)">${s.venc} vencidos</span>`:''}</div>`:'<span class="note">Sin requerimientos</span>'}</td>
      <td>${(r.cambios||[]).length?`<div class="note">${r.cambios.length} ${r.cambios.length===1?'cambio':'cambios'}${r.cambios.filter(x=>!x.entregado).length?` · <span style="color:var(--warn)">${r.cambios.filter(x=>!x.entregado).length} sin atender</span>`:''}</div>`:'<span class="note">—</span>'}</td>
@@ -1135,7 +1135,7 @@ function openCli(id){
    ${cliSelOtro('cliente','Cliente *',CLI_CLIENTES,r.cliente,ro,'style="grid-column:span 2"')}${cliSelOtro('departamento','Departamento / Área',CLI_DEPTOS,r.departamento,ro)}${F('ruc','RUC / ID tributario')}
    ${F('responsable','Nombre del responsable')}${F('telefono','Teléfono','tel')}${F('email','E-mail','email','style="grid-column:span 2"')}
    ${sec('Trabajo')}
-   ${F('trabajo','Trabajo *','text','style="grid-column:span 2"')}${F('cantidad','Cantidad','number')}${F('formato','Formato (ancho x alto en cm)','text','title="Ej. 21 x 29.7"')}${cliSelOtro('producto','Tipo de producto',CLI_PRODUCTOS,r.producto,ro,'style="grid-column:span 2"')}<div id="cliPrev" style="grid-column:1/-1"></div>
+   ${F('trabajo','Trabajo *','text','style="grid-column:span 2"')}${F('cantidad','Cantidad 1','number')}${F('formato','Formato (ancho x alto en cm)','text','title="Ej. 21 x 29.7"')}${cliSelOtro('producto','Tipo de producto',CLI_PRODUCTOS,r.producto,ro,'style="grid-column:span 2"')}${cliQxHtml(r,ro)}<div id="cliPrev" style="grid-column:1/-1"></div>
    ${F('tapa','Tapa','text','style="grid-column:span 2"')}${F('hojas','Hojas / interiores')}${F('paginas','N.º de páginas','number')}
    ${F('encuadernacion','Encuadernación','text','style="grid-column:span 2"')}${F('encarte','Encarte','text','style="grid-column:span 2"')}
    <label style="grid-column:1/-1">Otros<textarea name="otros" ${ro}>${esc(r.otros||'')}</textarea></label>
@@ -1169,11 +1169,15 @@ function openCli(id){
   <div class="ft"><div><b class="cliMsg" hidden style="display:block;color:var(--bad);margin-bottom:6px"></b>${id&&!cliEd.ro?'<button type="button" class="btn danger" id="cliDel">Eliminar</button>':''} ${id?'<button type="button" class="btn" id="cliPr">🖨 Imprimir ficha completa</button>':''}</div><div style="display:flex;gap:10px"><button type="button" class="btn" id="cliCancel">${cliEd.ro?'Cerrar':'Cancelar'}</button>${cliEd.ro?'':'<button type="submit" class="btn" data-pdf="full" title="Guarda la ficha y abre el reporte completo para imprimir o guardar como PDF">🖨 Guardar e imprimir ficha completa</button><button type="submit" class="btn primary">Guardar</button>'}</div></div></form>`;
   bindCliDlg();dl.showModal();
 }
+function cliQxHtml(r,ro){const ex=(Array.isArray(r.cantidades)?r.cantidades.slice(1):[]).filter(v=>v!==''&&v!=null);const nS=Math.min(7,Math.max(3,ex.length+(ro?0:1)));
+  return `<div style="grid-column:span 2"><span style="display:block;font:500 .82rem var(--body);color:var(--ink-2);margin-bottom:4px">Otras cantidades a cotizar <span class="note">(pasan a la cotización como Cantidad 2, 3…)</span></span><div id="cliQx" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">${Array.from({length:nS},(_,i)=>`<input data-cqx type="number" step="any" min="0" placeholder="Cant. ${i+2}" aria-label="Cantidad ${i+2}" value="${esc(ex[i]??'')}" style="width:96px" ${ro}>`).join('')}${ro||nS>=7?'':'<button type="button" class="btn small" id="cliQxAdd" title="Agregar otra cantidad (hasta 8 en total)">+</button>'}</div></div>`}
+function cliQsTxt(r){const a=(Array.isArray(r.cantidades)&&r.cantidades.length?r.cantidades:[r.cantidad]).filter(v=>v!==''&&v!=null&&+v);return a.map(v=>n(v).toLocaleString('es-PE')).join(' · ')}
 function readCliForm(){const fd=new FormData($('#cliFrm'));const o={...cliEd.r};
   ['proforma','unidad','asesor','fechaIngreso','horaIngreso','fechaProforma','horaProforma','cliente','departamento','ruc','responsable','telefono','email','trabajo','cantidad','formato','producto','tapa','hojas','paginas','encuadernacion','encarte','otros','tipoDoc','diseno','correccion','preprensa','servicio','job','fechaInicio','fechaEntrega','entregaConf','entregaReal','precio','precioIgv','precioFecha','precioAprobo','pedidoInterno','pedidoAprobado','pedidoFecha'].forEach(k=>{const v=fd.get(k);if(v!==null)o[k]=String(v).trim()});
   ['cliente','departamento','producto'].forEach(k=>{if(o[k]==='__otro')o[k]=String(fd.get(k+'Otro')||'').trim()});
-  ['cantidad','precio','paginas'].forEach(k=>{o[k]=o[k]===''||o[k]==null?'':+o[k]});['vbAsesor','vbCliente','vbCostos'].forEach(k=>o[k]=!!fd.get(k));return o}
+  ['cantidad','precio','paginas'].forEach(k=>{o[k]=o[k]===''||o[k]==null?'':+o[k]});{const qx=$('#cliQx');if(qx){const ex=[...qx.querySelectorAll('[data-cqx]')].map(e=>e.value.trim()).filter(v=>v!==''&&+v>0).map(Number);if(ex.length)o.cantidades=[o.cantidad,...ex];else delete o.cantidades}else if(Array.isArray(o.cantidades))o.cantidades[0]=o.cantidad}['vbAsesor','vbCliente','vbCostos'].forEach(k=>o[k]=!!fd.get(k));return o}
 function bindCliDlg(){
+  {const qa=$('#cliQxAdd');if(qa)qa.onclick=()=>{const w=$('#cliQx'),k=w.querySelectorAll('[data-cqx]').length;if(k>=7)return;const i=document.createElement('input');i.type='number';i.step='any';i.min='0';i.setAttribute('data-cqx','');i.placeholder='Cant. '+(k+2);i.setAttribute('aria-label','Cantidad '+(k+2));i.style.width='96px';w.insertBefore(i,qa);if(k+1>=7)qa.remove();i.focus()}}
   const dl=$('#cliDlg');
   ['producto','productoOtro','formato','paginas','encuadernacion','tapa'].forEach(k=>{const e=$('#cliFrm [name='+k+']');if(e){e.addEventListener('change',cliPrevUpdate);e.addEventListener('input',cliPrevUpdate)}});cliPrevUpdate();
   const ec=$('#cliFrm [name=entregaConf]');if(ec)ec.addEventListener('change',()=>{const l=$('#cliEntReal');l.hidden=ec.value!=='Entregado';const i=l.querySelector('input');if(!l.hidden&&!i.value)i.value=today()});
@@ -1253,7 +1257,7 @@ function printCli(id,mode){
    <table class="c4"><tr><th>Tipo</th><td colspan="3">${CLI_TIPOS.map(t=>ck(r.tipoDoc,t)).join(' &nbsp; ')}</td></tr>
    <tr><th>Fecha de ingreso</th><td>${fdate(r.fechaIngreso)} ${esc(r.horaIngreso||'')}</td><th>Recepción de proforma</th><td>${fdate(r.fechaProforma)} ${esc(r.horaProforma||'')}</td></tr></table>
    <h2>Ventas</h2><table class="c4">${row2('Cliente',r.cliente,'Departamento / Área',r.departamento)}${row2('RUC / ID tributario',r.ruc,'Responsable',r.responsable)}${row2('Asesor comercial',r.asesor?pname(r.asesor):(r.asesorTxt||''),'Teléfono / e-mail',[r.telefono,r.email].filter(Boolean).join(' · '))}</table>
-   <h2>Trabajo</h2><table class="c4">${row2('Trabajo',r.trabajo,'Cantidad',r.cantidad?n(r.cantidad).toLocaleString('es-PE'):'')}${row2('Tipo de producto',r.producto,'','')}${row2('Formato',r.formato,'Tapa',r.tapa)}${row2('Hojas / interiores',r.hojas,'N.º de páginas',r.paginas?n(r.paginas).toLocaleString('es-PE'):'')}${row2('Encuadernación',r.encuadernacion,'Encarte',r.encarte)}<tr><th>Otros</th><td colspan="3">${esc(r.otros||'')}</td></tr></table>
+   <h2>Trabajo</h2><table class="c4">${row2('Trabajo',r.trabajo,(r.cantidades||[]).filter(v=>v!==''&&v!=null).length>1?'Cantidades':'Cantidad',cliQsTxt(r))}${row2('Tipo de producto',r.producto,'','')}${row2('Formato',r.formato,'Tapa',r.tapa)}${row2('Hojas / interiores',r.hojas,'N.º de páginas',r.paginas?n(r.paginas).toLocaleString('es-PE'):'')}${row2('Encuadernación',r.encuadernacion,'Encarte',r.encarte)}<tr><th>Otros</th><td colspan="3">${esc(r.otros||'')}</td></tr></table>
    ${r.producto?`<div class="prev">${prodSvg(r)}</div>`:''}
    <h2>Preprensa</h2><table class="c4"><tr><th>Diseño</th><td>${ck(r.diseno,'Nuevo')} &nbsp; ${ck(r.diseno,'Modificar')}</td><th>Corrección</th><td>${ck(r.correccion,'Sí')} &nbsp; ${ck(r.correccion,'No')}</td></tr><tr><th>Preprensa</th><td>${ck(r.preprensa,'Sí')} &nbsp; ${ck(r.preprensa,'No')}</td><th>Servicio de</th><td>${ck(r.servicio,'Impresión')} &nbsp; ${ck(r.servicio,'Reimpresión')}</td></tr></table>
    ${mode==='ini'?'':`
@@ -2307,7 +2311,7 @@ function cotDescAuto(c){const P=c.partes||{},ls=[];ls.push(`Formato: ${c.ancho||
 function openCot(id){const cfg=cotCfg();
   const c=id?JSON.parse(JSON.stringify((S.cotiz||[]).find(x=>x.id===id))):{kind:'cot',proforma:cotNextProf(),fechaIngreso:today(),fechaEmision:today(),tipoDoc:'Cotización',tipoTrabajo:'IMPRESIÓN',estado:'Borrador',cerrado:'Cerrado',cantidad:'',partes:{tapa:{pags:2,ph:2,pv:4},hojas:{pags:2,ph:4,pv:4}},items:{},acab:{},dis:{},correccion:'No',preprensa:'Sí',formaPago:'CRÉDITO 30 DÍAS',tc:cfg.tc,adm:cfg.adm,util:cfg.util,igv:cfg.igv,unidad:filterUnit!=='ALL'&&filterUnit!=='GG!'?fUnit():((myScopeUnits()||[])[0]||'GV')};
   c.partes=c.partes||{};c.items=c.items||{};c.acab=c.acab||{};c.dis=c.dis||{};
-  const ro=pjCanEdit(id?c:null)?'':'disabled';cotEd={id,c,ro:!!ro};const clis=cotClientes();
+  const ro=pjCanEdit(id?c:null)?'':'disabled';if(!ro&&c.codigoPedido&&!['Convertida a JOB'].includes(c.estado)){const pd=(S.clientes||[]).find(y=>y.codigo===c.codigoPedido);if(pd)cotQsFromPed(c,pd)}cotEd={id,c,ro:!!ro};const clis=cotClientes();
   let dl=$('#cotDlg');if(!dl){dl=document.createElement('dialog');dl.id='cotDlg';dl.style.width='min(1180px,calc(100vw - 16px))';document.body.appendChild(dl)}
   const F=(k,l,type='text',extra='',ph='')=>`<label ${extra}>${l}<input name="${k}" type="${type}" value="${esc(c[k]??'')}" ${type==='number'?'step="any"':''} ${ph?`placeholder="${esc(ph)}"`:''} ${ro}></label>`;
   const SL=(k,l,list,extra='')=>`<label ${extra}>${l}<select name="${k}" ${ro}>${list.map(o=>`<option ${o===c[k]?'selected':''}>${esc(o)}</option>`).join('')}</select></label>`;
@@ -2427,8 +2431,8 @@ function openCot(id){const cfg=cotCfg();
   const pq=$('#cotPedQ');if(pq)pq.addEventListener('change',()=>{const v=pq.value.trim();if(!v)return;const P=cotPeds(),cod=v.split(' · ')[0].trim();
     const x=P.find(y=>y.codigo===cod)||P.find(y=>norm(y.codigo)===norm(v))||(()=>{const r=P.filter(y=>norm(cotPedLbl(y)).includes(norm(v)));return r.length===1?r[0]:null})();
     if(!x){toast('No encontré ese pedido. Elige uno de la lista que aparece al escribir.');return}
-    const n0=cotFromPed(x,q,clis);read();if(typeof drawLin==='function')try{drawLin()}catch(e){}pq.value='';
-    $('#cotPedNote').innerHTML=`Pedido de Ventas EIU vinculado: <b>${esc(x.codigo)}</b> · ${esc(x.cliente||'')} · ${esc(x.trabajo||'')}. Se completaron ${n0} campos vacíos; las fechas de emisión y entrega se tomaron de «Trabajo y entrega» del pedido.`;
+    const n0=cotFromPed(x,q,clis);read();const nq=cotQsFromPed(c,x);if(nq){try{drawHC()}catch(e){}}if(typeof drawLin==='function')try{drawLin()}catch(e){}pq.value='';
+    $('#cotPedNote').innerHTML=`Pedido de Ventas EIU vinculado: <b>${esc(x.codigo)}</b> · ${esc(x.cliente||'')} · ${esc(x.trabajo||'')}. Se completaron ${n0} campos vacíos${nq?` y ${nq} cantidad${nq>1?'es':''} más en la hoja de costos (Cantidad 2…)`:''}; las fechas de emisión y entrega se tomaron de «Trabajo y entrega» del pedido.`;
     toast('Datos copiados del pedido '+x.codigo+'.')});
   const la=$('#cotLinAdd');if(la)la.onclick=()=>{read();c.lineas.push({cant:'',desc:'',pu:''});drawLin()};
   const l2=$('#cotLinAlt');if(l2)l2.onclick=()=>{read();const QS=cotQs(c).slice(1).filter(v=>v!=='');if(!QS.length){toast('Escribe primero otras cantidades en las columnas de «5. Hoja de costos».');return}let n0=0;QS.forEach(v=>{if(!c.lineas.some(x=>+x.cant===+v)){c.lineas.push({cant:v,desc:c.lineas[0].desc,pu:''});n0++}});drawLin();toast(n0?`Se agregaron ${n0} líneas con su P.U. de la hoja de costos.`:'Esas cantidades ya están en la proforma.')};
@@ -2462,6 +2466,9 @@ function cotRazon(cli,ruc){const nr=String(ruc||'').replace(/\s/g,''),nc=norm(cl
 function cotPeds(){return (S.clientes||[]).filter(c=>c.codigo&&!['act','job','hrs','cot','cotcli'].includes(c.kind)).sort((a,b)=>String(b.codigo).localeCompare(String(a.codigo))).slice(0,800)}
 const cotPedLbl=c=>[c.codigo,c.cliente,c.trabajo,c.cantidad?(+c.cantidad).toLocaleString('es-PE')+' und.':''].filter(Boolean).join(' · ');
 // Copies a Ventas EIU pedido into the open cotización form: fills empty fields; dates always follow the pedido
+function cotQsFromPed(c,x){const P=(Array.isArray(x&&x.cantidades)?x.cantidades:[]).filter(v=>v!==''&&v!=null&&+v>0).map(Number);if(P.length<2)return 0;
+  if(cotQs(c).slice(1).some(v=>v!==''))return 0;const q0=c.cantidad!==''&&c.cantidad!=null?+c.cantidad:P[0];const rest=P.slice(1).filter(v=>v!==q0);
+  c.cantidades=[q0,...rest];while(c.cantidades.length<4)c.cantidades.push('');c.cantidad=q0;c.cantidad2=c.cantidades[1];return rest.length}
 function cotFromPed(x,q,clis){let k=0;const set=(f,v)=>{const el=q(f);if(el&&!el.value&&v!=null&&v!==''){el.value=v;k++}},force=(f,v)=>{const el=q(f);if(el&&v){el.value=v;k++}};
   q('codigoPedido').value=x.codigo;
   set('cliente',x.cliente);set('contacto',x.responsable);set('celular',x.telefono);set('correo',x.email);set('ruc',x.ruc);set('asesor',x.asesor?pname(x.asesor):x.asesorTxt);
