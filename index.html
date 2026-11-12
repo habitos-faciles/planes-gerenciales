@@ -841,6 +841,67 @@ function bindCal(){
 RAW.clientes=RAW.clientes||[];S.clientes=S.clientes||[];RAW.cliAct=RAW.cliAct||[];S.cliAct=S.cliAct||[];
 const CLI_CLIENTES=['UPN','APCE','MPN','MICOP','MINOP','ANOP','NT','SEHS NORTE','ASEACE','AEACOP','UPS','APC','MPCS','MCP','MOP','MSOP','MPLT','APS','SEHS SUR','ADRA','CAAS','CGH','CAJ','ACES','UPeU - Logística','EIU','ACES - Ventas','ACES - Educación','UPeU','UPeU - Filial Juliaca','UPeU - Filial Tarapoto'];
 const CLI_DEPTOS=['Mayordomía','MipEs','Ministerio Mujer','Ministerio Infantil','Ministerio Adolescente','Ministerio Joven','Educación','Publicaciones','Asoc. Ministerial','Tesorería','Secretaría','SVA','Legales','GTH','Posgrado Marketing','Bienestar Universitario','Pañolenci','SSOMA','Marketing','Imagen Institucional','Facultad de Teología','Fac. CC.SS. - EP: Medicina Humana','IDEC','Dirección General','FIA Ing. Industrias Alimentarias','Comunicaciones','Colegio Unión','Consultorio Médico','Lavandería','EP Nutrición Humana','Fondo Editorial','Fac. CC.EE. - Decanatura','Admisión Corporativo','Rectorado','Dirección Universidad Saludable','Secretaría General','Centro de Idiomas','Fac. CC.EE. - Contabilidad'];
+/* ===== Tipo de producto + vista previa del acabado ===== */
+const CLI_PRODUCTOS=['OTROS / ROTAFOLIO / CARTAS / DIARIO','ESTUDIO / CURSO / LECCIÓN','HOJAS','VOLANTE','MANUAL / GUÍA / PLANIFICADOR','TARJETAS / CARTILLAS','AFICHES','STICKERS / ETIQUETAS','FOLLETOS / REVISTA','CERTIFICADO','DÍPTICO','CUADERNO DE ACTIVIDADES','SOBRES','SERMONARIO','ENCARTE','LIBRO','TRÍPTICO','MARCADORES','BLOCK','BROCHURE','HOJA CONFIDENCIAL','INVITACIONES','CUADERNOS','PAPEL ESPECIAL','TALONARIO','CAJAS','CUPONES','AGENDA','CATÁLOGO','FOLDERS','TICKETS'];
+/* Forma del dibujo para cada producto */
+function prodForma(p){const t=norm(p||'');
+  if(!t)return '';
+  if(/triptico/.test(t))return 'triptico';
+  if(/diptico|brochure/.test(t))return 'diptico';
+  if(/rotafolio/.test(t))return 'rotafolio';
+  if(/libro|sermonario|manual|guia|planificador|estudio|curso|leccion|catalogo/.test(t))return 'libro';
+  if(/folleto|revista|cuaderno de actividades/.test(t))return 'grapado';
+  if(/cuaderno|agenda|diario/.test(t))return 'espiral';
+  if(/block|talonario|cupon|ticket/.test(t))return 'block';
+  if(/sobre/.test(t))return 'sobre';
+  if(/invitacion/.test(t))return 'invitacion';
+  if(/caja/.test(t))return 'caja';
+  if(/folder/.test(t))return 'folder';
+  if(/sticker|etiqueta/.test(t))return 'sticker';
+  if(/marcador/.test(t))return 'marcador';
+  if(/tarjeta|cartilla/.test(t))return 'tarjeta';
+  if(/encarte/.test(t))return 'encarte';
+  if(/afiche/.test(t))return 'afiche';
+  return 'hoja'; // hojas, volante, certificado, hoja confidencial, papel especial, cartas, otros
+}
+const PROD_DESC={libro:'Libro / publicación encuadernada: tapa, lomo y hojas interiores.',grapado:'Publicación grapada (caballete): pliegos doblados al centro y grapados.',espiral:'Anillado / espiral: tapas y hojas unidas con anillos.',block:'Block o talonario: hojas sueltas pegadas en cabeza, con línea de perforado.',sobre:'Sobre: pieza troquelada y pegada, con solapa.',invitacion:'Invitación: tarjeta doblada o simple, con su sobre.',caja:'Caja: troquelada, plegada y pegada.',folder:'Folder: carpeta doblada al centro con bolsillo interior.',sticker:'Sticker / etiqueta: material adhesivo, con corte o troquel.',marcador:'Marcador: tira vertical, puede llevar cinta u ojalillo.',tarjeta:'Tarjeta / cartilla: pieza pequeña en cartulina.',encarte:'Encarte: hoja o pieza que va inserta en otra publicación.',afiche:'Afiche: pieza de gran formato, una cara.',hoja:'Hoja suelta: impresión en una o ambas caras, sin doblez.',diptico:'Díptico: una hoja doblada en dos (4 caras).',triptico:'Tríptico: una hoja con dos dobleces (6 caras).',rotafolio:'Rotafolio: hojas unidas en la parte superior, con base para pararlo.'};
+function prodMedidas(f){const m=String(f||'').replace(/,/g,'.').match(/(\d+(?:\.\d+)?)\s*(?:cm)?\s*[x×X*]\s*(\d+(?:\.\d+)?)/);return m?{a:+m[1],h:+m[2]}:null}
+function prodSvg(r){
+  const forma=prodForma(r.producto);if(!forma)return '';
+  const md=prodMedidas(r.formato),A=md?md.a:21,H=md?md.h:29.7;
+  const sc=Math.min(150/A,190/H),w=Math.max(28,A*sc),h=Math.max(28,H*sc);
+  const st='stroke="var(--ink)" stroke-width="1.6"',pap='fill="var(--sheet)"',acc='fill="var(--cyan-soft)"',lin='stroke="var(--ink-2)" stroke-width="1" stroke-dasharray="4 3" fill="none"';
+  const W=340,HH=260,x=(W-w)/2,y=(HH-h)/2+6;let g='';
+  const dimH=`<line x1="${x}" y1="${y+h+14}" x2="${x+w}" y2="${y+h+14}" stroke="var(--ink-2)"/><text x="${x+w/2}" y="${y+h+28}" text-anchor="middle" font-size="11" fill="var(--ink-2)">${md?A+' cm':'ancho'}</text>`;
+  const dimV=`<line x1="${x-14}" y1="${y}" x2="${x-14}" y2="${y+h}" stroke="var(--ink-2)"/><text x="${x-20}" y="${y+h/2}" text-anchor="end" font-size="11" fill="var(--ink-2)" dominant-baseline="middle">${md?H+' cm':'alto'}</text>`;
+  const pg=+r.paginas||0,lomo=Math.min(26,Math.max(6,pg?pg/24:8));
+  switch(forma){
+    case 'libro':g=`<rect x="${x+lomo}" y="${y-4}" width="${w}" height="${h}" ${pap} ${st}/><rect x="${x}" y="${y}" width="${w}" height="${h}" ${acc} ${st}/><path d="M${x} ${y} L${x+lomo} ${y-4} L${x+lomo} ${y+h-4} L${x} ${y+h} Z" fill="var(--cyan)" opacity=".55" ${st}/><text x="${x+w/2}" y="${y+h/2}" text-anchor="middle" font-size="12" fill="var(--ink)">TAPA</text>`;break;
+    case 'grapado':g=`<rect x="${x}" y="${y}" width="${w}" height="${h}" ${acc} ${st}/><line x1="${x}" y1="${y}" x2="${x}" y2="${y+h}" stroke="var(--ink)" stroke-width="3"/>${[.3,.7].map(f=>`<rect x="${x-3}" y="${y+h*f-6}" width="6" height="12" fill="var(--ink-2)"/>`).join('')}<text x="${x+w/2}" y="${y+h/2}" text-anchor="middle" font-size="12" fill="var(--ink)">grapado</text>`;break;
+    case 'espiral':g=`<rect x="${x}" y="${y}" width="${w}" height="${h}" ${acc} ${st}/>${Array.from({length:Math.max(5,Math.floor(h/12))},(_,i)=>`<ellipse cx="${x}" cy="${y+8+i*12}" rx="6" ry="4" fill="none" stroke="var(--ink)" stroke-width="1.4"/>`).join('')}`;break;
+    case 'block':g=`${[8,4].map(d=>`<rect x="${x+d}" y="${y+d}" width="${w}" height="${h}" ${pap} ${st}/>`).join('')}<rect x="${x}" y="${y}" width="${w}" height="${h}" ${pap} ${st}/><rect x="${x}" y="${y}" width="${w}" height="10" fill="var(--ink)"/><line x1="${x}" y1="${y+22}" x2="${x+w}" y2="${y+22}" ${lin}/><text x="${x+w/2}" y="${y+h/2}" text-anchor="middle" font-size="11" fill="var(--ink-2)">perforado</text>`;break;
+    case 'sobre':g=`<rect x="${x}" y="${y}" width="${w}" height="${h}" ${pap} ${st}/><path d="M${x} ${y} L${x+w/2} ${y+h*.55} L${x+w} ${y}" fill="var(--cyan-soft)" ${st}/>`;break;
+    case 'invitacion':g=`<rect x="${x+12}" y="${y+12}" width="${w}" height="${h}" ${pap} ${st}/><path d="M${x+12} ${y+12} L${x+12+w/2} ${y+12+h*.5} L${x+12+w} ${y+12}" fill="none" ${st}/><rect x="${x}" y="${y}" width="${w*.85}" height="${h*.85}" ${acc} ${st}/><text x="${x+w*.42}" y="${y+h*.42}" text-anchor="middle" font-size="11" fill="var(--ink)">invitación</text>`;break;
+    case 'caja':{const d=Math.min(w,h)*.35;g=`<rect x="${x}" y="${y+d}" width="${w-d}" height="${h-d}" ${acc} ${st}/><path d="M${x} ${y+d} L${x+d} ${y} L${x+w} ${y} L${x+w-d} ${y+d} Z" ${pap} ${st}/><path d="M${x+w-d} ${y+d} L${x+w} ${y} L${x+w} ${y+h-d} L${x+w-d} ${y+h} Z" fill="var(--cyan)" opacity=".45" ${st}/>`;break}
+    case 'folder':g=`<rect x="${x}" y="${y}" width="${w}" height="${h}" ${acc} ${st}/><path d="M${x} ${y+h*.62} L${x+w} ${y+h*.52} L${x+w} ${y+h} L${x} ${y+h} Z" fill="var(--cyan)" opacity=".45" ${st}/><text x="${x+w/2}" y="${y+h*.35}" text-anchor="middle" font-size="11" fill="var(--ink)">bolsillo ↓</text>`;break;
+    case 'sticker':g=`<rect x="${x-6}" y="${y-6}" width="${w+12}" height="${h+12}" fill="var(--paper)" ${st}/><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${Math.min(w,h)*.18}" ${acc} stroke="var(--magenta)" stroke-width="1.6" stroke-dasharray="5 3"/><text x="${x+w/2}" y="${y+h/2}" text-anchor="middle" font-size="11" fill="var(--ink)">troquel</text>`;break;
+    case 'marcador':g=`<rect x="${x}" y="${y}" width="${w}" height="${h}" ${acc} ${st}/><circle cx="${x+w/2}" cy="${y+12}" r="4" fill="var(--sheet)" ${st}/><path d="M${x+w/2} ${y+12} q 10 -30 -6 -40" fill="none" stroke="var(--magenta)" stroke-width="2"/>`;break;
+    case 'diptico':g=`<rect x="${x}" y="${y}" width="${w}" height="${h}" ${acc} ${st}/><line x1="${x+w/2}" y1="${y}" x2="${x+w/2}" y2="${y+h}" ${lin}/><text x="${x+w/4}" y="${y+h/2}" text-anchor="middle" font-size="11" fill="var(--ink-2)">1</text><text x="${x+w*3/4}" y="${y+h/2}" text-anchor="middle" font-size="11" fill="var(--ink-2)">2</text><text x="${x+w/2}" y="${y-8}" text-anchor="middle" font-size="10" fill="var(--ink-2)">doblez</text>`;break;
+    case 'triptico':g=`<rect x="${x}" y="${y}" width="${w}" height="${h}" ${acc} ${st}/>${[1,2].map(i=>`<line x1="${x+w*i/3}" y1="${y}" x2="${x+w*i/3}" y2="${y+h}" ${lin}/>`).join('')}${[0,1,2].map(i=>`<text x="${x+w*(i+.5)/3}" y="${y+h/2}" text-anchor="middle" font-size="11" fill="var(--ink-2)">${i+1}</text>`).join('')}<text x="${x+w/2}" y="${y-8}" text-anchor="middle" font-size="10" fill="var(--ink-2)">2 dobleces</text>`;break;
+    case 'rotafolio':g=`<rect x="${x}" y="${y}" width="${w}" height="${h}" ${acc} ${st}/>${Array.from({length:Math.max(4,Math.floor(w/14))},(_,i)=>`<ellipse cx="${x+8+i*14}" cy="${y}" rx="4" ry="6" fill="none" stroke="var(--ink)" stroke-width="1.4"/>`).join('')}<path d="M${x+w*.2} ${y+h} L${x+w*.5} ${y+h+12} L${x+w*.8} ${y+h}" fill="none" ${st}/>`;break;
+    case 'afiche':g=`<rect x="${x}" y="${y}" width="${w}" height="${h}" ${acc} ${st}/><rect x="${x+w*.12}" y="${y+h*.12}" width="${w*.76}" height="${h*.45}" fill="var(--cyan)" opacity=".35"/><rect x="${x+w*.12}" y="${y+h*.65}" width="${w*.6}" height="6" fill="var(--ink-2)"/><rect x="${x+w*.12}" y="${y+h*.72}" width="${w*.45}" height="6" fill="var(--ink-2)"/>`;break;
+    case 'encarte':g=`<rect x="${x+14}" y="${y-8}" width="${w}" height="${h}" fill="var(--paper)" ${st}/><rect x="${x}" y="${y}" width="${w*.92}" height="${h*.92}" ${acc} ${st}/><text x="${x+w*.46}" y="${y+h*.46}" text-anchor="middle" font-size="11" fill="var(--ink)">encarte</text>`;break;
+    case 'tarjeta':g=`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" ${acc} ${st}/><rect x="${x+w*.1}" y="${y+h*.2}" width="${w*.5}" height="6" fill="var(--ink-2)"/><rect x="${x+w*.1}" y="${y+h*.4}" width="${w*.35}" height="5" fill="var(--ink-2)" opacity=".6"/>`;break;
+    default:g=`<rect x="${x}" y="${y}" width="${w}" height="${h}" ${pap} ${st}/>${[.2,.3,.4,.5,.6,.7].map(f=>`<line x1="${x+w*.1}" y1="${y+h*f}" x2="${x+w*.9}" y2="${y+h*f}" stroke="var(--ink-2)" stroke-width="1" opacity=".5"/>`).join('')}`;
+  }
+  const notas=[md?`${A} × ${H} cm`:'Escribe el formato como «ancho x alto» en cm (ej. 21 x 29.7) para dibujarlo a escala.',pg?pg+' págs.':'',r.encuadernacion?'Encuadernación: '+r.encuadernacion:'',r.tapa?'Tapa: '+r.tapa:''].filter(Boolean);
+  return `<div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap"><svg viewBox="0 0 ${W} ${HH+24}" width="${W}" style="max-width:100%;height:auto;background:var(--paper);border-radius:8px" role="img" aria-label="Vista previa de ${esc(r.producto)}">${g}${dimH}${dimV}</svg>
+    <div style="flex:1;min-width:200px;display:flex;flex-direction:column;gap:6px"><strong>${esc(r.producto)}</strong><span class="note">${PROD_DESC[forma]||''}</span>${notas.map(n=>`<span class="note">· ${esc(n)}</span>`).join('')}<span class="note" style="font-style:italic">Dibujo referencial, no es el arte final.</span></div></div>`;
+}
+function cliPrevUpdate(){const box=$('#cliPrev');if(!box)return;const f=k=>{const e=$('#cliFrm [name='+k+']');return e?e.value:''};
+  let p=f('producto');if(p==='__otro')p=f('productoOtro');
+  box.innerHTML=p?prodSvg({producto:p,formato:f('formato'),paginas:f('paginas'),encuadernacion:f('encuadernacion'),tapa:f('tapa')}):'<span class="note">Elige el tipo de producto para ver cómo se presenta el material.</span>'}
+
 function cliSelOtro(name,label,list,val,ro,extra=''){const v=val||'',inL=!v||list.includes(v);
   return `<label ${extra}>${label}<select name="${name}" data-otro="${name}" ${ro}><option value="">— Elegir —</option>${list.map(o=>`<option ${o===v?'selected':''}>${esc(o)}</option>`).join('')}<option value="__otro" ${inL?'':'selected'}>Otro (escribir)…</option></select>
    <input name="${name}Otro" value="${inL?'':esc(v)}" placeholder="Escribe el ${label.replace(' *','').toLowerCase()}" ${inL?'hidden':''} ${ro} style="margin-top:6px"></label>`}
@@ -880,7 +941,7 @@ function cliProcRows(){const ro=cliEd.ro?'disabled':'',L=cliEd.r.procesos||[];if
 const CLI_REQ_DEF=['Entrega de texto completo','Entrega de imágenes','Entrega de material complementario'];
 const CLI_REQ_TIPOS=['Entrega de texto completo','Entrega de imágenes','Entrega de material complementario','Entrega de logotipos','Entrega de artes / diseño del cliente','Aprobación de prueba de color','Aprobación de prueba final','Otro'];
 const CLI_CAMB_TIPOS=['Cambio de número de páginas','Cambio de diseño de tapas','Cambio de formato','Cambio de color de las páginas (de color a blanco y negro)','Cambio de imágenes','No le gustó el diseño','Otros'];
-let cliF={q:'',estado:'',req:'',asesor:'',vista:'reg',rAnio:'',rMet:'monto',tabla:(()=>{try{return localStorage.getItem('cliTabla')||'res'}catch(_){return 'res'}})()},cliEd=null;
+let cliF={q:'',estado:'',req:'',asesor:'',prod:'',vista:'reg',rAnio:'',rMet:'monto',tabla:(()=>{try{return localStorage.getItem('cliTabla')||'res'}catch(_){return 'res'}})()},cliEd=null;
 function cliPersonaNombre(name){const nm=norm(name);if(!nm)return '';const P=RAW.personal||[];let p=P.find(x=>norm(x.nombre)===nm);
   if(!p){const tk=nm.split(' ').filter(t=>t.length>1);if(tk.length>=2){const c=P.filter(x=>{const xt=norm(x.nombre).split(' ');return tk.every(t=>xt.includes(t))});if(c.length===1)p=c[0]}}
   return p?p.nombre:String(name).trim()}
@@ -912,7 +973,7 @@ const rucOk=v=>true; // se acepta cualquier RUC o ID tributario (incluye empresa
 const canEditCli=r=>!readOnly&&(canManage()||!r||!r.unidad||(myScopeUnits()||[]).includes(r.unidad)||r.creadoPor===actorId());
 function viewClientes(){
   const all=S.clientes.filter(r=>inFilter('clientes',r));
-  let list=all.filter(r=>(!cliF.estado||(r.estado||'Registrado')===cliF.estado)&&(!cliF.asesor||cliAsesorKeys(r).includes(cliF.asesor)));
+  let list=all.filter(r=>(!cliF.prod||r.producto===cliF.prod)&&(!cliF.estado||(r.estado||'Registrado')===cliF.estado)&&(!cliF.asesor||cliAsesorKeys(r).includes(cliF.asesor)));
   if(cliF.req==='pend')list=list.filter(r=>cliReqSum(r).pend>0);else if(cliF.req==='venc')list=list.filter(r=>cliReqSum(r).venc>0);else if(cliF.req==='ok')list=list.filter(r=>cliReqSum(r).completo);
   if(cliF.q){const qq=norm(cliF.q);list=list.filter(r=>norm([r.codigo,r.proforma,r.job,r.cliente,r.departamento,r.ruc,r.responsable,r.trabajo].join(' ')).includes(qq))}
   list=list.slice().sort((a,b)=>{const fa=cliFechaVig(a),fb=cliFechaVig(b);if(fa&&!fb)return -1;if(fb&&!fa)return 1;return fb.localeCompare(fa)||String(b.fechaIngreso||b.creado||'').localeCompare(String(a.fechaIngreso||a.creado||''))});cliBaseList=list;if((cliF.vista||'reg')==='reg')list=cliApplyCols(list,cliF.tabla==='full'?'full':'res');cliLastList=list;
@@ -921,7 +982,7 @@ function viewClientes(){
   const ds=all.flatMap(r=>(r.reqs||[]).filter(x=>x.entregado&&x.solicitado).map(x=>dDiff(x.solicitado,x.entregado)));
   let h=`<div class="bar"><div class="left"><h2>Ventas EIU</h2>${unitFilterSel()}</div><div class="right"><input class="search" id="cliQ" placeholder="Buscar código, proforma, JOB, cliente, RUC…" value="${esc(cliF.q)}">
    <select id="cliAse" aria-label="Asesor comercial"><option value="">Todos los asesores / registradores</option>${cliAsesorOpts(all.concat((S.cliAct||[]).map(a=>({asesor:a.responsable,asesorTxt:a.responsableTxt,creadoPor:a.creadoPor})).filter(a=>a.asesor||a.asesorTxt||a.creadoPor))).map(([k,l])=>`<option value="${esc(k)}" ${k===cliF.asesor?'selected':''}>${esc(l)}</option>`).join('')}</select>
-   <select id="cliEst" aria-label="Estado"><option value="">Todos los estados</option>${CLI_EST.map(e=>`<option ${e===cliF.estado?'selected':''}>${e}</option>`).join('')}</select>
+   <select id="cliProd" aria-label="Tipo de producto"><option value="">Todos los productos</option>${[...new Set([...CLI_PRODUCTOS,...all.map(r=>r.producto).filter(Boolean)])].map(p=>`<option ${p===cliF.prod?'selected':''}>${esc(p)}</option>`).join('')}</select>    <select id="cliEst" aria-label="Estado"><option value="">Todos los estados</option>${CLI_EST.map(e=>`<option ${e===cliF.estado?'selected':''}>${e}</option>`).join('')}</select>
    <select id="cliReq" aria-label="Requerimientos"><option value="">Todos los requerimientos</option><option value="pend" ${cliF.req==='pend'?'selected':''}>Con requerimientos pendientes</option><option value="venc" ${cliF.req==='venc'?'selected':''}>Con requerimientos vencidos</option><option value="ok" ${cliF.req==='ok'?'selected':''}>Requerimientos completos</option></select>
    <button class="btn" id="cliExp" title="Descarga en Excel los pedidos de la vista actual">⬇ Exportar</button>${readOnly?'':'<button class="btn" id="cliImp" title="Cargar información pasada desde Excel">⬆ Importar</button><button class="btn primary" id="cliNew">+ Nuevo cliente / pedido</button><button class="btn" id="actNew" title="Registrar una cita, viaje, capacitación, entrevista u otra actividad">+ Actividad</button><button class="btn" id="cliCal" title="Calendario con la fecha vigente de entrega al cliente de la lista filtrada">📅 Calendario de entregas</button>'}</div></div>
   @@CLITABS@@<div class="note">Ficha «Información del cliente» para la elaboración de productos: datos del cliente y del trabajo, precio aprobado en la proforma y seguimiento de la entrega de requerimientos (texto, imágenes, material complementario).</div>
@@ -993,7 +1054,7 @@ function cliPrintList(v){const L=cliApplyCols(cliBaseList,v),D=cliColDefs(v);if(
     cliente:r=>v==='res'?`<b>${esc(r.cliente||'—')}</b>${r.departamento?'<br>'+esc(r.departamento):''}`:null};
   const val=(d,r)=>{const f=pv[d.k]&&pv[d.k](r);if(f!=null)return f;return v==='full'?(d.html?d.html(r):esc(d.fv(r))):esc(d.fv(r))};
   const F=Object.entries((cliF.cf||{})[v]||{}).filter(([,q])=>q&&q.trim()).map(([k,q])=>`${(D.find(d=>d.k===k)||{}).l||k}: «${q}»`);
-  const S0=(cliF.srt||{})[v];const top=[filterUnit==='ALL'?'Toda la organización':(U[fUnit()]?.n||''),cliF.asesor?'Asesor: '+cliKeyLabel(cliF.asesor):'',cliF.estado?'Estado: '+cliF.estado:'',cliF.q?'Búsqueda: «'+cliF.q+'»':'',...F,S0?`Orden: ${(D.find(d=>d.k===S0.k)||{}).l} ${S0.d==='desc'?'↓':'↑'}`:''].filter(Boolean);
+  const S0=(cliF.srt||{})[v];const top=[filterUnit==='ALL'?'Toda la organización':(U[fUnit()]?.n||''),cliF.asesor?'Asesor: '+cliKeyLabel(cliF.asesor):'',cliF.estado?'Estado: '+cliF.estado:'',cliF.prod?'Producto: '+cliF.prod:'',cliF.q?'Búsqueda: «'+cliF.q+'»':'',...F,S0?`Orden: ${(D.find(d=>d.k===S0.k)||{}).l} ${S0.d==='desc'?'↓':'↑'}`:''].filter(Boolean);
   let body='';
   if(v==='res')body=`<table><thead><tr><th>N.º</th>${D.map(d=>`<th class="${d.num?'num':''}">${esc(d.l)}</th>`).join('')}</tr></thead><tbody>${L.map((r,i)=>`<tr><td>${i+1}</td>${D.map(d=>`<td class="${d.num?'num':''}">${val(d,r)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
   else{const key=D[0],rest=D.slice(1),per=11,parts=[];for(let i=0;i<rest.length;i+=per)parts.push(rest.slice(i,i+per));
@@ -1066,7 +1127,7 @@ function openCli(id){
    ${cliSelOtro('cliente','Cliente *',CLI_CLIENTES,r.cliente,ro,'style="grid-column:span 2"')}${cliSelOtro('departamento','Departamento / Área',CLI_DEPTOS,r.departamento,ro)}${F('ruc','RUC / ID tributario')}
    ${F('responsable','Nombre del responsable')}${F('telefono','Teléfono','tel')}${F('email','E-mail','email','style="grid-column:span 2"')}
    ${sec('Trabajo')}
-   ${F('trabajo','Trabajo *','text','style="grid-column:span 2"')}${F('cantidad','Cantidad','number')}${F('formato','Formato')}
+   ${F('trabajo','Trabajo *','text','style="grid-column:span 2"')}${F('cantidad','Cantidad','number')}${F('formato','Formato (ancho x alto en cm)','text','title="Ej. 21 x 29.7"')}${cliSelOtro('producto','Tipo de producto',CLI_PRODUCTOS,r.producto,ro,'style="grid-column:span 2"')}<div id="cliPrev" style="grid-column:1/-1"></div>
    ${F('tapa','Tapa','text','style="grid-column:span 2"')}${F('hojas','Hojas / interiores')}${F('paginas','N.º de páginas','number')}
    ${F('encuadernacion','Encuadernación','text','style="grid-column:span 2"')}${F('encarte','Encarte','text','style="grid-column:span 2"')}
    <label style="grid-column:1/-1">Otros<textarea name="otros" ${ro}>${esc(r.otros||'')}</textarea></label>
@@ -1101,11 +1162,12 @@ function openCli(id){
   bindCliDlg();dl.showModal();
 }
 function readCliForm(){const fd=new FormData($('#cliFrm'));const o={...cliEd.r};
-  ['proforma','unidad','asesor','fechaIngreso','horaIngreso','fechaProforma','horaProforma','cliente','departamento','ruc','responsable','telefono','email','trabajo','cantidad','formato','tapa','hojas','paginas','encuadernacion','encarte','otros','tipoDoc','diseno','correccion','preprensa','servicio','job','fechaInicio','fechaEntrega','entregaConf','entregaReal','precio','precioIgv','precioFecha','precioAprobo','pedidoInterno','pedidoAprobado','pedidoFecha'].forEach(k=>{const v=fd.get(k);if(v!==null)o[k]=String(v).trim()});
-  ['cliente','departamento'].forEach(k=>{if(o[k]==='__otro')o[k]=String(fd.get(k+'Otro')||'').trim()});
+  ['proforma','unidad','asesor','fechaIngreso','horaIngreso','fechaProforma','horaProforma','cliente','departamento','ruc','responsable','telefono','email','trabajo','cantidad','formato','producto','tapa','hojas','paginas','encuadernacion','encarte','otros','tipoDoc','diseno','correccion','preprensa','servicio','job','fechaInicio','fechaEntrega','entregaConf','entregaReal','precio','precioIgv','precioFecha','precioAprobo','pedidoInterno','pedidoAprobado','pedidoFecha'].forEach(k=>{const v=fd.get(k);if(v!==null)o[k]=String(v).trim()});
+  ['cliente','departamento','producto'].forEach(k=>{if(o[k]==='__otro')o[k]=String(fd.get(k+'Otro')||'').trim()});
   ['cantidad','precio','paginas'].forEach(k=>{o[k]=o[k]===''||o[k]==null?'':+o[k]});['vbAsesor','vbCliente','vbCostos'].forEach(k=>o[k]=!!fd.get(k));return o}
 function bindCliDlg(){
   const dl=$('#cliDlg');
+  ['producto','productoOtro','formato','paginas','encuadernacion','tapa'].forEach(k=>{const e=$('#cliFrm [name='+k+']');if(e){e.addEventListener('change',cliPrevUpdate);e.addEventListener('input',cliPrevUpdate)}});cliPrevUpdate();
   const ec=$('#cliFrm [name=entregaConf]');if(ec)ec.addEventListener('change',()=>{const l=$('#cliEntReal');l.hidden=ec.value!=='Entregado';const i=l.querySelector('input');if(!l.hidden&&!i.value)i.value=today()});
   document.querySelectorAll('#cliFrm [data-otro]').forEach(s=>s.addEventListener('change',()=>{const i=$('#cliFrm [name='+s.dataset.otro+'Otro]');i.hidden=s.value!=='__otro';if(!i.hidden)i.focus()}));
   $('#cliCancel').onclick=()=>dl.close();
@@ -1203,7 +1265,7 @@ function printCli(id,mode){
 const CLI_XCOLS=[['codigo','Código'],['proforma','N.º proforma'],['tipoDoc','Tipo (Cotización/Orden/Cotización y Orden)'],['unidad','Unidad'],['asesor','Asesor comercial'],
  ['fechaIngreso','Fecha de ingreso','d'],['horaIngreso','Hora de ingreso','h'],['fechaProforma','Fecha recepción de proforma','d'],['horaProforma','Hora de recepción','h'],
  ['cliente','Cliente'],['departamento','Departamento / Área'],['ruc','RUC / ID tributario'],['responsable','Nombre del responsable'],['telefono','Teléfono'],['email','E-mail'],
- ['trabajo','Trabajo'],['cantidad','Cantidad','n'],['formato','Formato'],['tapa','Tapa'],['hojas','Hojas / interiores'],['paginas','N.º de páginas','n'],['encuadernacion','Encuadernación'],['encarte','Encarte'],['otros','Otros'],
+ ['trabajo','Trabajo'],['producto','Tipo de producto'],['cantidad','Cantidad','n'],['formato','Formato'],['tapa','Tapa'],['hojas','Hojas / interiores'],['paginas','N.º de páginas','n'],['encuadernacion','Encuadernación'],['encarte','Encarte'],['otros','Otros'],
  ['diseno','Diseño (Nuevo/Modificar)'],['correccion','Corrección (Sí/No)'],['preprensa','Preprensa (Sí/No)'],['servicio','Servicio de (Impresión/Reimpresión)'],
  ['job','JOB N.º'],['fechaInicio','Fecha de inicio','d'],['fechaEntrega','Fecha de entrega al cliente (original)','d'],['estado','Estado actual'],['entregaConf','Entrega del material (Pendiente/Entregado)'],['entregaReal','Entregado el (fecha real)','d'],
  ['precio','Precio aprobado (S/)','n'],['precioIgv','IGV (Incluye IGV/Más IGV/Exonerado)'],['precioFecha','Fecha de aprobación','d'],['precioAprobo','Aprobado por'],['pedidoInterno','N.º de pedido interno'],['pedidoAprobado','Pedido interno aprobado (Sí/No)'],['pedidoFecha','Fecha de aprobación del pedido interno','d'],
@@ -1503,7 +1565,7 @@ function cliRepPrint(){const src=$('#crBody');if(!src)return;
   const clean=()=>{box.remove();st.remove();document.title=oldT;window.removeEventListener('afterprint',clean)};window.addEventListener('afterprint',clean);setTimeout(()=>window.print(),60)}
 function bindClientes(){
   const qi=$('#cliQ');if(qi)qi.oninput=e=>{cliF.q=e.target.value;const p=e.target.selectionStart;render();const n2=$('#cliQ');n2.focus();try{n2.setSelectionRange(p,p)}catch(_){}};
-  const es=$('#cliEst');if(es)es.onchange=e=>{cliF.estado=e.target.value;render()};
+  const es=$('#cliEst');if(es)es.onchange=e=>{cliF.estado=e.target.value;render()};const cpd=$('#cliProd');if(cpd)cpd.onchange=e=>{cliF.prod=e.target.value;render()};
   const as=$('#cliAse');if(as)as.onchange=e=>{cliF.asesor=e.target.value;render()};
   const rq=$('#cliReq');if(rq)rq.onchange=e=>{cliF.req=e.target.value;render()};
   const nb=$('#cliNew');if(nb)nb.onclick=()=>openCli(null);
