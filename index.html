@@ -155,6 +155,9 @@ dialog label.full{grid-column:1/-1}
 .org .row.sel{background:var(--cyan-soft)}
 @media (prefers-reduced-motion:no-preference){.meter b{transition:width .4s ease}}
 .vchart{position:relative;min-height:280px}
+.gvbars{display:flex;flex-direction:column;gap:7px}.gvb{display:grid;grid-template-columns:minmax(0,44%) minmax(60px,1fr) auto;gap:10px;align-items:center;font-size:.8rem}.gvb-l{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.gvb-l small{display:block;color:var(--ink-2);font-size:.7rem;overflow:hidden;text-overflow:ellipsis}.gvb-t{background:var(--rule-2);border-radius:4px;height:14px;overflow:hidden}.gvb-f{display:block;height:100%;border-radius:4px}.gvb-v{font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:600}
+button.kpi{font:inherit;color:inherit}
+@media(max-width:640px){.gvb{grid-template-columns:minmax(0,1fr) auto}.gvb-t{grid-column:1/-1;grid-row:2}}
 .vtip{position:absolute;pointer-events:none;background:var(--sheet);border:1px solid var(--rule);border-radius:6px;box-shadow:var(--shadow);padding:6px 10px;font-size:.76rem;white-space:nowrap;z-index:5;font-variant-numeric:tabular-nums}
 .vtip .h{color:var(--ink-2);margin-bottom:2px}
 .vtip i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px}
@@ -584,7 +587,7 @@ async function loadUsers(){
 }
 
 /* ===== Navegación ===== */
-const TABS=[['dash','Dashboard'],['ventas','Reportes'],['org','Unidades'],['cal','Calendario'],['req','Requerimientos'],['clientes','Ventas EIU'],['prod','Costos y Producción'],['cot','Cotizaciones'],...COLS.map(c=>[c,SCH[c].t])];
+const TABS=[['dash','Dashboard'],['ventas','Reportes'],['org','Unidades'],['cal','Calendario'],['req','Requerimientos'],['clientes','Ventas EIU'],['prod','Costos y Producción'],['cot','Cotizaciones'],['gv','Gestión de Ventas'],...COLS.map(c=>[c,SCH[c].t])];
 let tab='dash',filterUnit='ALL',q='';
 try{const h=location.hash.slice(1);if(TABS.some(t=>t[0]===h))tab=h}catch(e){}
 function tabsList(){return canManage()&&mode==='db'?[...TABS,['users','Usuarios']]:TABS}
@@ -618,6 +621,7 @@ function render(){
   else if(tab==='clientes')v.innerHTML=viewClientes();
   else if(tab==='prod')v.innerHTML=viewProdMod();
   else if(tab==='cot')v.innerHTML=viewCot();
+  else if(tab==='gv')v.innerHTML=viewGV();
   else if(tab==='users')v.innerHTML=viewUsers();
   else v.innerHTML=viewList(tab);
   bindView();
@@ -4366,6 +4370,7 @@ function bindView(){
   if(tab==='clientes')bindClientes();
   if(tab==='prod')bindProdMod();
   if(tab==='cot')bindCot();
+  if(tab==='gv')bindGV();
   const lf=$('#loginF');if(lf){lf.onsubmit=doLogin;const lu=$('#lgUser');if(lu&&!lu.value)lu.focus()}
   const ba=$('#baGo');if(ba)ba.onclick=becomeAdmin;
   const l2=$('#lgOut2');if(l2)l2.onclick=logout;
@@ -4382,6 +4387,480 @@ function bindView(){
     if(!ce.dataset.arm){ce.dataset.arm='1';ce.textContent='Confirmar: quitar ejemplos';return}
     ce.disabled=true;try{for(const c of COLS)for(const r of S[c].filter(x=>x.ejemplo))await del(c,r.id);toast('Se quitaron los datos de ejemplo.')}catch(e){dbErr(e)}};
 }
+
+/* ===== Módulo: Gestión de Ventas (catálogo, proformas, atención, call center, mensajes, análisis) ===== */
+let GV=[],GVV=0,GVM=null,GVMV=-1;
+const GV_COL='gestion_ventas';
+let gvF={vista:'tab',desde:'',hasta:'',ase:'',q:'',cat:'',est:'',tipo:'',orden:'imp',rotTr:true,page:0,abcBy:'imp',clEst:'',atEst:'',atAse:'',atCanal:''};
+const GV_TABS=[['tab','📊 Tablero'],['cat','📚 Catálogo y precios'],['ven','🧾 Ventas'],['ase','👤 Asesores'],['top','🏆 Más vendidos'],['rot','🔄 Rotación'],['cli','👥 Clientes'],['prof','📝 Proformas'],['aten','🎧 Atención y call center'],['msg','📣 Mensajes masivos']];
+const GV_TIPO={V:'Venta',N:'Nota de crédito',A:'Anulado',C:'Compra / ingreso',I:'Saldo inicial',TS:'Transferencia (salida)',TE:'Transferencia (entrada)',J:'Ajuste',O:'Otro'};
+const GV_CATS=['Biblias','Libros','Guías de estudio (GEB)','Educación','Cuadernos','Revistas','Otros'];
+const GV_CANAL=['Llamada entrante','Llamada saliente','WhatsApp','Correo','Presencial','Redes sociales'];
+const GV_MOTIVO=['Consulta de precio / stock','Pedido','Cotización','Seguimiento','Reclamo','Cobranza','Despacho / envío','Otro'];
+const GV_RES=['Venta concretada','Proforma enviada','Pendiente','Interesado (volver a llamar)','No contesta','No interesado','Resuelto'];
+const GV_PROF_EST=['Borrador','Enviada','Aceptada','Rechazada','Vendida'];
+const gvS=v=>'S/ '+(+v||0).toLocaleString('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2});
+const gvI=v=>Math.round(+v||0).toLocaleString('es-PE');
+const gvD=s=>s?fdate(String(s).slice(0,10)):'—';
+const gvPct=v=>isFinite(v)?(v*100).toLocaleString('es-PE',{maximumFractionDigits:1})+'%':'—';
+const gvCanEdit=()=>!readOnly;
+const gvCanImport=()=>!readOnly&&(canManage()||(myAcc()||{}).rol==='Responsable de unidad');
+function gvNum(v){if(v==null||v==='')return null;if(typeof v==='number')return v;const s=String(v).replace(/,/g,'').trim();if(!s)return null;const x=+s;return isFinite(x)?x:null}
+function gvCatAuto(nom){const t=norm(nom||'');
+  if(/biblia/.test(t))return 'Biblias';if(/\bgeb\b|trim(estre)? 20|leccion|escuela sabatica/.test(t))return 'Guías de estudio (GEB)';
+  if(/educacion biblica|cada dia con dios/.test(t))return 'Educación';if(/cuaderno/.test(t))return 'Cuadernos';if(/revista/.test(t))return 'Revistas';return 'Libros'}
+function gvUsrName(u){if(!u)return 'Sin asesor';const a=GV.find(d=>d.kind==='ase'&&d.usuario===u);if(a&&a.nombre)return a.nombre;return u.split(/[._]/).map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(' ')}
+function gvTipoOf(comp,cant,usr){const c=String(comp||'').trim();
+  if(/^ANUL/i.test(c))return 'A';if(/^[FB]C\d/i.test(c))return 'N';if(/^[FB]\d/i.test(c))return 'V';
+  if(/^-+$/.test(c)&&usr)return 'V';if(/^\(DOC/i.test(c))return 'C';if(/SALDO INICIAL/i.test(c))return 'I';
+  if(/SALIDA POR TRANSF/i.test(c))return 'TS';if(/ENTRADA POR TRANSF/i.test(c))return 'TE';if(/AJUSTE/i.test(c))return 'J';return usr?'V':'O'}
+function gvDest(comp){const m=String(comp||'').match(/ A (.+?)\)\s*$/);return m?m[1].trim():''}
+function gvImp(){return GV.find(d=>d.id==='kximp')||null}
+function gvOv(cod){return GV.find(d=>d.kind==='prd'&&d.cod===cod)||{}}
+function gvCliDoc(nom){const k=norm(nom||'');return GV.find(d=>d.kind==='cli'&&norm(d.nombre)===k)||null}
+async function gvPut(o){o.actualizado=new Date().toISOString();if(!o.creadoPor)o.creadoPor=actorId();await db.collection(GV_COL).doc(o.id).set(o)}
+async function gvDel(id){await db.collection(GV_COL).doc(id).delete()}
+
+/* ---- Modelo de datos (se recalcula solo cuando cambian los datos) ---- */
+function gvModel(){
+  if(GVM&&GVMV===GVV)return GVM;
+  const imp=gvImp(),P=(imp&&imp.P)||[];
+  const rows=imp?GV.filter(d=>d.kind==='kx'&&d.imp===imp.imp).sort((a,b)=>a.n-b.n).flatMap(c=>c.r||[]):[];
+  const prods=P.map(([cod,nom],i)=>({i,cod,nom,mov:[]}));
+  rows.forEach(r=>{const p=prods[r[0]];if(p)p.mov.push(r)});
+  let dmin='',dmax='';
+  prods.forEach(p=>{p.mov.sort((a,b)=>a[1]<b[1]?-1:a[1]>b[1]?1:0);
+    let st=0,co=0,pl=0,lastV='';p.mov.forEach(r=>{if(r[5]!=null)st=r[5];if(r[6])co=r[6];if(r[2]==='V'&&r[7]){pl=r[7];lastV=r[1]}const d=r[1].slice(0,10);if(!dmin||d<dmin)dmin=d;if(!dmax||d>dmax)dmax=d});
+    const ov=gvOv(p.cod);p.stock=st;p.costo=co;p.ultPrecio=pl;p.ultVenta=lastV;p.cat=ov.cat||gvCatAuto(p.nom);p.precio=ov.precio!=null&&ov.precio!==''?+ov.precio:pl;p.precioMay=ov.precioMay!=null&&ov.precioMay!==''?+ov.precioMay:null;p.stockMin=ov.stockMin!=null&&ov.stockMin!==''?+ov.stockMin:null;p.notas=ov.notas||''});
+  GVM={imp,prods,dmin,dmax,n:rows.length};GVMV=GVV;return GVM}
+function gvRange(M){M=M||gvModel();const d0=gvF.desde||M.dmin,d1=gvF.hasta||M.dmax;return [d0,d1]}
+/* Líneas de venta del periodo (ventas positivas, notas de crédito negativas) */
+function gvLines(M,d0,d1){M=M||gvModel();if(!d0)[d0,d1]=gvRange(M);const out=[];
+  M.prods.forEach(p=>p.mov.forEach(r=>{if(r[2]!=='V'&&r[2]!=='N')return;const d=r[1].slice(0,10);if(d<d0||d>d1)return;const s=r[2]==='N'?-1:1;
+    out.push({p,f:r[1],d,t:r[2],comp:r[3],q:s*(r[4]||0),pr:r[7]||0,ds:r[8]||0,imp:s*(r[9]!=null?r[9]:(r[4]||0)*(r[7]||0)),cost:s*(r[4]||0)*(r[6]||0),u:r[10]||'',cli:r[11]||'Sin cliente'})}));
+  return out}
+function gvSum(L){const imp=L.reduce((a,x)=>a+x.imp,0),cost=L.reduce((a,x)=>a+x.cost,0),q=L.reduce((a,x)=>a+x.q,0);const comps=new Set(L.filter(x=>x.t==='V').map(x=>x.comp+'|'+(/^-+$/.test(x.comp)?x.f:''))),clis=new Set(L.map(x=>x.cli));return {imp,cost,mg:imp-cost,q,nc:comps.size,ncli:clis.size,tk:comps.size?imp/comps.size:0}}
+function gvGroup(L,kf){const m=new Map();L.forEach(x=>{const k=kf(x);let g=m.get(k);if(!g){g={k,L:[]};m.set(k,g)}g.L.push(x)});return [...m.values()].map(g=>({...g,...gvSum(g.L)}))}
+function gvMonths(d0,d1){const out=[];let [y,m]=d0.slice(0,7).split('-').map(Number);const [y1,m1]=d1.slice(0,7).split('-').map(Number);while(y<y1||(y===y1&&m<=m1)){out.push(`${y}-${String(m).padStart(2,'0')}`);m++;if(m>12){m=1;y++}}return out}
+const gvMesL=k=>V_MES[+k.slice(5,7)-1]+(k.slice(2,4)?' '+k.slice(2,4):'');
+/* Rotación de inventario por producto en el periodo (stock promedio ponderado por días) */
+function gvRot(p,d0,d1,withTr){
+  const t0=Date.parse(d0+'T00:00:00'),t1=Date.parse(d1+'T23:59:59'),dias=Math.max(1,Math.round((t1-t0)/864e5));
+  let st=0,ini=null,area=0,tPrev=t0,vend=0,trs=0,ent=0;
+  for(const r of p.mov){const t=Date.parse(r[1].replace(' ','T'));if(isNaN(t))continue;const after=r[5]!=null?r[5]:st;
+    if(t<t0){st=after;continue}if(t>t1)break;if(ini==null)ini=st;area+=st*(t-tPrev);tPrev=t;
+    const q=Math.abs(r[4]||0);if(r[2]==='V')vend+=q;else if(r[2]==='N')vend-=q;else if(r[2]==='TS')trs+=q;else if(r[2]==='TE'||r[2]==='C'||r[2]==='I')ent+=q;st=after}
+  if(ini==null)ini=st;area+=st*(t1-tPrev);const prom=area/(t1-t0),sal=vend+(withTr?trs:0),rot=prom>0?sal/prom:(sal>0?Infinity:0);
+  const diario=sal/dias,cob=diario>0?st/diario:(st>0?Infinity:0);
+  const cls=sal<=0?(st>0?'Sin movimiento':'Sin stock ni ventas'):st<=0?'Agotado':cob<=60?'Alta':cob<=180?'Media':'Baja';
+  return {ini,fin:st,prom,vend,trs,ent,sal,rot,diasInv:rot>0&&isFinite(rot)?dias/rot:null,cob,cls,dias}}
+const GV_ROTC={'Alta':'ok','Media':'warn','Baja':'bad','Sin movimiento':'bad','Agotado':'warn','Sin stock ni ventas':''};
+function gvAseList(M,L){const s=new Set(L.map(x=>x.u).filter(Boolean));GV.filter(d=>d.kind==='ase').forEach(d=>s.add(d.usuario));return [...s].sort((a,b)=>gvUsrName(a).localeCompare(gvUsrName(b)))}
+function gvClientes(M){M=M||gvModel();const L=gvLines(M,M.dmin||'0000',M.dmax||'9999');const m=new Map();
+  L.forEach(x=>{const k=norm(x.cli);let c=m.get(k);if(!c){c={k,nombre:x.cli,imp:0,comps:new Set(),ult:'',ases:{}};m.set(k,c)}c.imp+=x.imp;if(x.t==='V')c.comps.add(x.comp);if(x.d>c.ult)c.ult=x.d;c.ases[x.u]=(c.ases[x.u]||0)+Math.abs(x.imp)});
+  GV.filter(d=>d.kind==='cli').forEach(d=>{const k=norm(d.nombre);if(!m.has(k))m.set(k,{k,nombre:d.nombre,imp:0,comps:new Set(),ult:'',ases:{}})});
+  const ref=M.dmax||today();
+  return [...m.values()].map(c=>{const doc=gvCliDoc(c.nombre)||{};const ase=doc.asesor||Object.entries(c.ases).sort((a,b)=>b[1]-a[1])[0]?.[0]||'';const dias=c.ult?Math.round((Date.parse(ref)-Date.parse(c.ult))/864e5):null;
+    return {...c,doc,ncomp:c.comps.size,ase,tel:doc.telefono||'',email:doc.email||'',tipo:doc.tipo||(/,/.test(c.nombre)?'Persona':'Institución / empresa'),dias,est:dias==null?'Prospecto':dias<=60?'Activo':dias<=120?'En riesgo':'Inactivo'}}).sort((a,b)=>b.imp-a.imp)}
+function gvPhone(t){let d=String(t||'').replace(/\D/g,'');if(!d)return '';if(d.length===9&&d[0]==='9')d='51'+d;return d}
+function gvFill(tpl,c){return String(tpl||'').replace(/\{nombre\}/gi,(c.nombre||'').split(',').reverse().join(' ').trim().replace(/\s+/g,' ')).replace(/\{asesor\}/gi,gvUsrName(c.ase)).replace(/\{ultima_compra\}/gi,c.ult?gvD(c.ult):'—')}
+
+/* ---- Importación del reporte de productos vendidos (kardex Lamb) ---- */
+function gvParseSheet(aoa){
+  let hi=aoa.findIndex(r=>r&&r.some(v=>norm(v)==='producto')&&r.some(v=>norm(v)==='comprobante'));if(hi<0)throw new Error('No se encontró la fila de títulos (PRODUCTO, CÓDIGO, COMPROBANTE…).');
+  const H=aoa[hi].map(v=>norm(v));const ix=k=>H.findIndex(h=>h===k);
+  const c={p:ix('producto'),cod:ix('codigo'),comp:ix('comprobante'),f:ix('fecha'),sa:ix('stock antes'),q:ix('cantidad'),sd:ix('stock despues'),co:ix('costo'),pr:ix('precio'),ds:ix('descuento'),to:ix('total'),u:ix('usuario'),cl:ix('cliente')};
+  if([c.p,c.cod,c.comp,c.f,c.q].some(v=>v<0))throw new Error('Faltan columnas: se necesitan PRODUCTO, CÓDIGO, COMPROBANTE, FECHA y CANTIDAD.');
+  const head=aoa.slice(0,hi).flat().filter(Boolean).map(String).join(' ');const ent=(head.match(/ENTIDAD\s*:\s*([^\n]+)/i)||[])[1]||'';
+  const out=[];
+  for(let i=hi+1;i<aoa.length;i++){const r=aoa[i];if(!r)continue;let f=r[c.f];if(f==null||f==='')continue;
+    if(f instanceof Date)f=f.toISOString().slice(0,19).replace('T',' ');f=String(f).trim();if(!/^\d{4}-\d{2}-\d{2}/.test(f)){const m=f.match(/^(\d{2})\/(\d{2})\/(\d{4})(.*)$/);if(m)f=`${m[3]}-${m[2]}-${m[1]}${m[4]}`;else continue}
+    const cod=String(r[c.cod]??'').trim(),nom=String(r[c.p]??'').trim();if(!cod||/TOTALES/i.test(cod))continue;
+    const comp=String(r[c.comp]??'').trim(),usr=String(r[c.u]??'').trim(),q=gvNum(r[c.q])||0,t=gvTipoOf(comp,q,usr);
+    out.push({cod,nom,f:f.slice(0,19),t,comp,q,sd:gvNum(r[c.sd]),co:gvNum(r[c.co]),pr:gvNum(r[c.pr]),ds:gvNum(r[c.ds]),to:gvNum(r[c.to]),u:usr,cl:String(r[c.cl]??'').trim(),d:t==='TS'?gvDest(comp):''})}
+  return {rows:out,ent:ent.trim()}}
+function gvKey(x){return [x.cod,x.f,x.comp,x.q,x.sd].join('|')}
+function openGvImport(){if(!gvCanImport()){toast('Solo el administrador o un responsable de unidad puede importar.');return}
+  let dl=$('#gvIDlg');if(!dl){dl=document.createElement('dialog');dl.id='gvIDlg';dl.style.width='min(860px,calc(100vw - 24px))';document.body.appendChild(dl)}
+  gvToastOut(dl);const M=gvModel();
+  dl.innerHTML=`<div class="hd"><h2>Importar reporte de productos vendidos</h2><div class="note">Sube el Excel «Reporte de Productos Vendidos» del sistema (Lamb). Se leen las ventas (facturas y boletas), notas de crédito, compras, transferencias entre almacenes, ajustes y el stock de cada producto.${M.n?` Ya hay ${gvI(M.n)} movimientos cargados (${gvD(M.dmin)} – ${gvD(M.dmax)}).`:''}</div></div>
+   <div class="bd" style="display:block"><label class="btn primary" for="gvIFile" style="display:inline-block">Elegir archivo Excel…</label><input id="gvIFile" type="file" accept=".xlsx,.xls" hidden><div id="gvIBody" style="margin-top:12px"></div></div>
+   <div class="ft"><div></div><div style="display:flex;gap:10px"><button type="button" class="btn" id="gvIX">Cerrar</button><button type="button" class="btn primary" id="gvIGo" disabled>Importar</button></div></div>`;
+  let parsed=null;$('#gvIX').onclick=()=>dl.close();
+  $('#gvIFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;const B=$('#gvIBody');B.innerHTML='<div class="note">Leyendo el archivo…</div>';
+    try{const X=await loadXLSX();const wb=X.read(await f.arrayBuffer(),{type:'array',cellDates:false});const ws=wb.Sheets[wb.SheetNames[0]];const aoa=X.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
+      parsed=gvParseSheet(aoa);parsed.archivo=f.name;const R=parsed.rows;if(!R.length)throw new Error('El archivo no tiene movimientos.');
+      const V=R.filter(x=>x.t==='V'),N=R.filter(x=>x.t==='N'),cods=new Set(R.map(x=>x.cod)),fs=R.map(x=>x.f).sort();
+      const old=M.n?new Set(M.prods.flatMap(p=>p.mov.map(r=>gvKey({cod:p.cod,f:r[1],comp:r[3],q:r[4],sd:r[5]})))):new Set();const nuevos=R.filter(x=>!old.has(gvKey(x))).length;
+      B.innerHTML=`<div class="kpis"><div class="kpi"><span class="l">Movimientos</span><span class="v">${gvI(R.length)}</span><span class="s">${nuevos<R.length?gvI(nuevos)+' nuevos':'todos nuevos'}</span></div><div class="kpi"><span class="l">Productos</span><span class="v">${gvI(cods.size)}</span></div>
+        <div class="kpi"><span class="l">Ventas (líneas)</span><span class="v">${gvI(V.length)}</span><span class="s">${gvS(V.reduce((a,x)=>a+(x.to||0),0)-N.reduce((a,x)=>a+(x.to||0),0))} netos</span></div><div class="kpi"><span class="l">Periodo</span><span class="v" style="font-size:1rem">${gvD(fs[0])} – ${gvD(fs[fs.length-1])}</span><span class="s">${esc(parsed.ent||'')}</span></div></div>
+        ${M.n?`<fieldset style="border:1px solid var(--rule);border-radius:8px;padding:10px 14px;margin-top:12px"><legend class="note">¿Qué hago con lo ya cargado?</legend><label style="flex-direction:row;align-items:center;gap:8px;font-weight:400"><input type="radio" name="gvIMode" value="merge" checked> Unir: agregar solo los movimientos nuevos (no duplica)</label><label style="flex-direction:row;align-items:center;gap:8px;font-weight:400;margin-top:6px"><input type="radio" name="gvIMode" value="replace"> Reemplazar todo por este archivo</label></fieldset>`:''}
+        <div class="note" style="margin-top:8px">Los precios, categorías, clientes, proformas y atenciones que registres en el sistema no se borran al importar.</div>`;
+      $('#gvIGo').disabled=false}catch(err){parsed=null;B.innerHTML=`<div class="alert bad">${esc(err.message||err)}</div>`;$('#gvIGo').disabled=true}};
+  $('#gvIGo').onclick=async()=>{if(!parsed)return;const go=$('#gvIGo');go.disabled=true;const mode=(dl.querySelector('[name=gvIMode]:checked')||{}).value||'replace';
+    try{let R=parsed.rows;const M2=gvModel();
+      if(mode==='merge'&&M2.n){const prev=M2.prods.flatMap(p=>p.mov.map(r=>({cod:p.cod,nom:p.nom,f:r[1],t:r[2],comp:r[3],q:r[4],sd:r[5],co:r[6],pr:r[7],ds:r[8],to:r[9],u:r[10],cl:r[11],d:r[12]})));const seen=new Set(prev.map(gvKey));R=prev.concat(R.filter(x=>!seen.has(gvKey(x))))}
+      const pi=new Map(),P=[];R.forEach(x=>{if(!pi.has(x.cod)){pi.set(x.cod,P.length);P.push([x.cod,x.nom])}else if(x.nom)P[pi.get(x.cod)][1]=x.nom});
+      const comp=R.map(x=>[pi.get(x.cod),x.f,x.t,x.comp,x.q,x.sd,x.co,x.pr,x.ds,x.to,x.u,x.cl,x.d||'']);
+      const impId=uid(),CH=500,docs=[];for(let i=0;i<comp.length;i+=CH)docs.push({id:`kx-${impId}-${i/CH}`,kind:'kx',imp:impId,n:i/CH,r:comp.slice(i,i+CH)});
+      const oldIds=GV.filter(d=>d.kind==='kx').map(d=>d.id);
+      for(let i=0;i<docs.length;i++){go.textContent=`Guardando ${i+1} de ${docs.length}…`;await db.collection(GV_COL).doc(docs[i].id).set(docs[i])}
+      const fs=R.map(x=>x.f).sort();
+      await db.collection(GV_COL).doc('kximp').set({id:'kximp',kind:'kximp',imp:impId,P,archivo:parsed.archivo,entidad:parsed.ent,filas:R.length,desde:fs[0],hasta:fs[fs.length-1],fecha:new Date().toISOString(),por:actorName()});
+      for(const id of oldIds){try{await gvDel(id)}catch(e){}}
+      toast(`Importados ${gvI(R.length)} movimientos de ${gvI(P.length)} productos.`);dl.close();gvF.desde='';gvF.hasta='';render()}
+    catch(e){go.disabled=false;go.textContent='Importar';toast('No se pudo importar: '+(e.message||e))}};
+  dl.showModal()}
+
+/* ---- Vistas ---- */
+function gvBars(items,fmt,opt){opt=opt||{};fmt=fmt||gvS;if(!items.length)return '<div class="note" style="padding:24px 0;text-align:center">Sin datos para este periodo.</div>';const mx=Math.max(...items.map(x=>Math.abs(x.v)),1);
+  return `<div class="gvbars">${items.map((x,i)=>`<div class="gvb" title="${esc(x.l)}: ${esc(fmt(x.v))}${x.s?' · '+esc(x.s):''}"><span class="gvb-l">${opt.rank?`<b>${i+1}.</b> `:''}${esc(x.l)}${x.s?`<small>${esc(x.s)}</small>`:''}</span><span class="gvb-t"><span class="gvb-f" style="width:${Math.max(1.5,Math.abs(x.v)/mx*100)}%;background:${x.c||'var(--cyan)'}"></span></span><span class="gvb-v">${esc(fmt(x.v))}</span></div>`).join('')}</div>`}
+const GV_PAL=['#0a8fb8','#c2185b','#e5a50a','#2f8a4f','#6b4fbb','#d0622b','#4a5568','#1f9e89','#a0522d','#7a8699'];
+function gvPeriodBar(M){const [d0,d1]=gvRange(M);
+  return `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="note">Periodo:</span><input type="date" id="gvD0" value="${d0||''}" min="${M.dmin}" max="${M.dmax}" aria-label="Desde"><span class="note">al</span><input type="date" id="gvD1" value="${d1||''}" min="${M.dmin}" max="${M.dmax}" aria-label="Hasta">
+   <select id="gvPer" aria-label="Periodos rápidos"><option value="">Rápido…</option><option value="all">Todo lo cargado</option>${gvMonths(M.dmin,M.dmax).reverse().map(k=>`<option value="m:${k}">${V_MESL[+k.slice(5,7)-1]} ${k.slice(0,4)}</option>`).join('')}<option value="q">Últimos 3 meses</option></select></div>`}
+function gvPager(total,size){const pages=Math.ceil(total/size);if(pages<=1)return '';const p=Math.min(gvF.page,pages-1);return `<div style="display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:8px"><span class="note">${gvI(p*size+1)}–${gvI(Math.min(total,(p+1)*size))} de ${gvI(total)}</span><button class="btn small" data-gvpg="${p-1}" ${p<=0?'disabled':''}>‹ Anterior</button><button class="btn small" data-gvpg="${p+1}" ${p>=pages-1?'disabled':''}>Siguiente ›</button></div>`}
+function gvPage(list,size){const pages=Math.max(1,Math.ceil(list.length/size));if(gvF.page>pages-1)gvF.page=pages-1;if(gvF.page<0)gvF.page=0;return list.slice(gvF.page*size,(gvF.page+1)*size)}
+
+function viewGV(){const M=gvModel(),imp=M.imp;
+  let h=`<div class="bar"><div class="left"><h2>Gestión de Ventas</h2>${imp?`<span class="note">${gvI(M.prods.length)} productos · ${gvI(M.n)} movimientos · datos del ${gvD(M.dmin)} al ${gvD(M.dmax)}${imp.entidad?' · '+esc(imp.entidad.split('\n')[0]):''}</span>`:''}</div>
+   <div class="right">${gvCanImport()?'<button class="btn" id="gvImp">⬆ Importar reporte de ventas</button>':''}${gvCanEdit()?'<button class="btn primary" id="gvNewProf">+ Nueva proforma</button>':''}</div></div>
+   <div class="cr-tabs" role="tablist" style="flex-wrap:wrap">${GV_TABS.map(([k,l])=>`<button type="button" class="${gvF.vista===k?'on':''}" data-gvv="${k}">${l}</button>`).join('')}</div>`;
+  if(!imp&&!['cli','prof','aten','msg'].includes(gvF.vista))return h+`<div class="panel empty"><strong>Aún no hay datos de ventas</strong>Importa el Excel «Reporte de Productos Vendidos» del sistema con el botón <b>⬆ Importar reporte de ventas</b>. Con él se arma el catálogo, los precios, el stock, las ventas por asesor y los análisis.${gvCanImport()?'':'<br>Pide al administrador que lo importe.'}</div>`;
+  const f={tab:gvVTab,cat:gvVCat,ven:gvVVen,ase:gvVAse,top:gvVTop,rot:gvVRot,cli:gvVCli,prof:gvVProf,aten:gvVAten,msg:gvVMsg}[gvF.vista]||gvVTab;
+  return h+f(M)}
+
+function gvVTab(M){const [d0,d1]=gvRange(M),L=gvLines(M,d0,d1),T=gvSum(L),NC=L.filter(x=>x.t==='N');
+  const val=M.prods.reduce((a,p)=>a+Math.max(0,p.stock)*(p.costo||0),0),fact=new Set(L.filter(x=>x.t==='V'&&/^F/i.test(x.comp)).map(x=>x.comp)).size,bol=new Set(L.filter(x=>x.t==='V'&&/^B/i.test(x.comp)).map(x=>x.comp)).size;
+  const byP=gvGroup(L,x=>x.p.cod).sort((a,b)=>b.imp-a.imp),byC=gvGroup(L,x=>x.cli).sort((a,b)=>b.imp-a.imp),byCat=gvGroup(L,x=>x.p.cat).sort((a,b)=>b.imp-a.imp),byA=gvGroup(L,x=>x.u).sort((a,b)=>b.imp-a.imp);
+  const aten=GV.filter(d=>d.kind==='aten'&&d.fecha>=d0&&d.fecha<=d1),pend=GV.filter(d=>d.kind==='aten'&&d.seguimiento&&d.estado!=='Cerrado'&&d.seguimiento<=today()).length;
+  const profs=GV.filter(d=>d.kind==='prof'&&d.fecha>=d0&&d.fecha<=d1);
+  return `${gvPeriodBar(M)}
+   <div class="kpis" style="margin-top:12px"><div class="kpi"><span class="l">Venta neta</span><span class="v">${kmoney(T.imp)}</span><span class="s">${gvS(T.imp)}${NC.length?' · NC '+gvS(NC.reduce((a,x)=>a+x.imp,0)):''}</span></div>
+    <div class="kpi"><span class="l">Margen bruto</span><span class="v">${kmoney(T.mg)}</span><span class="s">${gvPct(T.imp?T.mg/T.imp:NaN)} sobre la venta · costo ${kmoney(T.cost)}</span></div>
+    <div class="kpi"><span class="l">Unidades vendidas</span><span class="v">${gvI(T.q)}</span><span class="s">${gvI(byP.length)} productos distintos</span></div>
+    <div class="kpi"><span class="l">Comprobantes</span><span class="v">${gvI(T.nc)}</span><span class="s">${gvI(fact)} facturas · ${gvI(bol)} boletas · ticket ${gvS(T.tk)}</span></div>
+    <div class="kpi"><span class="l">Clientes atendidos</span><span class="v">${gvI(T.ncli)}</span><span class="s">${gvI(byA.filter(a=>a.k).length)} asesores con ventas</span></div>
+    <div class="kpi"><span class="l">Stock valorizado (costo)</span><span class="v">${kmoney(val)}</span><span class="s">${gvI(M.prods.filter(p=>p.stock>0).length)} productos con stock</span></div>
+    <div class="kpi"><span class="l">Atención y proformas</span><span class="v">${gvI(aten.length)}</span><span class="s">atenciones · ${gvI(profs.length)} proformas${pend?` · <b style="color:var(--bad)">${pend} seguimientos vencidos</b>`:''}</span></div></div>
+   <div class="panel" style="margin-top:14px"><h2 style="font-size:1.05rem">Venta mensual por asesor</h2><div class="note">Venta neta (facturas y boletas menos notas de crédito) de cada mes; pasa el mouse para ver el detalle.</div><div class="legend">${byA.slice(0,8).map((a,i)=>`<span><i style="background:${GV_PAL[i]};display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px"></i>${esc(gvUsrName(a.k))}</span>`).join('')}${byA.length>8?'<span><i style="background:#b9bec8;display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px"></i>Otros</span>':''}</div><div class="vchart" id="gvcMes"></div></div>
+   <div class="grid2" style="margin-top:14px"><div class="panel"><h2 style="font-size:1.05rem">Top 10 productos por venta</h2>${gvBars(byP.slice(0,10).map(g=>({l:g.L[0].p.nom,v:g.imp,s:gvI(g.q)+' und.'})),gvS,{rank:1})}</div>
+    <div class="panel"><h2 style="font-size:1.05rem">Top 10 clientes</h2>${gvBars(byC.slice(0,10).map(g=>({l:g.k,v:g.imp,s:gvI(g.nc)+' comprobantes',c:'var(--magenta)'})),gvS,{rank:1})}</div></div>
+   <div class="grid2" style="margin-top:14px"><div class="panel"><h2 style="font-size:1.05rem">Venta por categoría</h2>${gvBars(byCat.map((g,i)=>({l:g.k,v:g.imp,s:gvPct(T.imp?g.imp/T.imp:0)+' · margen '+gvPct(g.imp?g.mg/g.imp:NaN),c:GV_PAL[i%10]})))}</div>
+    <div class="panel"><h2 style="font-size:1.05rem">Venta por asesor</h2>${gvBars(byA.map((g,i)=>({l:gvUsrName(g.k),v:g.imp,s:gvI(g.nc)+' comprobantes · '+gvPct(T.imp?g.imp/T.imp:0),c:GV_PAL[i%10]})))}</div></div>`}
+
+function gvVCat(M){const [d0,d1]=gvRange(M),L=gvLines(M,d0,d1),vend=new Map();L.forEach(x=>vend.set(x.p.cod,(vend.get(x.p.cod)||0)+x.q));
+  const q=norm(gvF.q);let list=M.prods.filter(p=>(!q||norm(p.nom+' '+p.cod).includes(q))&&(!gvF.cat||p.cat===gvF.cat));
+  if(gvF.est==='con')list=list.filter(p=>p.stock>0);else if(gvF.est==='sin')list=list.filter(p=>p.stock<=0);else if(gvF.est==='bajo')list=list.filter(p=>p.stockMin!=null&&p.stock<=p.stockMin);else if(gvF.est==='sinprecio')list=list.filter(p=>!p.precio);
+  const so={nom:(a,b)=>a.nom.localeCompare(b.nom),stock:(a,b)=>b.stock-a.stock,imp:(a,b)=>(vend.get(b.cod)||0)-(vend.get(a.cod)||0),mg:(a,b)=>gvMg(b)-gvMg(a)}[gvF.orden]||((a,b)=>(vend.get(b.cod)||0)-(vend.get(a.cod)||0));list.sort(so);
+  const cats=[...new Set([...GV_CATS,...M.prods.map(p=>p.cat)])];const pg=gvPage(list,50);const ed=gvCanEdit();
+  return `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input class="search" id="gvQ" type="search" placeholder="Buscar producto o código…" value="${esc(gvF.q)}" style="min-width:260px">
+    <select id="gvCatF"><option value="">Todas las categorías</option>${cats.map(c=>`<option ${c===gvF.cat?'selected':''}>${esc(c)}</option>`).join('')}</select>
+    <select id="gvEstF"><option value="">Todo el stock</option><option value="con" ${gvF.est==='con'?'selected':''}>Con stock</option><option value="sin" ${gvF.est==='sin'?'selected':''}>Sin stock</option><option value="bajo" ${gvF.est==='bajo'?'selected':''}>Stock bajo el mínimo</option><option value="sinprecio" ${gvF.est==='sinprecio'?'selected':''}>Sin precio de venta</option></select>
+    <select id="gvOrd"><option value="imp" ${gvF.orden==='imp'?'selected':''}>Ordenar: más vendidos</option><option value="nom" ${gvF.orden==='nom'?'selected':''}>Ordenar: nombre</option><option value="stock" ${gvF.orden==='stock'?'selected':''}>Ordenar: mayor stock</option><option value="mg" ${gvF.orden==='mg'?'selected':''}>Ordenar: mayor margen</option></select>
+    <button class="btn" id="gvCatX">⬇ Excel del catálogo</button></div>
+   <div class="note" style="margin:8px 0">${gvI(list.length)} productos. El <b>precio de venta</b> parte del último precio facturado; puedes cambiarlo aquí y se usa en las proformas. Unidades vendidas del ${gvD(d0)} al ${gvD(d1)}.</div>
+   <div class="tbl"><table><thead><tr><th>Código</th><th>Producto</th><th>Categoría</th><th class="num">Stock</th><th class="num">Costo</th><th class="num">Precio de venta</th><th class="num">Margen</th><th class="num">Vendidas</th><th></th></tr></thead><tbody>
+   ${pg.map(p=>{const mg=gvMg(p),low=p.stockMin!=null&&p.stock<=p.stockMin;return `<tr><td class="note" style="white-space:nowrap">${esc(p.cod)}</td><td><strong>${esc(p.nom)}</strong>${p.notas?`<div class="note">${esc(p.notas)}</div>`:''}</td><td><span class="pill">${esc(p.cat)}</span></td>
+    <td class="num" style="${p.stock<=0?'color:var(--bad)':low?'color:var(--warn)':''}">${gvI(p.stock)}${low?'<div class="note">mín. '+gvI(p.stockMin)+'</div>':''}</td><td class="num">${gvS(p.costo)}</td>
+    <td class="num">${ed?`<input type="number" step="0.01" min="0" data-gvprc="${esc(p.cod)}" value="${p.precio||''}" placeholder="—" style="width:92px;text-align:right" aria-label="Precio de venta de ${esc(p.nom)}">`:gvS(p.precio)}${p.precioMay!=null?`<div class="note">por mayor ${gvS(p.precioMay)}</div>`:''}</td>
+    <td class="num" style="color:${mg<0?'var(--bad)':mg<.15?'var(--warn)':'var(--ok)'}">${p.precio?gvPct(mg):'—'}</td><td class="num">${gvI(vend.get(p.cod)||0)}</td>
+    <td style="white-space:nowrap">${ed?`<button class="btn small" data-gvpe="${esc(p.cod)}" title="Editar categoría, precio por mayor, stock mínimo">✎</button> <button class="btn small" data-gvadd="${esc(p.cod)}" title="Agregar a una nueva proforma">+ Proforma</button>`:''}</td></tr>`}).join('')}</tbody></table></div>${gvPager(list.length,50)}`}
+function gvMg(p){return p.precio?(p.precio-(p.costo||0))/p.precio:-1}
+
+function gvComps(L){const m=new Map();L.forEach(x=>{const k=x.comp+'|'+(/^-+$/.test(x.comp)?x.f:'');let c=m.get(k);if(!c){c={k,comp:x.comp,f:x.f,t:x.t,cli:x.cli,u:x.u,L:[]};m.set(k,c)}c.L.push(x);if(x.f<c.f)c.f=x.f});return [...m.values()].map(c=>({...c,imp:c.L.reduce((a,x)=>a+x.imp,0),q:c.L.reduce((a,x)=>a+x.q,0),mg:c.L.reduce((a,x)=>a+x.imp-x.cost,0)})).sort((a,b)=>b.f<a.f?-1:1)}
+function gvVVen(M){const [d0,d1]=gvRange(M);let L=gvLines(M,d0,d1);const ases=gvAseList(M,L);
+  if(gvF.ase)L=L.filter(x=>x.u===gvF.ase);if(gvF.tipo==='F')L=L.filter(x=>x.t==='V'&&/^F/i.test(x.comp));else if(gvF.tipo==='B')L=L.filter(x=>x.t==='V'&&/^B/i.test(x.comp));else if(gvF.tipo==='N')L=L.filter(x=>x.t==='N');
+  const q=norm(gvF.q);if(q)L=L.filter(x=>norm(x.cli+' '+x.comp+' '+x.p.nom).includes(q));
+  const C=gvComps(L),T=gvSum(L),pg=gvPage(C,40);
+  return `${gvPeriodBar(M)}<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px"><input class="search" id="gvQ" type="search" placeholder="Buscar cliente, comprobante o producto…" value="${esc(gvF.q)}" style="min-width:280px">
+    <select id="gvAseF"><option value="">Todos los asesores</option>${ases.map(a=>`<option value="${esc(a)}" ${a===gvF.ase?'selected':''}>${esc(gvUsrName(a))}</option>`).join('')}</select>
+    <select id="gvTipoF"><option value="">Facturas, boletas y notas</option><option value="F" ${gvF.tipo==='F'?'selected':''}>Solo facturas</option><option value="B" ${gvF.tipo==='B'?'selected':''}>Solo boletas</option><option value="N" ${gvF.tipo==='N'?'selected':''}>Solo notas de crédito</option></select><button class="btn" id="gvVenX">⬇ Excel de ventas</button></div>
+   <div class="kpis" style="margin:12px 0"><div class="kpi"><span class="l">Venta neta</span><span class="v">${gvS(T.imp)}</span></div><div class="kpi"><span class="l">Comprobantes</span><span class="v">${gvI(C.length)}</span></div><div class="kpi"><span class="l">Unidades</span><span class="v">${gvI(T.q)}</span></div><div class="kpi"><span class="l">Margen bruto</span><span class="v">${gvS(T.mg)}</span><span class="s">${gvPct(T.imp?T.mg/T.imp:NaN)}</span></div></div>
+   <div class="tbl"><table><thead><tr><th>Fecha</th><th>Comprobante</th><th>Cliente</th><th>Asesor</th><th class="num">Ítems</th><th class="num">Unidades</th><th class="num">Importe</th><th class="num">Margen</th></tr></thead><tbody>
+   ${pg.map(c=>`<tr><td style="white-space:nowrap">${gvD(c.f)}<div class="note">${esc(c.f.slice(11,16))}</div></td><td><details><summary style="cursor:pointer"><strong>${esc(c.comp)}</strong> ${c.t==='N'?'<span class="pill bad">Nota de crédito</span>':/^F/i.test(c.comp)?'<span class="pill">Factura</span>':/^B/i.test(c.comp)?'<span class="pill">Boleta</span>':'<span class="pill warn">Sin comprobante</span>'}</summary>
+     <table style="margin-top:6px;font-size:.8rem"><tbody>${c.L.map(x=>`<tr><td>${esc(x.p.nom)}</td><td class="num">${gvI(x.q)} × ${gvS(x.pr)}</td><td class="num">${gvS(x.imp)}</td></tr>`).join('')}</tbody></table></details></td>
+    <td>${esc(c.cli)}</td><td>${esc(gvUsrName(c.u))}</td><td class="num">${c.L.length}</td><td class="num">${gvI(c.q)}</td><td class="num"><strong>${gvS(c.imp)}</strong></td><td class="num">${gvS(c.mg)}</td></tr>`).join('')}</tbody></table></div>${gvPager(C.length,40)}`}
+
+function gvVAse(M){const [d0,d1]=gvRange(M),L=gvLines(M,d0,d1),T=gvSum(L),G=gvGroup(L,x=>x.u).sort((a,b)=>b.imp-a.imp),meses=gvMonths(d0,d1).length;
+  const ases=gvAseList(M,L);const at=GV.filter(d=>d.kind==='aten'&&d.fecha>=d0&&d.fecha<=d1),pf=GV.filter(d=>d.kind==='prof'&&d.fecha>=d0&&d.fecha<=d1);
+  return `${gvPeriodBar(M)}<div class="panel" style="margin-top:12px"><h2 style="font-size:1.05rem">Evolución mensual por asesor</h2><div class="note">Venta neta de cada mes del periodo.</div><div class="vchart" id="gvcAse"></div></div>
+   <div class="tbl" style="margin-top:14px"><table><thead><tr><th>Asesor</th><th class="num">Venta neta</th><th class="num">% del total</th><th class="num">Comprobantes</th><th class="num">Clientes</th><th class="num">Unidades</th><th class="num">Ticket prom.</th><th class="num">Margen</th><th>Meta del periodo</th><th class="num">Atenciones</th><th class="num">Proformas</th><th></th></tr></thead><tbody>
+   ${ases.map(u=>{const g=G.find(x=>x.k===u)||{imp:0,nc:0,ncli:0,q:0,tk:0,mg:0};const doc=GV.find(d=>d.kind==='ase'&&d.usuario===u)||{};const meta=(+doc.meta||0)*meses,av=meta?g.imp/meta:null;const a=at.filter(x=>x.asesor===u),conv=a.filter(x=>/Venta|Proforma/.test(x.resultado||'')).length;
+     return `<tr><td><strong>${esc(gvUsrName(u))}</strong><div class="note">${esc(u)}${doc.activo===false?' · inactivo':''}</div></td><td class="num"><strong>${gvS(g.imp)}</strong></td><td class="num">${gvPct(T.imp?g.imp/T.imp:0)}</td><td class="num">${gvI(g.nc)}</td><td class="num">${gvI(g.ncli)}</td><td class="num">${gvI(g.q)}</td><td class="num">${gvS(g.tk)}</td><td class="num">${gvPct(g.imp?g.mg/g.imp:NaN)}</td>
+      <td style="min-width:150px">${meta?`${meter(Math.min(100,av*100))}<div class="note">${gvPct(av)} de ${gvS(meta)}</div>`:'<span class="note">Sin meta</span>'}</td><td class="num">${a.length}${a.length?`<div class="note">${gvPct(conv/a.length)} conversión</div>`:''}</td><td class="num">${pf.filter(x=>x.asesor===u).length}</td>
+      <td style="white-space:nowrap">${gvCanEdit()?`<button class="btn small" data-gvase="${esc(u)}" title="Editar nombre y meta">✎ Meta</button>`:''}</td></tr>`}).join('')}</tbody></table></div>
+   ${gvCanEdit()?'<div style="margin-top:8px"><button class="btn small" data-gvase="">+ Agregar asesor</button> <span class="note">La meta es mensual; en el periodo se multiplica por el número de meses ('+meses+').</span></div>':''}`}
+
+function gvVTop(M){const [d0,d1]=gvRange(M);let L=gvLines(M,d0,d1);const ases=gvAseList(M,L);if(gvF.ase)L=L.filter(x=>x.u===gvF.ase);if(gvF.cat)L=L.filter(x=>x.p.cat===gvF.cat);
+  const by=gvF.abcBy==='q'?'q':'imp',G=gvGroup(L,x=>x.p.cod).filter(g=>g[by]>0).sort((a,b)=>b[by]-a[by]),tot=G.reduce((a,g)=>a+g[by],0);let acc=0;
+  G.forEach(g=>{const pr=tot?acc/tot:0;acc+=g[by];g.acc=tot?acc/tot:0;g.abc=pr<.8?'A':pr<.95?'B':'C'});const cnt=k=>G.filter(g=>g.abc===k).length;const cats=[...new Set(M.prods.map(p=>p.cat))];
+  const fmt=by==='q'?gvI:gvS;
+  return `${gvPeriodBar(M)}<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px"><select id="gvAbcBy"><option value="imp" ${by==='imp'?'selected':''}>Por importe vendido (S/)</option><option value="q" ${by==='q'?'selected':''}>Por unidades vendidas</option></select>
+    <select id="gvAseF"><option value="">Todos los asesores</option>${ases.map(a=>`<option value="${esc(a)}" ${a===gvF.ase?'selected':''}>${esc(gvUsrName(a))}</option>`).join('')}</select><select id="gvCatF"><option value="">Todas las categorías</option>${cats.map(c=>`<option ${c===gvF.cat?'selected':''}>${esc(c)}</option>`).join('')}</select></div>
+   <div class="kpis" style="margin:12px 0"><div class="kpi"><span class="l">Clase A</span><span class="v">${cnt('A')}</span><span class="s">productos que hacen el 80% de la venta</span></div><div class="kpi"><span class="l">Clase B</span><span class="v">${cnt('B')}</span><span class="s">siguiente 15%</span></div><div class="kpi"><span class="l">Clase C</span><span class="v">${cnt('C')}</span><span class="s">último 5%</span></div><div class="kpi"><span class="l">Productos vendidos</span><span class="v">${G.length}</span><span class="s">de ${M.prods.length} del catálogo</span></div></div>
+   <div class="grid2"><div class="panel"><h2 style="font-size:1.05rem">Top 15 ${by==='q'?'por unidades':'por importe'}</h2>${gvBars(G.slice(0,15).map(g=>({l:g.L[0].p.nom,v:g[by],s:by==='q'?gvS(g.imp):gvI(g.q)+' und.',c:g.abc==='A'?'var(--cyan)':g.abc==='B'?'var(--yellow)':'#b9bec8'})),fmt,{rank:1})}</div>
+   <div class="panel"><h2 style="font-size:1.05rem">Curva de concentración (Pareto)</h2><div class="note">Qué parte de la venta acumulan los productos, del más vendido al menos vendido.</div><div class="vchart" id="gvcPar"></div></div></div>
+   <div class="tbl" style="margin-top:14px"><table><thead><tr><th>#</th><th>Producto</th><th>Categoría</th><th class="num">Unidades</th><th class="num">Importe</th><th class="num">Precio prom.</th><th class="num">Margen</th><th class="num">% acumulado</th><th>ABC</th></tr></thead><tbody>
+   ${G.slice(0,150).map((g,i)=>`<tr><td>${i+1}</td><td><strong>${esc(g.L[0].p.nom)}</strong><div class="note">${esc(g.k)}</div></td><td><span class="pill">${esc(g.L[0].p.cat)}</span></td><td class="num">${gvI(g.q)}</td><td class="num">${gvS(g.imp)}</td><td class="num">${gvS(g.q?g.imp/g.q:0)}</td><td class="num">${gvPct(g.imp?g.mg/g.imp:NaN)}</td><td class="num">${gvPct(g.acc)}</td><td><span class="pill ${g.abc==='A'?'ok':g.abc==='B'?'warn':''}">${g.abc}</span></td></tr>`).join('')}</tbody></table></div>${G.length>150?`<div class="note">Se muestran los primeros 150 de ${G.length}. Usa «Excel» del catálogo para la lista completa.</div>`:''}`}
+
+function gvVRot(M){const [d0,d1]=gvRange(M);const q=norm(gvF.q);
+  let R=M.prods.map(p=>({p,...gvRot(p,d0,d1,gvF.rotTr)})).filter(x=>x.p.mov.length);if(gvF.cat)R=R.filter(x=>x.p.cat===gvF.cat);
+  const classes=['Alta','Media','Baja','Sin movimiento','Agotado'],cnt=k=>R.filter(x=>x.cls===k),valOf=L=>L.reduce((a,x)=>a+Math.max(0,x.fin)*(x.p.costo||0),0);
+  let list=R;if(gvF.est)list=list.filter(x=>x.cls===gvF.est);if(q)list=list.filter(x=>norm(x.p.nom+' '+x.p.cod).includes(q));list.sort((a,b)=>(b.sal-a.sal)||(b.fin-a.fin));
+  const dest=new Map();M.prods.forEach(p=>p.mov.forEach(r=>{if(r[2]!=='TS')return;const d=r[1].slice(0,10);if(d<d0||d>d1)return;const k=r[12]||'Otro almacén';const o=dest.get(k)||{q:0,v:0};o.q+=Math.abs(r[4]||0);o.v+=Math.abs(r[4]||0)*(r[6]||0);dest.set(k,o)}));
+  const D=[...dest.entries()].sort((a,b)=>b[1].v-a[1].v);const pg=gvPage(list,50);const cats=[...new Set(M.prods.map(p=>p.cat))];const dias=R[0]?.dias||0;
+  const fx=v=>v==null||!isFinite(v)?'—':v.toLocaleString('es-PE',{maximumFractionDigits:v<10?2:0});
+  return `${gvPeriodBar(M)}<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px"><input class="search" id="gvQ" type="search" placeholder="Buscar producto…" value="${esc(gvF.q)}" style="min-width:240px">
+    <select id="gvRotCls"><option value="">Todas las clases</option>${classes.map(c=>`<option ${c===gvF.est?'selected':''}>${c}</option>`).join('')}</select><select id="gvCatF"><option value="">Todas las categorías</option>${cats.map(c=>`<option ${c===gvF.cat?'selected':''}>${esc(c)}</option>`).join('')}</select>
+    <label style="display:flex;gap:6px;align-items:center;font-size:.85rem"><input type="checkbox" id="gvRotTr" ${gvF.rotTr?'checked':''}> Contar transferencias a otros almacenes como salida</label></div>
+   <div class="note" style="margin-top:8px"><b>Rotación</b> = salidas del periodo ÷ stock promedio (ponderado por días). <b>Días de inventario</b> = días del periodo (${dias}) ÷ rotación. <b>Cobertura</b> = stock actual ÷ salida diaria promedio. Clase: <b>Alta</b> cobertura ≤ 60 días, <b>Media</b> ≤ 180, <b>Baja</b> > 180; <b>Sin movimiento</b> = tiene stock y no salió nada.</div>
+   <div class="kpis" style="margin:12px 0">${classes.map(c=>{const L=cnt(c);return `<button type="button" class="kpi" data-gvrcls="${c}" style="text-align:left;cursor:pointer;${gvF.est===c?'outline:2px solid var(--cyan)':''}"><span class="l">${c}</span><span class="v">${L.length}</span><span class="s">stock valorizado ${kmoney(valOf(L))}</span></button>`}).join('')}</div>
+   <div class="grid2"><div class="panel"><h2 style="font-size:1.05rem">Stock valorizado por clase de rotación</h2><div class="note">Dinero inmovilizado en inventario (stock actual × costo).</div>${gvBars(classes.map(c=>({l:c,v:valOf(cnt(c)),s:cnt(c).length+' productos',c:c==='Alta'?'var(--ok)':c==='Media'?'var(--yellow)':c==='Agotado'?'#b9bec8':'var(--bad)'})))}</div>
+    <div class="panel"><h2 style="font-size:1.05rem">Salidas por transferencia (distribución)</h2><div class="note">Unidades enviadas desde el almacén a otros almacenes y librerías en consignación, valorizadas al costo.</div>${gvBars(D.slice(0,12).map(([k,o])=>({l:k,v:o.v,s:gvI(o.q)+' und.',c:'var(--magenta)'})))}</div></div>
+   <div class="tbl" style="margin-top:14px"><table><thead><tr><th>Producto</th><th class="num">Stock inicial</th><th class="num">Ingresos</th><th class="num">Vendidas</th><th class="num">Transferidas</th><th class="num">Stock actual</th><th class="num">Stock prom.</th><th class="num">Rotación</th><th class="num">Días inv.</th><th class="num">Cobertura (días)</th><th>Clase</th></tr></thead><tbody>
+   ${pg.map(x=>`<tr><td><strong>${esc(x.p.nom)}</strong><div class="note">${esc(x.p.cod)} · ${esc(x.p.cat)}</div></td><td class="num">${gvI(x.ini)}</td><td class="num">${gvI(x.ent)}</td><td class="num">${gvI(x.vend)}</td><td class="num">${gvI(x.trs)}</td><td class="num">${gvI(x.fin)}</td><td class="num">${fx(x.prom)}</td><td class="num">${fx(x.rot)}</td><td class="num">${fx(x.diasInv)}</td><td class="num">${isFinite(x.cob)?gvI(x.cob):'∞'}</td><td><span class="pill ${GV_ROTC[x.cls]||''}">${x.cls}</span></td></tr>`).join('')}</tbody></table></div>${gvPager(list.length,50)}`}
+
+function gvVCli(M){let C=gvClientes(M);const q=norm(gvF.q);if(q)C=C.filter(c=>norm(c.nombre+' '+c.tel+' '+c.email).includes(q));if(gvF.clEst)C=C.filter(c=>c.est===gvF.clEst);if(gvF.ase)C=C.filter(c=>c.ase===gvF.ase);
+  const all=gvClientes(M),ases=gvAseList(M,[]).concat([...new Set(all.map(c=>c.ase).filter(Boolean))]).filter((v,i,a)=>a.indexOf(v)===i);const pg=gvPage(C,50),cnt=k=>all.filter(c=>c.est===k).length;
+  return `<div class="kpis" style="margin-bottom:12px">${['Activo','En riesgo','Inactivo','Prospecto'].map(k=>`<button type="button" class="kpi" data-gvclest="${k}" style="text-align:left;cursor:pointer;${gvF.clEst===k?'outline:2px solid var(--cyan)':''}"><span class="l">${k}</span><span class="v">${cnt(k)}</span><span class="s">${{Activo:'compró en los últimos 60 días',['En riesgo']:'última compra hace 61–120 días',Inactivo:'más de 120 días sin comprar',Prospecto:'registrado, sin compras'}[k]}</span></button>`).join('')}<div class="kpi"><span class="l">Con teléfono</span><span class="v">${all.filter(c=>c.tel).length}</span><span class="s">de ${all.length} clientes · ${all.filter(c=>c.email).length} con correo</span></div></div>
+   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input class="search" id="gvQ" type="search" placeholder="Buscar cliente, teléfono o correo…" value="${esc(gvF.q)}" style="min-width:260px"><select id="gvAseF"><option value="">Todos los asesores</option>${ases.map(a=>`<option value="${esc(a)}" ${a===gvF.ase?'selected':''}>${esc(gvUsrName(a))}</option>`).join('')}</select>
+    ${gvCanEdit()?'<button class="btn" id="gvCliNew">+ Nuevo cliente</button>':''}<button class="btn" id="gvCliX">⬇ Excel de clientes</button></div>
+   <div class="note" style="margin:8px 0">Estado según la última compra al ${gvD(M.dmax||today())}. Agrega teléfono y correo para atenderlos por WhatsApp, correo y mensajes masivos.</div>
+   <div class="tbl"><table><thead><tr><th>Cliente</th><th>Contacto</th><th>Asesor</th><th class="num">Comprobantes</th><th class="num">Venta total</th><th>Última compra</th><th>Estado</th><th></th></tr></thead><tbody>
+   ${pg.map(c=>{const wa=gvPhone(c.tel);return `<tr><td><strong>${esc(c.nombre)}</strong><div class="note">${esc(c.tipo)}${c.doc.ruc?' · '+esc(c.doc.ruc):''}</div></td><td>${c.tel?esc(c.tel):'<span class="note">sin teléfono</span>'}${c.email?`<div class="note">${esc(c.email)}</div>`:''}</td><td>${esc(c.ase?gvUsrName(c.ase):'—')}</td><td class="num">${gvI(c.ncomp)}</td><td class="num">${gvS(c.imp)}</td><td>${gvD(c.ult)}${c.dias!=null?`<div class="note">hace ${gvI(c.dias)} días</div>`:''}</td>
+    <td><span class="pill ${c.est==='Activo'?'ok':c.est==='En riesgo'?'warn':c.est==='Inactivo'?'bad':''}">${c.est}</span></td>
+    <td style="white-space:nowrap">${wa?`<a class="btn small" href="https://wa.me/${wa}" target="_blank" rel="noopener" title="Abrir WhatsApp">WhatsApp</a> `:''}${gvCanEdit()?`<button class="btn small" data-gvcli="${esc(c.nombre)}" title="Editar contacto">✎</button> <button class="btn small" data-gvatc="${esc(c.nombre)}" title="Registrar atención o llamada">🎧</button> <button class="btn small" data-gvpfc="${esc(c.nombre)}" title="Nueva proforma">📝</button>`:''}</td></tr>`}).join('')}</tbody></table></div>${gvPager(C.length,50)}`}
+
+function gvVProf(M){let L=GV.filter(d=>d.kind==='prof').sort((a,b)=>(b.num||'').localeCompare(a.num||''));const q=norm(gvF.q);if(q)L=L.filter(p=>norm([p.num,p.cliente,(p.items||[]).map(i=>i.nom).join(' ')].join(' ')).includes(q));if(gvF.est)L=L.filter(p=>(p.estado||'Borrador')===gvF.est);
+  const all=GV.filter(d=>d.kind==='prof'),tot=k=>all.filter(p=>(p.estado||'Borrador')===k);
+  return `<div class="kpis" style="margin-bottom:12px">${GV_PROF_EST.map(k=>`<button type="button" class="kpi" data-gvpfest="${k}" style="text-align:left;cursor:pointer;${gvF.est===k?'outline:2px solid var(--cyan)':''}"><span class="l">${k}</span><span class="v">${tot(k).length}</span><span class="s">${gvS(tot(k).reduce((a,p)=>a+gvProfTot(p).total,0))}</span></button>`).join('')}<div class="kpi"><span class="l">Tasa de cierre</span><span class="v">${gvPct(all.filter(p=>['Aceptada','Vendida','Rechazada'].includes(p.estado)).length?all.filter(p=>['Aceptada','Vendida'].includes(p.estado)).length/all.filter(p=>['Aceptada','Vendida','Rechazada'].includes(p.estado)).length:NaN)}</span><span class="s">aceptadas o vendidas ÷ respondidas</span></div></div>
+   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input class="search" id="gvQ" type="search" placeholder="Buscar número, cliente o producto…" value="${esc(gvF.q)}" style="min-width:260px">${gvCanEdit()?'<button class="btn primary" id="gvNewProf2">+ Nueva proforma</button>':''}</div>
+   ${L.length?`<div class="tbl" style="margin-top:10px"><table><thead><tr><th>N.º</th><th>Fecha</th><th>Cliente</th><th>Asesor</th><th class="num">Ítems</th><th class="num">Total</th><th>Validez</th><th>Estado</th><th></th></tr></thead><tbody>
+   ${L.map(p=>{const T=gvProfTot(p),venc=p.fecha&&p.validez?new Date(Date.parse(p.fecha)+p.validez*864e5).toISOString().slice(0,10):'';return `<tr><td><strong>${esc(p.num||'')}</strong></td><td>${gvD(p.fecha)}</td><td>${esc(p.cliente||'')}${p.telefono?`<div class="note">${esc(p.telefono)}</div>`:''}</td><td>${esc(gvUsrName(p.asesor))}</td><td class="num">${(p.items||[]).length}</td><td class="num"><strong>${gvS(T.total)}</strong></td>
+    <td>${venc?gvD(venc)+(venc<today()&&!['Vendida','Aceptada','Rechazada'].includes(p.estado)?' <span class="pill bad">vencida</span>':''):'—'}</td><td><span class="pill ${p.estado==='Vendida'||p.estado==='Aceptada'?'ok':p.estado==='Rechazada'?'bad':p.estado==='Enviada'?'warn':''}">${esc(p.estado||'Borrador')}</span></td>
+    <td style="white-space:nowrap"><button class="btn small" data-gvpf="${esc(p.id)}">${gvCanEdit()?'✎ Abrir':'Ver'}</button> <button class="btn small" data-gvpfp="${esc(p.id)}">🖨</button>${gvPhone(p.telefono)?` <button class="btn small" data-gvpfw="${esc(p.id)}" title="Enviar por WhatsApp">WhatsApp</button>`:''}</td></tr>`}).join('')}</tbody></table></div>`:'<div class="panel empty" style="margin-top:10px"><strong>No hay proformas</strong>Crea una con «+ Nueva proforma» o desde el catálogo con «+ Proforma».</div>'}`}
+function gvProfTot(p){const it=p.items||[];const bruto=it.reduce((a,i)=>a+(+i.cant||0)*(+i.precio||0),0),desc=it.reduce((a,i)=>a+(+i.cant||0)*(+i.precio||0)*((+i.desc||0)/100),0);const sub=bruto-desc,flete=+p.flete||0;return {bruto,desc,sub,flete,total:sub+flete,und:it.reduce((a,i)=>a+(+i.cant||0),0)}}
+
+function gvVAten(M){let L=GV.filter(d=>d.kind==='aten').sort((a,b)=>((b.fecha||'')+(b.hora||'')).localeCompare((a.fecha||'')+(a.hora||'')));const all=L;
+  const q=norm(gvF.q);if(q)L=L.filter(a=>norm([a.cliente,a.telefono,a.notas,a.motivo].join(' ')).includes(q));if(gvF.atAse)L=L.filter(a=>a.asesor===gvF.atAse);if(gvF.atEst==='pend')L=L.filter(a=>a.estado!=='Cerrado');else if(gvF.atEst==='venc')L=L.filter(a=>a.estado!=='Cerrado'&&a.seguimiento&&a.seguimiento<=today());if(gvF.atCanal)L=L.filter(a=>a.canal===gvF.atCanal);
+  const llam=L.filter(a=>/Llamada/.test(a.canal||'')),conv=L.filter(a=>/Venta|Proforma/.test(a.resultado||'')),durs=llam.map(a=>+a.duracion||0).filter(Boolean),recl=L.filter(a=>a.motivo==='Reclamo'&&a.estado!=='Cerrado');
+  const venc=all.filter(a=>a.estado!=='Cerrado'&&a.seguimiento&&a.seguimiento<=today());const ases=[...new Set([...gvAseList(M,[]),...all.map(a=>a.asesor).filter(Boolean)])];
+  const hoy=today(),hoyL=all.filter(a=>a.fecha===hoy);
+  return `<div class="kpis" style="margin-bottom:12px"><div class="kpi"><span class="l">Atenciones registradas</span><span class="v">${gvI(L.length)}</span><span class="s">${gvI(hoyL.length)} hoy</span></div><div class="kpi"><span class="l">Llamadas</span><span class="v">${gvI(llam.length)}</span><span class="s">${gvI(llam.filter(a=>a.canal==='Llamada entrante').length)} entrantes · ${gvI(llam.filter(a=>a.canal==='Llamada saliente').length)} salientes</span></div>
+    <div class="kpi"><span class="l">Tasa de conversión</span><span class="v">${gvPct(L.length?conv.length/L.length:NaN)}</span><span class="s">terminaron en venta o proforma</span></div><div class="kpi"><span class="l">Duración promedio</span><span class="v">${durs.length?(durs.reduce((a,b)=>a+b,0)/durs.length).toFixed(1)+' min':'—'}</span><span class="s">de las llamadas con duración</span></div>
+    <button type="button" class="kpi" data-gvatest="venc" style="text-align:left;cursor:pointer;${gvF.atEst==='venc'?'outline:2px solid var(--cyan)':''}"><span class="l">Seguimientos vencidos</span><span class="v" style="${venc.length?'color:var(--bad)':''}">${venc.length}</span><span class="s">para hoy o atrasados</span></button><div class="kpi"><span class="l">Reclamos abiertos</span><span class="v">${recl.length}</span></div></div>
+   <div class="grid2"><div class="panel"><h2 style="font-size:1.05rem">Atenciones por asesor y resultado</h2><div class="vchart" id="gvcAt" style="min-height:240px"></div></div><div class="panel"><h2 style="font-size:1.05rem">Motivos de contacto</h2>${gvBars(GV_MOTIVO.map((m,i)=>({l:m,v:L.filter(a=>a.motivo===m).length,c:GV_PAL[i%10]})).filter(x=>x.v).sort((a,b)=>b.v-a.v),gvI)}</div></div>
+   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:14px"><input class="search" id="gvQ" type="search" placeholder="Buscar cliente, teléfono, nota…" value="${esc(gvF.q)}" style="min-width:240px">
+    <select id="gvAtAse"><option value="">Todos los asesores</option>${ases.map(a=>`<option value="${esc(a)}" ${a===gvF.atAse?'selected':''}>${esc(gvUsrName(a))}</option>`).join('')}</select><select id="gvAtCanal"><option value="">Todos los canales</option>${GV_CANAL.map(c=>`<option ${c===gvF.atCanal?'selected':''}>${c}</option>`).join('')}</select>
+    <select id="gvAtEst"><option value="">Todas</option><option value="pend" ${gvF.atEst==='pend'?'selected':''}>Abiertas</option><option value="venc" ${gvF.atEst==='venc'?'selected':''}>Seguimiento vencido</option></select>${gvCanEdit()?'<button class="btn primary" id="gvAtNew">+ Registrar atención / llamada</button>':''}<button class="btn" id="gvAtX">⬇ Excel</button></div>
+   ${L.length?`<div class="tbl" style="margin-top:10px"><table><thead><tr><th>Fecha</th><th>Cliente</th><th>Canal</th><th>Motivo</th><th>Asesor</th><th>Resultado</th><th>Seguimiento</th><th>Estado</th><th></th></tr></thead><tbody>
+   ${L.slice(0,300).map(a=>{const v=a.estado!=='Cerrado'&&a.seguimiento&&a.seguimiento<=today();return `<tr><td style="white-space:nowrap">${gvD(a.fecha)}<div class="note">${esc(a.hora||'')}${a.duracion?' · '+esc(a.duracion)+' min':''}</div></td><td><strong>${esc(a.cliente||'')}</strong>${a.telefono?`<div class="note">${esc(a.telefono)}</div>`:''}${a.notas?`<div class="note" style="max-width:320px">${esc(a.notas)}</div>`:''}</td><td>${esc(a.canal||'')}</td><td>${esc(a.motivo||'')}</td><td>${esc(gvUsrName(a.asesor))}</td><td>${esc(a.resultado||'')}</td>
+    <td>${a.seguimiento?gvD(a.seguimiento)+(v?' <span class="pill bad">vencido</span>':''):'—'}</td><td><span class="pill ${a.estado==='Cerrado'?'ok':'warn'}">${esc(a.estado||'Abierto')}</span></td><td style="white-space:nowrap">${gvCanEdit()?`<button class="btn small" data-gvat="${esc(a.id)}">✎</button>`:''}${gvPhone(a.telefono)?` <a class="btn small" href="https://wa.me/${gvPhone(a.telefono)}" target="_blank" rel="noopener">WhatsApp</a>`:''}</td></tr>`}).join('')}</tbody></table></div>`:'<div class="panel empty" style="margin-top:10px"><strong>No hay atenciones registradas</strong>Registra llamadas, mensajes y visitas con «+ Registrar atención / llamada» o desde la pestaña Clientes (🎧).</div>'}`}
+
+function gvVMsg(M){const L=GV.filter(d=>d.kind==='msg').sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));const open=L.find(m=>m.id===gvF.msgId);
+  if(open)return gvVMsgOne(open);
+  return `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${gvCanEdit()?'<button class="btn primary" id="gvMsgNew">+ Nueva campaña de mensajes</button>':''}<span class="note">Arma la lista por segmento, personaliza el texto con {nombre}, {asesor} y {ultima_compra}, y envía por WhatsApp (uno por uno, con el mensaje ya escrito) o por correo (en lotes con copia oculta).</span></div>
+   ${L.length?`<div class="tbl" style="margin-top:10px"><table><thead><tr><th>Fecha</th><th>Campaña</th><th>Canal</th><th>Segmento</th><th class="num">Destinatarios</th><th>Avance</th><th></th></tr></thead><tbody>${L.map(m=>{const n1=(m.dest||[]).length,s=(m.dest||[]).filter(d=>d.env).length;return `<tr><td>${gvD(m.fecha)}</td><td><strong>${esc(m.nombre||'')}</strong><div class="note" style="max-width:360px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(m.texto||'')}</div></td><td>${esc(m.canal)}</td><td>${esc(m.segDesc||'')}</td><td class="num">${n1}</td><td style="min-width:140px">${meter(n1?s/n1*100:0)}<div class="note">${s} de ${n1} enviados</div></td><td><button class="btn small" data-gvmsg="${esc(m.id)}">Abrir</button></td></tr>`}).join('')}</tbody></table></div>`:'<div class="panel empty" style="margin-top:10px"><strong>Sin campañas</strong>Crea la primera con «+ Nueva campaña de mensajes». Antes, registra teléfonos y correos en la pestaña Clientes.</div>'}`}
+function gvVMsgOne(m){const D=m.dest||[],s=D.filter(d=>d.env).length;const wa=m.canal==='WhatsApp';const lotes=[];if(!wa){const em=D.map(d=>d.email).filter(Boolean);for(let i=0;i<em.length;i+=40)lotes.push(em.slice(i,i+40))}
+  return `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn" id="gvMsgBack">‹ Campañas</button><h2 style="font-size:1.1rem;margin:0">${esc(m.nombre)}</h2><span class="pill">${esc(m.canal)}</span><span class="note">${esc(m.segDesc||'')} · ${gvD(m.fecha)}</span>${gvCanEdit()?`<button class="btn small" id="gvMsgDel" style="margin-left:auto">Eliminar campaña</button>`:''}</div>
+   <div class="panel" style="margin-top:10px"><div class="note">Mensaje${m.asunto?` · Asunto: <b>${esc(m.asunto)}</b>`:''}</div><div style="white-space:pre-wrap">${esc(m.texto||'')}</div><div>${meter(D.length?s/D.length*100:0)} <span class="note">${s} de ${D.length} marcados como enviados</span></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">${wa?'<button class="btn" id="gvMsgCopy">Copiar teléfonos (para lista de difusión)</button>':lotes.map((l,i)=>`<a class="btn primary" href="mailto:?bcc=${encodeURIComponent(l.join(','))}&subject=${encodeURIComponent(m.asunto||m.nombre||'')}&body=${encodeURIComponent(gvFill(m.texto,{nombre:'',ase:''}).replace(/^\s*,?\s*/,''))}" data-gvmlote="${i}">✉ Abrir correo · lote ${i+1} (${l.length})</a>`).join('')}<button class="btn" id="gvMsgCsv">⬇ CSV de destinatarios</button>${gvCanEdit()?'<button class="btn" id="gvMsgAll">Marcar todos como enviados</button>':''}</div>
+    ${wa?'<div class="note">WhatsApp no permite envíos masivos automáticos desde una página web: cada botón abre WhatsApp con el mensaje ya escrito para ese cliente; envíalo y vuelve. Para listas de difusión, copia los teléfonos y pégalos en WhatsApp Business.</div>':'<div class="note">Cada lote abre tu programa de correo con hasta 40 destinatarios en copia oculta (CCO). En correo el texto no se personaliza por cliente.</div>'}</div>
+   <div class="tbl" style="margin-top:10px"><table><thead><tr><th>Cliente</th><th>${wa?'Teléfono':'Correo'}</th><th>Asesor</th><th>Mensaje</th><th>Estado</th><th></th></tr></thead><tbody>${D.map((d,i)=>{const txt=gvFill(m.texto,d);return `<tr><td><strong>${esc(d.nombre)}</strong></td><td>${esc(wa?d.tel:d.email)}</td><td>${esc(gvUsrName(d.ase))}</td><td class="note" style="max-width:340px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(txt)}">${esc(txt)}</td>
+    <td>${d.env?`<span class="pill ok">Enviado</span><div class="note">${gvD(d.env)}</div>`:'<span class="pill">Pendiente</span>'}</td><td style="white-space:nowrap">${wa?`<a class="btn small primary" href="https://wa.me/${gvPhone(d.tel)}?text=${encodeURIComponent(txt)}" target="_blank" rel="noopener" data-gvmsend="${i}">Enviar por WhatsApp</a>`:''}${gvCanEdit()?` <button class="btn small" data-gvmtog="${i}">${d.env?'Desmarcar':'Marcar enviado'}</button>`:''}</td></tr>`}).join('')}</tbody></table></div>`}
+
+/* ---- Diálogos ---- */
+function gvDlg(id,w){let dl=document.getElementById(id);if(!dl){dl=document.createElement('dialog');dl.id=id;document.body.appendChild(dl)}dl.style.width=w||'min(720px,calc(100vw - 24px))';gvToastOut(dl);return dl}
+function gvToastOut(dl){const t=document.getElementById('toast');if(t&&dl.contains(t))document.body.appendChild(t)}
+function gvAseOpts(sel){const M=gvModel();const L=M.n?gvLines(M,M.dmin,M.dmax):[];const a=gvAseList(M,L);const me=(myAcc()||{}).usuario;if(me&&!a.includes(me))a.push(me);return `<option value="">—</option>${a.map(u=>`<option value="${esc(u)}" ${u===sel?'selected':''}>${esc(gvUsrName(u))}</option>`).join('')}`}
+function gvMyAse(){const me=(myAcc()||{}).usuario||'';const M=gvModel();const L=M.n?gvLines(M,M.dmin,M.dmax):[];const a=gvAseList(M,L);return a.includes(me)?me:(GV.find(d=>d.kind==='ase'&&norm(d.nombre)===norm((myAcc()||{}).nombre||''))||{}).usuario||me}
+function gvCliDatalist(){return `<datalist id="gvCliDL">${gvClientes().slice(0,1500).map(c=>`<option value="${esc(c.nombre)}">`).join('')}</datalist>`}
+
+function openGvProd(cod){const p=gvModel().prods.find(x=>x.cod===cod);if(!p)return;const ov=gvOv(cod),dl=gvDlg('gvPDlg');
+  dl.innerHTML=`<form method="dialog"><div class="hd"><h2>${esc(p.nom)}</h2><div class="note">${esc(p.cod)} · stock ${gvI(p.stock)} · costo ${gvS(p.costo)} · último precio facturado ${gvS(p.ultPrecio)}${p.ultVenta?' el '+gvD(p.ultVenta):''}</div></div>
+   <div class="bd"><label>Categoría<input name="cat" list="gvCatDL" value="${esc(p.cat)}"><datalist id="gvCatDL">${GV_CATS.map(c=>`<option value="${esc(c)}">`).join('')}</datalist></label><label>Precio de venta (S/)<input name="precio" type="number" step="0.01" min="0" value="${ov.precio??''}" placeholder="${p.ultPrecio||''}"></label>
+    <label>Precio por mayor (S/)<input name="precioMay" type="number" step="0.01" min="0" value="${ov.precioMay??''}"></label><label>Stock mínimo (alerta)<input name="stockMin" type="number" step="1" min="0" value="${ov.stockMin??''}"></label>
+    <label class="full">Notas (formato, autor, presentación…)<textarea name="notas" rows="2">${esc(ov.notas||'')}</textarea></label></div>
+   <div class="ft"><button type="button" class="btn" id="gvPX">Cancelar</button><button type="submit" class="btn primary">Guardar</button></div></form>`;
+  dl.querySelector('#gvPX').onclick=()=>dl.close();
+  dl.querySelector('form').onsubmit=async e=>{e.preventDefault();const F=new FormData(e.target),g=k=>String(F.get(k)||'').trim();
+    try{await gvPut({...ov,id:ov.id||'prd-'+cod.replace(/[^\w-]/g,'_'),kind:'prd',cod,cat:g('cat')||gvCatAuto(p.nom),precio:g('precio')===''?null:+g('precio'),precioMay:g('precioMay')===''?null:+g('precioMay'),stockMin:g('stockMin')===''?null:+g('stockMin'),notas:g('notas')});toast('Producto actualizado.');dl.close()}catch(err){dbErr(err)}};
+  dl.showModal()}
+async function gvSavePrice(cod,val){const ov=gvOv(cod);try{await gvPut({...ov,id:ov.id||'prd-'+cod.replace(/[^\w-]/g,'_'),kind:'prd',cod,precio:val===''?null:+val});toast('Precio de venta guardado.')}catch(e){dbErr(e)}}
+
+function openGvAse(u){const doc=GV.find(d=>d.kind==='ase'&&d.usuario===u)||{},dl=gvDlg('gvADlg','min(560px,calc(100vw - 24px))');
+  dl.innerHTML=`<form method="dialog"><div class="hd"><h2>${u?'Asesor: '+esc(gvUsrName(u)):'Agregar asesor'}</h2><div class="note">El usuario es el que aparece en la columna USUARIO del reporte de ventas.</div></div>
+   <div class="bd"><label>Usuario del sistema de ventas<input name="usuario" value="${esc(u||'')}" ${u?'readonly':''} required placeholder="ej. antonella.paiva"></label><label>Nombre completo<input name="nombre" value="${esc(doc.nombre||(u?gvUsrName(u):''))}" required></label>
+    <label>Meta de venta mensual (S/)<input name="meta" type="number" step="1" min="0" value="${doc.meta??''}"></label><label>Teléfono / anexo<input name="tel" value="${esc(doc.tel||'')}"></label>
+    <label class="full" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" name="activo" ${doc.activo===false?'':'checked'}> Activo</label></div>
+   <div class="ft"><button type="button" class="btn" id="gvAX">Cancelar</button><button type="submit" class="btn primary">Guardar</button></div></form>`;
+  dl.querySelector('#gvAX').onclick=()=>dl.close();
+  dl.querySelector('form').onsubmit=async e=>{e.preventDefault();const F=new FormData(e.target),g=k=>String(F.get(k)||'').trim();const usr=g('usuario');if(!usr)return;
+    try{await gvPut({...doc,id:doc.id||'ase-'+usr.replace(/[^\w.-]/g,'_'),kind:'ase',usuario:usr,nombre:g('nombre'),meta:g('meta')===''?null:+g('meta'),tel:g('tel'),activo:!!F.get('activo')});toast('Asesor guardado.');dl.close()}catch(err){dbErr(err)}};
+  dl.showModal()}
+
+function openGvCli(nombre){const c=nombre?gvClientes().find(x=>x.nombre===nombre)||{nombre,doc:{}}:{nombre:'',doc:{}},doc=c.doc||{},dl=gvDlg('gvCDlg');
+  dl.innerHTML=`<form method="dialog"><div class="hd"><h2>${nombre?esc(nombre):'Nuevo cliente'}</h2>${c.imp?`<div class="note">${gvI(c.ncomp)} comprobantes · ${gvS(c.imp)} · última compra ${gvD(c.ult)}</div>`:''}</div>
+   <div class="bd"><label class="full">Nombre o razón social<input name="nombre" value="${esc(c.nombre||'')}" ${nombre?'readonly':''} required></label><label>RUC / DNI<input name="ruc" value="${esc(doc.ruc||'')}"></label><label>Tipo<select name="tipo">${['Institución / empresa','Persona','Librería / distribuidor','Iglesia','Colegio / universidad'].map(t=>`<option ${t===(doc.tipo||c.tipo)?'selected':''}>${t}</option>`).join('')}</select></label>
+    <label>Celular / WhatsApp<input name="telefono" value="${esc(doc.telefono||'')}" placeholder="9XX XXX XXX"></label><label>Correo<input name="email" type="email" value="${esc(doc.email||'')}"></label><label>Contacto<input name="contacto" value="${esc(doc.contacto||'')}"></label><label>Asesor asignado<select name="asesor">${gvAseOpts(doc.asesor||c.ase)}</select></label>
+    <label class="full">Dirección / ciudad<input name="direccion" value="${esc(doc.direccion||'')}"></label><label class="full">Notas<textarea name="notas" rows="2">${esc(doc.notas||'')}</textarea></label>
+    <label class="full" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" name="noMsg" ${doc.noMsg?'checked':''}> No desea recibir mensajes masivos</label></div>
+   <div class="ft"><button type="button" class="btn" id="gvCX">Cancelar</button><button type="submit" class="btn primary">Guardar</button></div></form>`;
+  dl.querySelector('#gvCX').onclick=()=>dl.close();
+  dl.querySelector('form').onsubmit=async e=>{e.preventDefault();const F=new FormData(e.target),g=k=>String(F.get(k)||'').trim();const nom=g('nombre');if(!nom)return;
+    try{await gvPut({...doc,id:doc.id||'cli-'+uid(),kind:'cli',nombre:nom,ruc:g('ruc'),tipo:g('tipo'),telefono:g('telefono'),email:g('email'),contacto:g('contacto'),asesor:g('asesor'),direccion:g('direccion'),notas:g('notas'),noMsg:!!F.get('noMsg')});toast('Cliente guardado.');dl.close()}catch(err){dbErr(err)}};
+  dl.showModal()}
+
+function openGvAten(id,cliente){const a=id?GV.find(d=>d.id===id)||{}:{},c=cliente?gvClientes().find(x=>x.nombre===cliente):null,dl=gvDlg('gvTDlg','min(760px,calc(100vw - 24px))');const now=new Date();
+  const v={fecha:a.fecha||today(),hora:a.hora||now.toTimeString().slice(0,5),cliente:a.cliente||cliente||'',telefono:a.telefono||(c&&c.tel)||'',canal:a.canal||'Llamada entrante',motivo:a.motivo||'Consulta de precio / stock',asesor:a.asesor||gvMyAse(),resultado:a.resultado||'',duracion:a.duracion||'',seguimiento:a.seguimiento||'',estado:a.estado||'Abierto',notas:a.notas||'',producto:a.producto||''};
+  dl.innerHTML=`<form method="dialog"><div class="hd"><h2>${id?'Atención registrada':'Registrar atención / llamada'}</h2></div>
+   <div class="bd"><label>Fecha<input name="fecha" type="date" value="${v.fecha}" required></label><label>Hora<input name="hora" type="time" value="${esc(v.hora)}"></label>
+    <label class="full">Cliente<input name="cliente" list="gvCliDL" value="${esc(v.cliente)}" required placeholder="Escribe o elige un cliente">${gvCliDatalist()}</label><label>Teléfono<input name="telefono" value="${esc(v.telefono)}"></label>
+    <label>Canal<select name="canal">${GV_CANAL.map(x=>`<option ${x===v.canal?'selected':''}>${x}</option>`).join('')}</select></label><label>Motivo<select name="motivo">${GV_MOTIVO.map(x=>`<option ${x===v.motivo?'selected':''}>${x}</option>`).join('')}</select></label><label>Asesor<select name="asesor">${gvAseOpts(v.asesor)}</select></label>
+    <label>Producto consultado<input name="producto" list="gvProdDL" value="${esc(v.producto)}"><datalist id="gvProdDL">${gvModel().prods.map(p=>`<option value="${esc(p.nom)}">`).join('')}</datalist></label><label>Duración (min)<input name="duracion" type="number" min="0" step="0.5" value="${esc(v.duracion)}"></label>
+    <label>Resultado<select name="resultado"><option value="">—</option>${GV_RES.map(x=>`<option ${x===v.resultado?'selected':''}>${x}</option>`).join('')}</select></label><label>Próximo seguimiento<input name="seguimiento" type="date" value="${esc(v.seguimiento)}"></label>
+    <label>Estado<select name="estado">${['Abierto','Cerrado'].map(x=>`<option ${x===v.estado?'selected':''}>${x}</option>`).join('')}</select></label><label class="full">Detalle de la atención<textarea name="notas" rows="3">${esc(v.notas)}</textarea></label></div>
+   <div class="ft"><div>${id&&gvCanEdit()?'<button type="button" class="btn" id="gvTDel">Eliminar</button>':''}</div><div style="display:flex;gap:10px"><button type="button" class="btn" id="gvTX">Cancelar</button><button type="submit" class="btn primary">Guardar</button></div></div></form>`;
+  dl.querySelector('#gvTX').onclick=()=>dl.close();
+  const ci=dl.querySelector('[name=cliente]');ci.onchange=()=>{const c2=gvClientes().find(x=>x.nombre===ci.value);const t=dl.querySelector('[name=telefono]');if(c2&&c2.tel&&!t.value)t.value=c2.tel};
+  const dbt=dl.querySelector('#gvTDel');if(dbt)dbt.onclick=async()=>{if(!dbt.dataset.arm){dbt.dataset.arm=1;dbt.textContent='Confirmar eliminación';return}try{await gvDel(id);toast('Atención eliminada.');dl.close()}catch(e){dbErr(e)}};
+  dl.querySelector('form').onsubmit=async e=>{e.preventDefault();const F=new FormData(e.target),o={...a,id:a.id||'at-'+uid(),kind:'aten'};['fecha','hora','cliente','telefono','canal','motivo','asesor','producto','duracion','resultado','seguimiento','estado','notas'].forEach(k=>o[k]=String(F.get(k)||'').trim());
+    if(/Venta|No interesado|Resuelto/.test(o.resultado)&&!o.seguimiento)o.estado='Cerrado';
+    try{await gvPut(o);const cd=gvCliDoc(o.cliente);if(o.telefono&&(!cd||!cd.telefono))await gvPut({...(cd||{}),id:(cd&&cd.id)||'cli-'+uid(),kind:'cli',nombre:o.cliente,telefono:o.telefono,asesor:(cd&&cd.asesor)||o.asesor});toast('Atención guardada.');dl.close()}catch(err){dbErr(err)}};
+  dl.showModal()}
+
+function gvNextProfNum(){const y=today().slice(0,4);const mx=Math.max(0,...GV.filter(d=>d.kind==='prof'&&String(d.num||'').startsWith('PV-'+y)).map(d=>+String(d.num).split('-')[2]||0));return `PV-${y}-${String(mx+1).padStart(4,'0')}`}
+function openGvProf(id,pre){const ex=id?GV.find(d=>d.id===id):null;const ro=!gvCanEdit();const M=gvModel();
+  const p=ex?JSON.parse(JSON.stringify(ex)):{id:'pf-'+uid(),kind:'prof',num:gvNextProfNum(),fecha:today(),validez:15,estado:'Borrador',asesor:gvMyAse(),items:[],cliente:'',telefono:'',email:'',notas:'Precios en soles. Sujeto a disponibilidad de stock.',flete:0,...(pre||{})};
+  if(pre&&pre.cliente){const c=gvClientes(M).find(x=>x.nombre===pre.cliente);if(c){p.telefono=p.telefono||c.tel;p.email=p.email||c.email}}
+  const dl=gvDlg('gvFDlg','min(1040px,calc(100vw - 24px))');const dis=ro?'disabled':'';
+  const rowsH=()=>p.items.map((it,i)=>{const pr=M.prods.find(x=>x.cod===it.cod);const sub=(+it.cant||0)*(+it.precio||0)*(1-(+it.desc||0)/100);return `<tr><td><strong>${esc(it.nom)}</strong><div class="note">${esc(it.cod)}${pr?` · stock ${gvI(pr.stock)}`:''}${pr&&+it.cant>pr.stock?' <span class="pill warn">supera el stock</span>':''}</div></td>
+    <td><input type="number" min="0" step="1" data-pfi="${i}:cant" value="${esc(it.cant)}" style="width:80px;text-align:right" ${dis}></td><td><input type="number" min="0" step="0.01" data-pfi="${i}:precio" value="${esc(it.precio)}" style="width:96px;text-align:right" ${dis}></td><td><input type="number" min="0" max="100" step="0.5" data-pfi="${i}:desc" value="${esc(it.desc||0)}" style="width:70px;text-align:right" ${dis}></td><td class="num"><strong>${gvS(sub)}</strong></td><td>${ro?'':`<button type="button" class="btn small" data-pfrm="${i}" aria-label="Quitar">✕</button>`}</td></tr>`}).join('');
+  const totH=()=>{const T=gvProfTot(p);return `<div style="display:grid;grid-template-columns:auto auto;gap:4px 16px;justify-content:end;text-align:right"><span class="note">Subtotal (${gvI(T.und)} und.)</span><span>${gvS(T.bruto)}</span><span class="note">Descuentos</span><span>− ${gvS(T.desc)}</span><span class="note">Flete / envío</span><span>${gvS(T.flete)}</span><strong>TOTAL</strong><strong>${gvS(T.total)}</strong></div>`};
+  dl.innerHTML=`<form method="dialog"><div class="hd" style="display:flex;justify-content:space-between;gap:10px;align-items:center"><div><h2>Proforma ${esc(p.num)}</h2><div class="note">Los precios vienen del catálogo; puedes ajustarlos por ítem.</div></div><span class="pill">${esc(p.estado)}</span></div>
+   <div class="bd" style="grid-template-columns:repeat(4,minmax(0,1fr))"><label style="grid-column:span 2">Cliente<input name="cliente" list="gvCliDL" value="${esc(p.cliente)}" required ${dis}>${gvCliDatalist()}</label><label>Celular / WhatsApp<input name="telefono" value="${esc(p.telefono||'')}" ${dis}></label><label>Correo<input name="email" value="${esc(p.email||'')}" ${dis}></label>
+    <label>N.º<input name="num" value="${esc(p.num)}" ${dis}></label><label>Fecha<input name="fecha" type="date" value="${esc(p.fecha)}" ${dis}></label><label>Validez (días)<input name="validez" type="number" min="1" value="${esc(p.validez)}" ${dis}></label><label>Asesor<select name="asesor" ${dis}>${gvAseOpts(p.asesor)}</select></label>
+    <div style="grid-column:1/-1"><div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">${ro?'':`<label style="flex:1;min-width:260px">Agregar producto<input id="gvPfAdd" list="gvPfDL" placeholder="Escribe el nombre o código y elige"><datalist id="gvPfDL">${M.prods.map(x=>`<option value="${esc(x.cod)} · ${esc(x.nom)}">`).join('')}</datalist></label>`}</div>
+     <div class="tbl" style="margin-top:8px"><table><thead><tr><th>Producto</th><th>Cantidad</th><th>Precio S/</th><th>Desc. %</th><th class="num">Subtotal</th><th></th></tr></thead><tbody id="gvPfRows">${rowsH()}</tbody></table></div>
+     <div style="display:flex;justify-content:space-between;gap:16px;margin-top:10px;flex-wrap:wrap"><label style="max-width:180px">Flete / envío (S/)<input name="flete" type="number" min="0" step="0.01" value="${esc(p.flete||0)}" ${dis}></label><div id="gvPfTot">${totH()}</div></div></div>
+    <label style="grid-column:span 3">Condiciones / notas<textarea name="notas" rows="2" ${dis}>${esc(p.notas||'')}</textarea></label><label>Estado<select name="estado" ${dis}>${GV_PROF_EST.map(x=>`<option ${x===p.estado?'selected':''}>${x}</option>`).join('')}</select></label></div>
+   <div class="ft"><div style="display:flex;gap:8px">${ex&&!ro?'<button type="button" class="btn" id="gvPfDel">Eliminar</button>':''}<button type="button" class="btn" id="gvPfPr">🖨 Imprimir</button></div><div style="display:flex;gap:10px"><button type="button" class="btn" id="gvPfX">Cerrar</button>${ro?'':'<button type="submit" class="btn primary">Guardar proforma</button>'}</div></div></form>`;
+  const redraw=()=>{dl.querySelector('#gvPfRows').innerHTML=rowsH();dl.querySelector('#gvPfTot').innerHTML=totH();bindRows()};
+  const readHead=()=>{const F=new FormData(dl.querySelector('form'));['cliente','telefono','email','num','fecha','asesor','notas','estado'].forEach(k=>{if(F.has(k))p[k]=String(F.get(k)||'').trim()});p.validez=+F.get('validez')||15;p.flete=+F.get('flete')||0};
+  function bindRows(){dl.querySelectorAll('[data-pfi]').forEach(inp=>inp.oninput=()=>{const [i,k]=inp.dataset.pfi.split(':');p.items[+i][k]=inp.value===''?'':+inp.value;const it=p.items[+i];inp.closest('tr').querySelector('td.num strong').textContent=gvS((+it.cant||0)*(+it.precio||0)*(1-(+it.desc||0)/100));dl.querySelector('#gvPfTot').innerHTML=totH()});
+    dl.querySelectorAll('[data-pfrm]').forEach(b=>b.onclick=()=>{p.items.splice(+b.dataset.pfrm,1);redraw()})}
+  bindRows();
+  const add=dl.querySelector('#gvPfAdd');if(add)add.onchange=()=>{const cod=add.value.split(' · ')[0].trim();const pr=M.prods.find(x=>x.cod===cod)||M.prods.find(x=>norm(x.nom)===norm(add.value));if(!pr){toast('Elige un producto de la lista.');return}
+    const ex2=p.items.find(i=>i.cod===pr.cod);if(ex2)ex2.cant=(+ex2.cant||0)+1;else p.items.push({cod:pr.cod,nom:pr.nom,cant:1,precio:+(pr.precio||0).toFixed(2),desc:0,costo:pr.costo||0});add.value='';redraw();setTimeout(()=>{const q=dl.querySelectorAll('[data-pfi$=":cant"]');const last=[...q].find(x=>x.dataset.pfi.startsWith(String(p.items.findIndex(i=>i.cod===pr.cod))+':'));if(last){last.focus();last.select()}},30)};
+  dl.querySelector('[name=flete]').oninput=()=>{p.flete=+dl.querySelector('[name=flete]').value||0;dl.querySelector('#gvPfTot').innerHTML=totH()};
+  const ci=dl.querySelector('[name=cliente]');ci.onchange=()=>{const c=gvClientes(M).find(x=>x.nombre===ci.value);if(c){const t=dl.querySelector('[name=telefono]'),em=dl.querySelector('[name=email]');if(!t.value)t.value=c.tel||'';if(!em.value)em.value=c.email||''}};
+  dl.querySelector('form').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.tagName==='INPUT'){e.preventDefault()}});
+  dl.querySelector('#gvPfX').onclick=()=>dl.close();
+  dl.querySelector('#gvPfPr').onclick=()=>{readHead();gvPrintProf(p)};
+  const db2=dl.querySelector('#gvPfDel');if(db2)db2.onclick=async()=>{if(!db2.dataset.arm){db2.dataset.arm=1;db2.textContent='Confirmar eliminación';return}try{await gvDel(p.id);toast('Proforma eliminada.');dl.close()}catch(e){dbErr(e)}};
+  dl.querySelector('form').onsubmit=async e=>{e.preventDefault();readHead();if(!p.items.length){toast('Agrega al menos un producto.');return}if(!p.cliente){toast('Escribe el cliente.');return}
+    p.total=gvProfTot(p).total;try{await gvPut(p);const cd=gvCliDoc(p.cliente);if((p.telefono||p.email)&&(!cd||(!cd.telefono&&p.telefono)||(!cd.email&&p.email)))await gvPut({...(cd||{}),id:(cd&&cd.id)||'cli-'+uid(),kind:'cli',nombre:p.cliente,telefono:(cd&&cd.telefono)||p.telefono,email:(cd&&cd.email)||p.email,asesor:(cd&&cd.asesor)||p.asesor});toast('Proforma '+p.num+' guardada.');dl.close();gvF.vista='prof';render()}catch(err){dbErr(err)}};
+  dl.showModal()}
+function gvPrintProf(p){const T=gvProfTot(p),imp=gvImp()||{},ent=((imp.entidad||'').match(/ENTIDAD\s*:\s*([^\n]+)/i)||[])[1]||(imp.entidad||'').split('\n')[0].replace(/^ENTIDAD\s*:\s*/i,'')||'Editorial';
+  const venc=p.fecha&&p.validez?new Date(Date.parse(p.fecha)+p.validez*864e5).toISOString().slice(0,10):'';
+  document.getElementById('gvPrBox')?.remove();document.getElementById('gvPrCss')?.remove();
+  const st=document.createElement('style');st.id='gvPrCss';st.textContent=`@page{size:A4;margin:14mm}@media screen{#gvPrBox{display:none}}@media print{body>*:not(#gvPrBox){display:none!important}#gvPrBox{display:block;font:9.5pt/1.35 Arial,Helvetica,sans-serif;color:#111}#gvPrBox h1{font-size:18pt;margin:0;letter-spacing:.06em}#gvPrBox table{width:100%;border-collapse:collapse;margin-top:10px}#gvPrBox th{background:#e8eef3;text-align:left}#gvPrBox th,#gvPrBox td{border:1px solid #9aa4ae;padding:4px 6px}#gvPrBox .r{text-align:right}#gvPrBox .hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #0a8fb8;padding-bottom:8px}#gvPrBox .gr{display:grid;grid-template-columns:1fr 1fr;gap:4px 18px;margin-top:10px}#gvPrBox .tot{margin-left:auto;width:280px;margin-top:8px}#gvPrBox .tot td{border:0;padding:2px 6px}#gvPrBox .big td{font-size:12pt;font-weight:700;border-top:1.5px solid #111}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}`;
+  document.head.appendChild(st);const b=document.createElement('div');b.id='gvPrBox';
+  b.innerHTML=`<div class="hd"><div><div style="font-size:13pt;font-weight:700">${esc(ent)}</div><div style="color:#555">Área de Ventas</div></div><div style="text-align:right"><h1>PROFORMA</h1><div style="font-size:12pt;font-weight:700">${esc(p.num)}</div><div>Fecha: ${gvD(p.fecha)}</div></div></div>
+   <div class="gr"><div><b>Cliente:</b> ${esc(p.cliente)}</div><div><b>Asesor de ventas:</b> ${esc(gvUsrName(p.asesor))}</div><div><b>Teléfono:</b> ${esc(p.telefono||'—')}</div><div><b>Correo:</b> ${esc(p.email||'—')}</div><div><b>Válida hasta:</b> ${venc?gvD(venc):'—'} (${esc(p.validez)} días)</div><div><b>Moneda:</b> Soles (S/)</div></div>
+   <table><thead><tr><th style="width:28px">#</th><th>Código</th><th>Descripción</th><th class="r">Cant.</th><th class="r">P. unit.</th><th class="r">Desc.</th><th class="r">Importe</th></tr></thead><tbody>${(p.items||[]).map((it,i)=>`<tr><td>${i+1}</td><td>${esc(it.cod)}</td><td>${esc(it.nom)}</td><td class="r">${gvI(it.cant)}</td><td class="r">${gvS(it.precio)}</td><td class="r">${+it.desc?esc(it.desc)+'%':'—'}</td><td class="r">${gvS((+it.cant||0)*(+it.precio||0)*(1-(+it.desc||0)/100))}</td></tr>`).join('')}</tbody></table>
+   <table class="tot"><tbody><tr><td>Subtotal</td><td class="r">${gvS(T.bruto)}</td></tr><tr><td>Descuentos</td><td class="r">− ${gvS(T.desc)}</td></tr>${T.flete?`<tr><td>Flete / envío</td><td class="r">${gvS(T.flete)}</td></tr>`:''}<tr class="big"><td>TOTAL</td><td class="r">${gvS(T.total)}</td></tr></tbody></table>
+   ${p.notas?`<div style="margin-top:14px"><b>Condiciones:</b><div style="white-space:pre-wrap">${esc(p.notas)}</div></div>`:''}<div style="margin-top:40px;display:flex;justify-content:flex-end"><div style="border-top:1px solid #111;width:220px;text-align:center;padding-top:4px">${esc(gvUsrName(p.asesor))}<br>Asesor de ventas</div></div>`;
+  document.body.appendChild(b);const oldT=document.title;document.title='Proforma '+p.num;const clean=()=>{b.remove();st.remove();document.title=oldT;window.removeEventListener('afterprint',clean)};window.addEventListener('afterprint',clean);setTimeout(()=>window.print(),60)}
+function gvProfWa(p){const T=gvProfTot(p);const txt=`Hola ${String(p.cliente||'').split(',').reverse().join(' ').trim()}, le envío la proforma ${p.num}:\n\n${(p.items||[]).map(i=>`• ${i.cant} × ${i.nom} — ${gvS((+i.cant||0)*(+i.precio||0)*(1-(+i.desc||0)/100))}`).join('\n')}\n\nTOTAL: ${gvS(T.total)}\nVálida por ${p.validez} días.\n${gvUsrName(p.asesor)}`;
+  window.open(`https://wa.me/${gvPhone(p.telefono)}?text=${encodeURIComponent(txt)}`,'_blank','noopener');if(p.estado==='Borrador')gvPut({...p,estado:'Enviada'}).catch(()=>{})}
+
+function openGvMsgNew(){const M=gvModel(),C=gvClientes(M),dl=gvDlg('gvMDlg','min(860px,calc(100vw - 24px))');const ases=[...new Set(C.map(c=>c.ase).filter(Boolean))];const cats=[...new Set(M.prods.map(p=>p.cat))];
+  dl.innerHTML=`<form method="dialog"><div class="hd"><h2>Nueva campaña de mensajes</h2><div class="note">Solo se incluyen clientes con teléfono (WhatsApp) o correo, y que no pidieron dejar de recibir mensajes.</div></div>
+   <div class="bd"><label>Nombre de la campaña<input name="nombre" required placeholder="Ej. Lanzamiento Lecciones III trimestre"></label><label>Canal<select name="canal"><option>WhatsApp</option><option>Correo</option></select></label>
+    <label>Segmento<select name="seg"><option value="all">Todos los clientes</option><option value="Activo">Activos (compraron en 60 días)</option><option value="En riesgo">En riesgo (61–120 días)</option><option value="Inactivo">Inactivos (+120 días)</option><option value="Prospecto">Prospectos (sin compras)</option><option value="top">Top 50 por venta</option><option value="ase">De un asesor…</option><option value="cat">Compraron una categoría…</option><option value="prod">Compraron un producto…</option></select></label>
+    <label id="gvMsgExtraL">Filtro<select name="ase" hidden>${ases.map(a=>`<option value="${esc(a)}">${esc(gvUsrName(a))}</option>`).join('')}</select><select name="cat" hidden>${cats.map(c=>`<option>${esc(c)}</option>`).join('')}</select><input name="prod" list="gvMsgPDL" hidden placeholder="Producto"><datalist id="gvMsgPDL">${M.prods.map(p=>`<option value="${esc(p.nom)}">`).join('')}</datalist><span class="note" id="gvMsgNoF">—</span></label>
+    <label class="full" id="gvMsgAsL" hidden>Asunto del correo<input name="asunto"></label>
+    <label class="full">Mensaje<textarea name="texto" rows="6" required>Hola {nombre}, le saluda {asesor} de ACES Perú. Tenemos novedades para usted…</textarea><span class="note">Variables: {nombre}, {asesor}, {ultima_compra}</span></label>
+    <div id="gvMsgPrev" style="grid-column:1/-1"></div></div>
+   <div class="ft"><button type="button" class="btn" id="gvMX">Cancelar</button><button type="submit" class="btn primary">Crear campaña</button></div></form>`;
+  const F=()=>new FormData(dl.querySelector('form'));
+  const pick=()=>{const f=F(),seg=f.get('seg'),wa=f.get('canal')==='WhatsApp';let L=C.filter(c=>!c.doc.noMsg&&(wa?gvPhone(c.tel):c.email));let desc={all:'Todos los clientes',Activo:'Clientes activos','En riesgo':'Clientes en riesgo',Inactivo:'Clientes inactivos',Prospecto:'Prospectos',top:'Top 50 por venta'}[seg]||'';
+    if(['Activo','En riesgo','Inactivo','Prospecto'].includes(seg))L=L.filter(c=>c.est===seg);else if(seg==='top'){const top=new Set(C.slice(0,50).map(c=>c.k));L=L.filter(c=>top.has(c.k))}
+    else if(seg==='ase'){const a=f.get('ase');L=L.filter(c=>c.ase===a);desc='Clientes de '+gvUsrName(a)}
+    else if(seg==='cat'||seg==='prod'){const v=String(f.get(seg)||'');const LL=gvLines(M,M.dmin,M.dmax).filter(x=>seg==='cat'?x.p.cat===v:norm(x.p.nom)===norm(v));const s=new Set(LL.map(x=>norm(x.cli)));L=L.filter(c=>s.has(c.k));desc=(seg==='cat'?'Compraron ':'Compraron «')+v+(seg==='prod'?'»':'')}
+    return {L,desc}};
+  const upd=()=>{const f=F(),seg=f.get('seg');['ase','cat','prod'].forEach(k=>dl.querySelector(`[name=${k}]`).hidden=seg!==k);dl.querySelector('#gvMsgNoF').hidden=['ase','cat','prod'].includes(seg);dl.querySelector('#gvMsgAsL').hidden=f.get('canal')!=='Correo';
+    const {L}=pick();const ex=L[0];dl.querySelector('#gvMsgPrev').innerHTML=`<div style="display:block;background:var(--cyan-soft);border-radius:8px;padding:10px 14px;font-size:.85rem"><b>${L.length} destinatarios</b>${ex?` · vista previa para ${esc(ex.nombre)}:<div style="white-space:pre-wrap;margin-top:6px;color:var(--ink)">${esc(gvFill(f.get('texto'),ex))}</div>`:'. Registra teléfonos o correos en la pestaña Clientes.'}</div>`};
+  dl.querySelector('form').oninput=upd;dl.querySelector('form').onchange=upd;upd();
+  dl.querySelector('#gvMX').onclick=()=>dl.close();
+  dl.querySelector('form').onsubmit=async e=>{e.preventDefault();const f=F(),{L,desc}=pick();if(!L.length){toast('El segmento no tiene destinatarios con contacto.');return}
+    const o={id:'msg-'+uid(),kind:'msg',nombre:String(f.get('nombre')).trim(),canal:f.get('canal'),asunto:String(f.get('asunto')||'').trim(),texto:String(f.get('texto')),segDesc:desc,fecha:today(),dest:L.map(c=>({nombre:c.nombre,tel:c.tel,email:c.email,ase:c.ase,ult:c.ult,env:''}))};
+    try{await gvPut(o);toast('Campaña creada con '+L.length+' destinatarios.');dl.close();gvF.msgId=o.id;render()}catch(err){dbErr(err)}};
+  dl.showModal()}
+async function gvMsgMark(m,idx,on){const o={...m,dest:(m.dest||[]).map((d,i)=>idx==='all'||i===idx?{...d,env:on?today():''}:d)};try{await gvPut(o)}catch(e){dbErr(e)}}
+
+/* ---- Exportaciones ---- */
+async function gvXlsx(name,sheet,aoa){try{const X=await loadXLSX();const ws=X.utils.aoa_to_sheet(aoa);ws['!cols']=aoa[0].map((h,i)=>({wch:Math.min(48,Math.max(10,...aoa.slice(0,200).map(r=>String(r[i]??'').length)))}));const wb=X.utils.book_new();X.utils.book_append_sheet(wb,ws,sheet);X.writeFile(wb,`${name}_${today()}.xlsx`);toast('Excel descargado.')}catch(e){toast('No se pudo generar el Excel.')}}
+function gvExportCat(){const M=gvModel(),[d0,d1]=gvRange(M),L=gvLines(M,d0,d1),v=new Map();L.forEach(x=>{const o=v.get(x.p.cod)||{q:0,imp:0};o.q+=x.q;o.imp+=x.imp;v.set(x.p.cod,o)});
+  gvXlsx('catalogo_precios','Catálogo',[['Código','Producto','Categoría','Stock','Costo','Precio de venta','Precio por mayor','Margen %','Último precio facturado','Unidades vendidas','Importe vendido','Rotación'],...M.prods.map(p=>{const r=gvRot(p,d0,d1,gvF.rotTr);const o=v.get(p.cod)||{q:0,imp:0};return [p.cod,p.nom,p.cat,p.stock,p.costo,p.precio||'',p.precioMay??'',p.precio?+(gvMg(p)*100).toFixed(1):'',p.ultPrecio||'',o.q,+o.imp.toFixed(2),r.cls]})])}
+function gvExportVen(){const M=gvModel(),[d0,d1]=gvRange(M);let L=gvLines(M,d0,d1);if(gvF.ase)L=L.filter(x=>x.u===gvF.ase);
+  gvXlsx('ventas','Ventas',[['Fecha','Comprobante','Tipo','Cliente','Asesor','Código','Producto','Categoría','Cantidad','Precio','Importe','Costo total','Margen'],...L.map(x=>[x.f,x.comp,x.t==='N'?'Nota de crédito':/^F/i.test(x.comp)?'Factura':/^B/i.test(x.comp)?'Boleta':'Otro',x.cli,gvUsrName(x.u),x.p.cod,x.p.nom,x.p.cat,x.q,x.pr,+x.imp.toFixed(2),+x.cost.toFixed(2),+(x.imp-x.cost).toFixed(2)])])}
+function gvExportCli(){const C=gvClientes();gvXlsx('clientes','Clientes',[['Cliente','Tipo','RUC/DNI','Teléfono','Correo','Asesor','Comprobantes','Venta total','Última compra','Días sin comprar','Estado'],...C.map(c=>[c.nombre,c.tipo,c.doc.ruc||'',c.tel,c.email,gvUsrName(c.ase),c.ncomp,+c.imp.toFixed(2),c.ult,c.dias??'',c.est])])}
+function gvExportAten(){gvXlsx('atencion_call_center','Atenciones',[['Fecha','Hora','Cliente','Teléfono','Canal','Motivo','Producto','Asesor','Duración (min)','Resultado','Seguimiento','Estado','Detalle'],...GV.filter(d=>d.kind==='aten').map(a=>[a.fecha,a.hora,a.cliente,a.telefono,a.canal,a.motivo,a.producto,gvUsrName(a.asesor),a.duracion,a.resultado,a.seguimiento,a.estado,a.notas])])}
+
+/* ---- Gráficos ---- */
+function gvCharts(){const M=gvModel();if(!M.n)return;const [d0,d1]=gvRange(M);
+  const el1=$('#gvcMes');if(el1){const L=gvLines(M,d0,d1),meses=gvMonths(d0,d1),byA=gvGroup(L,x=>x.u).sort((a,b)=>b.imp-a.imp),top=byA.slice(0,8).map(a=>a.k),keys=top.map(gvUsrName).concat(byA.length>8?['Otros']:[]);
+    const rows=meses.map(k=>{const vals={};L.filter(x=>x.d.slice(0,7)===k).forEach(x=>{const n2=top.includes(x.u)?gvUsrName(x.u):'Otros';vals[n2]=(vals[n2]||0)+x.imp});return {x:gvMesL(k),vals,k}});
+    vStack(el1,rows,keys,keys.map((k,i)=>k==='Otros'?'#b9bec8':GV_PAL[i]),r=>V_MESL[+r.k.slice(5,7)-1]+' '+r.k.slice(0,4),vS)}
+  const el2=$('#gvcAse');if(el2){const L=gvLines(M,d0,d1),meses=gvMonths(d0,d1),byA=gvGroup(L,x=>x.u).sort((a,b)=>b.imp-a.imp).slice(0,8);
+    vLines(el2,byA.map((a,i)=>({n:gvUsrName(a.k),c:GV_PAL[i],strong:i===0,vals:meses.map(k=>a.L.filter(x=>x.d.slice(0,7)===k).reduce((s,x)=>s+x.imp,0))})),null,meses.map(gvMesL),vS)}
+  const el3=$('#gvcPar');if(el3){let L=gvLines(M,d0,d1);if(gvF.ase)L=L.filter(x=>x.u===gvF.ase);if(gvF.cat)L=L.filter(x=>x.p.cat===gvF.cat);const by=gvF.abcBy==='q'?'q':'imp';const G=gvGroup(L,x=>x.p.cod).filter(g=>g[by]>0).sort((a,b)=>b[by]-a[by]);const tot=G.reduce((a,g)=>a+g[by],0);
+    if(!G.length){el3.innerHTML='<div class="note">Sin datos.</div>';return}const W=Math.max(300,el3.clientWidth||520),H=260,ml=40,mb=28,mt=10;let acc=0;const pts=G.map((g,i)=>{acc+=g[by];return [ml+(i+1)/G.length*(W-ml-10),mt+(1-acc/tot)*(H-mb-mt)]});
+    const i80=G.findIndex((g,i)=>G.slice(0,i+1).reduce((a,x)=>a+x[by],0)/tot>=.8);
+    el3.innerHTML=`<svg width="100%" viewBox="0 0 ${W} ${H}" role="img" aria-label="Curva de Pareto">${[0,.2,.4,.6,.8,1].map(t=>`<line x1="${ml}" x2="${W-10}" y1="${mt+(1-t)*(H-mb-mt)}" y2="${mt+(1-t)*(H-mb-mt)}" stroke="var(--rule)"/><text x="${ml-6}" y="${mt+(1-t)*(H-mb-mt)}" dy=".32em" text-anchor="end">${t*100}%</text>`).join('')}
+     <polyline fill="none" stroke="var(--cyan)" stroke-width="2.5" points="${ml},${H-mb} ${pts.map(p=>p.map(v=>v.toFixed(1)).join(',')).join(' ')}"/>${i80>=0?`<line x1="${pts[i80][0]}" x2="${pts[i80][0]}" y1="${mt}" y2="${H-mb}" stroke="var(--magenta)" stroke-dasharray="4 4"/><text x="${pts[i80][0]+6}" y="${mt+14}" style="fill:var(--magenta)">${i80+1} productos (${gvPct((i80+1)/G.length)}) = 80% ${by==='q'?'de las unidades':'de la venta'}</text>`:''}
+     <text x="${ml}" y="${H-8}">1</text><text x="${W-10}" y="${H-8}" text-anchor="end">${G.length} productos</text></svg>`}
+  const el4=$('#gvcAt');if(el4){const A=GV.filter(d=>d.kind==='aten');const ases=[...new Set(A.map(a=>a.asesor))];const keys=GV_RES.concat(['Sin resultado']);
+    vStack(el4,ases.map(u=>{const vals={};A.filter(a=>a.asesor===u).forEach(a=>{const k=a.resultado||'Sin resultado';vals[k]=(vals[k]||0)+1});return {x:gvUsrName(u).split(' ')[0],vals,u}}),keys,keys.map((k,i)=>GV_PAL[i%10]),r=>gvUsrName(r.u),v=>v==null?'—':gvI(v)+' atenciones')}}
+
+/* ---- Eventos ---- */
+function bindGV(){
+  document.querySelectorAll('[data-gvv]').forEach(b=>b.onclick=()=>{gvF.vista=b.dataset.gvv;gvF.page=0;gvF.q='';gvF.est='';gvF.msgId='';render()});
+  const on=(id,ev,fn)=>{const e=$(id);if(e)e[ev]=fn};
+  on('#gvImp','onclick',openGvImport);on('#gvNewProf','onclick',()=>openGvProf());on('#gvNewProf2','onclick',()=>openGvProf());
+  on('#gvD0','onchange',e=>{gvF.desde=e.target.value;gvF.page=0;render()});on('#gvD1','onchange',e=>{gvF.hasta=e.target.value;gvF.page=0;render()});
+  on('#gvPer','onchange',e=>{const v=e.target.value,M=gvModel();if(v==='all'){gvF.desde='';gvF.hasta=''}else if(v==='q'){const d=new Date(M.dmax+'T12:00:00');d.setMonth(d.getMonth()-2);gvF.desde=d.toISOString().slice(0,8)+'01';gvF.hasta=''}else if(v.startsWith('m:')){const k=v.slice(2),[y,m]=k.split('-').map(Number);gvF.desde=k+'-01';gvF.hasta=new Date(Date.UTC(y,m,0)).toISOString().slice(0,10)}gvF.page=0;render()});
+  const qi=$('#gvQ');if(qi)qi.oninput=e=>{gvF.q=e.target.value;gvF.page=0;const pos=e.target.selectionStart;render();const n2=$('#gvQ');if(n2){n2.focus();try{n2.setSelectionRange(pos,pos)}catch(_){}}};
+  on('#gvCatF','onchange',e=>{gvF.cat=e.target.value;gvF.page=0;render()});on('#gvEstF','onchange',e=>{gvF.est=e.target.value;gvF.page=0;render()});on('#gvOrd','onchange',e=>{gvF.orden=e.target.value;render()});
+  on('#gvAseF','onchange',e=>{gvF.ase=e.target.value;gvF.page=0;render()});on('#gvTipoF','onchange',e=>{gvF.tipo=e.target.value;gvF.page=0;render()});on('#gvAbcBy','onchange',e=>{gvF.abcBy=e.target.value;render()});
+  on('#gvRotCls','onchange',e=>{gvF.est=e.target.value;gvF.page=0;render()});on('#gvRotTr','onchange',e=>{gvF.rotTr=e.target.checked;render()});
+  on('#gvAtAse','onchange',e=>{gvF.atAse=e.target.value;render()});on('#gvAtCanal','onchange',e=>{gvF.atCanal=e.target.value;render()});on('#gvAtEst','onchange',e=>{gvF.atEst=e.target.value;render()});
+  document.querySelectorAll('[data-gvrcls]').forEach(b=>b.onclick=()=>{gvF.est=gvF.est===b.dataset.gvrcls?'':b.dataset.gvrcls;gvF.page=0;render()});
+  document.querySelectorAll('[data-gvclest]').forEach(b=>b.onclick=()=>{gvF.clEst=gvF.clEst===b.dataset.gvclest?'':b.dataset.gvclest;gvF.page=0;render()});
+  document.querySelectorAll('[data-gvpfest]').forEach(b=>b.onclick=()=>{gvF.est=gvF.est===b.dataset.gvpfest?'':b.dataset.gvpfest;render()});
+  document.querySelectorAll('[data-gvatest]').forEach(b=>b.onclick=()=>{gvF.atEst=gvF.atEst===b.dataset.gvatest?'':b.dataset.gvatest;render()});
+  document.querySelectorAll('[data-gvpg]').forEach(b=>b.onclick=()=>{gvF.page=+b.dataset.gvpg;render();window.scrollTo({top:0,behavior:'smooth'})});
+  document.querySelectorAll('[data-gvprc]').forEach(i=>i.onchange=()=>gvSavePrice(i.dataset.gvprc,i.value));
+  document.querySelectorAll('[data-gvpe]').forEach(b=>b.onclick=()=>openGvProd(b.dataset.gvpe));
+  document.querySelectorAll('[data-gvadd]').forEach(b=>b.onclick=()=>{const p=gvModel().prods.find(x=>x.cod===b.dataset.gvadd);openGvProf(null,{items:[{cod:p.cod,nom:p.nom,cant:1,precio:+(p.precio||0).toFixed(2),desc:0,costo:p.costo||0}]})});
+  document.querySelectorAll('[data-gvase]').forEach(b=>b.onclick=()=>openGvAse(b.dataset.gvase));
+  document.querySelectorAll('[data-gvcli]').forEach(b=>b.onclick=()=>openGvCli(b.dataset.gvcli));on('#gvCliNew','onclick',()=>openGvCli(''));
+  document.querySelectorAll('[data-gvatc]').forEach(b=>b.onclick=()=>openGvAten(null,b.dataset.gvatc));document.querySelectorAll('[data-gvat]').forEach(b=>b.onclick=()=>openGvAten(b.dataset.gvat));on('#gvAtNew','onclick',()=>openGvAten());
+  document.querySelectorAll('[data-gvpfc]').forEach(b=>b.onclick=()=>openGvProf(null,{cliente:b.dataset.gvpfc}));
+  document.querySelectorAll('[data-gvpf]').forEach(b=>b.onclick=()=>openGvProf(b.dataset.gvpf));document.querySelectorAll('[data-gvpfp]').forEach(b=>b.onclick=()=>{const p=GV.find(d=>d.id===b.dataset.gvpfp);if(p)gvPrintProf(p)});
+  document.querySelectorAll('[data-gvpfw]').forEach(b=>b.onclick=()=>{const p=GV.find(d=>d.id===b.dataset.gvpfw);if(p)gvProfWa(p)});
+  on('#gvCatX','onclick',gvExportCat);on('#gvVenX','onclick',gvExportVen);on('#gvCliX','onclick',gvExportCli);on('#gvAtX','onclick',gvExportAten);
+  on('#gvMsgNew','onclick',openGvMsgNew);document.querySelectorAll('[data-gvmsg]').forEach(b=>b.onclick=()=>{gvF.msgId=b.dataset.gvmsg;render()});on('#gvMsgBack','onclick',()=>{gvF.msgId='';render()});
+  const m=GV.find(d=>d.id===gvF.msgId);
+  if(m){document.querySelectorAll('[data-gvmsend]').forEach(a=>a.addEventListener('click',()=>{if(gvCanEdit()&&!m.dest[+a.dataset.gvmsend].env)gvMsgMark(m,+a.dataset.gvmsend,true)}));
+    document.querySelectorAll('[data-gvmtog]').forEach(b=>b.onclick=()=>{const i=+b.dataset.gvmtog;gvMsgMark(m,i,!m.dest[i].env)});on('#gvMsgAll','onclick',()=>gvMsgMark(m,'all',true));
+    on('#gvMsgCopy','onclick',()=>{const t=(m.dest||[]).map(d=>'+'+gvPhone(d.tel)).join('\n');navigator.clipboard?.writeText(t).then(()=>toast(m.dest.length+' teléfonos copiados.')).catch(()=>toast('No se pudo copiar.'))});
+    on('#gvMsgCsv','onclick',()=>{const q=v=>`"${String(v??'').replace(/"/g,'""')}"`;const csv=['Cliente;Teléfono;Correo;Asesor;Mensaje;Enviado',...m.dest.map(d=>[d.nombre,d.tel,d.email,gvUsrName(d.ase),gvFill(m.texto,d),d.env].map(q).join(';'))].join('\r\n');downloads&&downloads.save({filename:`campana_${today()}.csv`,data:'﻿'+csv,mimeType:'text/csv'})});
+    const dm=$('#gvMsgDel');if(dm)dm.onclick=async()=>{if(!dm.dataset.arm){dm.dataset.arm=1;dm.textContent='Confirmar eliminación';return}try{await gvDel(m.id);gvF.msgId='';toast('Campaña eliminada.')}catch(e){dbErr(e)}}}
+  requestAnimationFrame(gvCharts)}
 
 /* ===== Conexión con Supabase (datos, archivos, descargas) ===== */
 function makeDb(){
@@ -4443,6 +4922,7 @@ render();
     db.collection('educacion_aces').onSnapshot(snap=>{EDU=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
     db.collection('upn_material').onSnapshot(snap=>{UPNM=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
     db.collection('clientes').onSnapshot(snap=>{const all=snap.docs.map(d=>({...d.data(),id:d.id}));RAW.clientes=all.filter(r=>!['act','job','hrs','cot','cotcli'].includes(r.kind));RAW.cotiz=all.filter(r=>r.kind==='cot');RAW.cotCli=all.filter(r=>r.kind==='cotcli');RAW.prodHrs=all.filter(r=>r.kind==='hrs');RAW.cliAct=all.filter(r=>r.kind==='act');RAW.prodJobs=all.filter(r=>r.kind==='job');render()},()=>{});
+    {let gvSig='';db.collection(GV_COL).onSnapshot(snap=>{const docs=snap.docs.map(d=>({...d.data(),id:d.id}));const sig=docs.length+'|'+docs.map(d=>d.id+(d.actualizado||'')+(d.imp||'')).join(',');if(sig===gvSig)return;gvSig=sig;GV=docs;GVV++;if(tab==='gv')render()},()=>{})}
     db.collection('cot_clientes').onSnapshot(snap=>{COTCAT=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='cot')render()},()=>{});
     db.collection('cot_config').onSnapshot(snap=>{COTCFG=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='cot')render()},()=>{});
     db.collection('produccion_hist').onSnapshot(snap=>{PRODH=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='prod')render()},()=>{});
