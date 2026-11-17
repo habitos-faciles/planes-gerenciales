@@ -42,7 +42,11 @@ header.top .wrap{padding-block:18px 0;display:flex;flex-direction:column;gap:14p
 .status{font-family:var(--mono);font-size:.75rem;color:var(--ink-2);display:flex;align-items:center;gap:8px}
 .status .dot{width:8px;height:8px;border-radius:50%;background:var(--warn)}
 .status.on .dot{background:var(--ok)}
-nav.tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+nav.tabs{display:flex;gap:2px;flex-wrap:wrap;position:relative;z-index:30}
+nav.tabs .navg{position:relative}nav.tabs .navg-b{display:inline-flex;align-items:center;gap:6px}nav.tabs .navg-cur{font-size:.8rem;color:var(--cyan);font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis}nav.tabs .navg-c{font-size:.75rem;transition:transform .15s}nav.tabs .navg.open .navg-c{transform:rotate(180deg)}
+nav.tabs .navg-m{position:absolute;top:100%;left:0;min-width:240px;background:var(--sheet,#fff);border:1px solid var(--rule);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.14);padding:6px;display:flex;flex-direction:column;z-index:40}nav.tabs .navg-m[hidden]{display:none}
+nav.tabs .navg-m button{text-align:left;border-bottom:0;border-left:3px solid transparent;border-radius:6px;padding:9px 12px}nav.tabs .navg-m button:hover{background:var(--rule-2)}nav.tabs .navg-m button[aria-selected="true"]{border-left-color:var(--cyan);background:var(--cyan-soft)}
+@media(max-width:640px){nav.tabs .navg-m{position:fixed;left:12px;right:12px;top:auto;min-width:0}}
 nav.tabs::-webkit-scrollbar{display:none}
 nav.tabs button{font:500 .9rem var(--body);color:var(--ink-2);background:none;border:0;padding:10px 14px;border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap}
 nav.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--cyan)}
@@ -596,11 +600,16 @@ const TABS=[['dash','Dashboard'],['ventas','Reportes'],['org','Unidades'],['cal'
 let tab='dash',filterUnit='ALL',q='';
 try{const h=location.hash.slice(1);if(TABS.some(t=>t[0]===h))tab=h}catch(e){}
 function tabsList(){const T=TABS.filter(t=>t[0]!=='gv'||(typeof gvAccess==='function'&&gvAccess()!=='none'));return canManage()&&mode==='db'?[...T,['users','Usuarios']]:T}
-function renderTabs(){
-  $('#tabs').innerHTML=tabsList().map(([k,l])=>`<button role="tab" aria-selected="${k===tab}" data-tab="${k}">${l}${SCH[k]?`<span class="n">${S[k].length}</span>`:''}</button>`).join('');
+const NAV_TOP=['dash','cal'],NAV_DEP=['clientes','cot','prod','gv'];let navOpen='';
+function renderTabs(){const T=tabsList(),btn=([k,l])=>`<button role="tab" aria-selected="${k===tab}" data-tab="${k}">${l}${SCH[k]?`<span class="n">${S[k].length}</span>`:''}</button>`;
+  const top=NAV_TOP.map(k=>T.find(t=>t[0]===k)).filter(Boolean),dep=NAV_DEP.map(k=>T.find(t=>t[0]===k)).filter(Boolean),adm=T.filter(t=>!NAV_TOP.includes(t[0])&&!NAV_DEP.includes(t[0]));
+  const grp=(id,l,L)=>{if(!L.length)return '';const act=L.find(t=>t[0]===tab),open=navOpen===id;return `<div class="navg${open?' open':''}"><button type="button" class="navg-b" data-navg="${id}" aria-expanded="${open}" aria-haspopup="true" aria-selected="${!!act}">${l}${act?`<span class="navg-cur">· ${esc(act[1])}</span>`:''}<span class="navg-c" aria-hidden="true">▾</span></button><div class="navg-m" role="menu" ${open?'':'hidden'}>${L.map(btn).join('')}</div></div>`};
+  $('#tabs').innerHTML=top.map(btn).join('')+grp('adm','Administración',adm)+grp('dep','Departamentos',dep);
 }
+document.addEventListener('click',e=>{if(!navOpen||!e.target.isConnected)return;if(e.target.closest&&e.target.closest('#tabs .navg'))return;navOpen='';renderTabs()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&navOpen){navOpen='';renderTabs()}});
 document.addEventListener('click',e=>{const id=e.target&&e.target.id;if(id==='logoutBtn')logout();if(id==='myPassBtn'){const b=$('#myPassBox');b.hidden=!b.hidden;if(!b.hidden)$('#myPass1').focus()}if(id==='myPassGo')changeMyPass()});
-$('#tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;tab=b.dataset.tab;q='';render()});
+$('#tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.navg){navOpen=navOpen===b.dataset.navg?'':b.dataset.navg;renderTabs();return}if(!b.dataset.tab)return;navOpen='';tab=b.dataset.tab;q='';render()});
 
 /* 'GG!' = solo lo registrado por la Gerencia General (sin sus unidades dependientes) */
 const fUnit=()=>filterUnit==='GG!'?'GG':filterUnit;
