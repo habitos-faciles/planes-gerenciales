@@ -5164,7 +5164,15 @@ function bindGV(){
 /* ===== Conexión con Supabase (datos, archivos, descargas) ===== */
 function makeDb(){
   const subs={};const cache={};
+  /* Carga completa solo al abrir; luego se piden únicamente los registros cambiados (ahorra transferencia/egress de Supabase) */
+  let lastSync=Date.now();
   async function fetchCol(c){let all=[],from=0;for(;;){const r=await sb.from('registros').select('id,data').eq('col',c).range(from,from+999);if(r.error)throw r.error;all=all.concat(r.data);if(r.data.length<1000)break;from+=1000}cache[c]=new Map(all.map(x=>[x.id,x.data]));emit(c)}
+  let syncing=false;
+  async function syncChanges(){const cols=Object.keys(subs).filter(c=>(subs[c]||[]).length);if(syncing||!SESSION||!cols.length)return;syncing=true;
+    const t0=Date.now(),since=new Date(lastSync-15*60000).toISOString();
+    try{const r=await sb.from('registros').select('col,id,data').in('col',cols).gt('updated_at',since).limit(2000);if(r.error)throw r.error;
+      const by={};(r.data||[]).forEach(x=>{if(!cache[x.col])cache[x.col]=new Map();const old=cache[x.col].get(x.id);if(JSON.stringify(old)!==JSON.stringify(x.data)){cache[x.col].set(x.id,x.data);by[x.col]=1}});
+      Object.keys(by).forEach(emit);lastSync=t0}catch(_){}finally{syncing=false}}
   function emit(c){const docs=[...(cache[c]||new Map()).entries()].map(([id,data])=>({id,exists:true,data:()=>data}));(subs[c]||[]).forEach(fn=>fn({docs,size:docs.length,empty:!docs.length}))}
   function applyLocal(c,id,data){if(!cache[c])cache[c]=new Map();if(data)cache[c].set(id,data);else cache[c].delete(id);emit(c)}
   const doc=(c,id)=>({
@@ -5182,7 +5190,8 @@ function makeDb(){
       if(p.eventType==='DELETE'){if(row.id)applyLocal(row.col,row.id,null);else fetchCol(row.col).catch(()=>{})}
       else applyLocal(row.col,row.id,row.data);
     }).subscribe();
-    setInterval(()=>{if(SESSION)Object.keys(subs).forEach(c=>fetchCol(c).catch(()=>{}))},60000);
+    setInterval(()=>{if(!document.hidden)syncChanges()},120000);
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden&&Date.now()-lastSync>120000)syncChanges()});
   }
   return {
     collection:c=>({doc:id=>doc(c,id),onSnapshot(fn,err){(subs[c]=subs[c]||[]).push(fn);fetchCol(c).catch(e=>err&&err({code:'unavailable',message:e.message}));startRealtime();return ()=>{subs[c]=subs[c].filter(f=>f!==fn)}}}),
@@ -5225,14 +5234,14 @@ render();
     db.collection('educacion_aces').onSnapshot(snap=>{EDU=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
     db.collection('upn_material').onSnapshot(snap=>{UPNM=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
     db.collection('clientes').onSnapshot(snap=>{const all=snap.docs.map(d=>({...d.data(),id:d.id}));RAW.clientes=all.filter(r=>!['act','job','hrs','cot','cotcli'].includes(r.kind));RAW.cotiz=all.filter(r=>r.kind==='cot');RAW.cotCli=all.filter(r=>r.kind==='cotcli');RAW.prodHrs=all.filter(r=>r.kind==='hrs');RAW.cliAct=all.filter(r=>r.kind==='act');RAW.prodJobs=all.filter(r=>r.kind==='job');render()},()=>{});
-    {let gvSig='';db.collection(GV_COL).onSnapshot(snap=>{const docs=snap.docs.map(d=>({...d.data(),id:d.id}));const sig=docs.length+'|'+docs.map(d=>d.id+(d.actualizado||'')+(d.imp||'')).join(',');if(sig===gvSig)return;gvSig=sig;GV=docs;GVV++;if(tab==='gv')render()},()=>{})}
+    if(gvAccess()!=='none'){let gvSig='';db.collection(GV_COL).onSnapshot(snap=>{const docs=snap.docs.map(d=>({...d.data(),id:d.id}));const sig=docs.length+'|'+docs.map(d=>d.id+(d.actualizado||'')+(d.imp||'')).join(',');if(sig===gvSig)return;gvSig=sig;GV=docs;GVV++;if(tab==='gv')render()},()=>{})}
     db.collection('cot_clientes').onSnapshot(snap=>{COTCAT=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='cot')render()},()=>{});
     db.collection('cot_config').onSnapshot(snap=>{COTCFG=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='cot')render()},()=>{});
     db.collection('produccion_hist').onSnapshot(snap=>{PRODH=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='prod')render()},()=>{});
     db.collection('ventas_hist').onSnapshot(snap=>{VHIST=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
     COLS.forEach(c=>db.collection(c).onSnapshot(snap=>{const rows=snap.docs.map(d=>({...d.data(),id:d.id}));if(c==='personal'){PUBP.length=0;PUBP.push(...rows);mergeP();migrate()}else RAW[c]=rows;render()},()=>toast('No se pudieron cargar los datos. Revisa tu conexión.')))};
   /* se difiere con setTimeout: llamar a Supabase dentro de este aviso bloquea la sesión (deadlock conocido de supabase-js) */
-  sb.auth.onAuthStateChange((ev,sess)=>{if(ev==='INITIAL_SESSION')return;setTimeout(()=>{const had=!!SESSION;SESSION=sess;if(sess){loadUsers().then(startData)}else{USR=[];USR_READY=false;if(had){COLS.forEach(c=>RAW[c]=[]);db.clear()}loadUsers()}},0)});
+  sb.auth.onAuthStateChange((ev,sess)=>{if(ev==='INITIAL_SESSION')return;setTimeout(()=>{const had=!!SESSION,prevU=SESSION&&SESSION.user&&SESSION.user.id;SESSION=sess;if(sess&&had&&prevU===sess.user.id&&USR_READY)return;/* renovación de token o volver a la pestaña: no recargar todo */if(sess){loadUsers().then(startData)}else{USR=[];USR_READY=false;if(had){COLS.forEach(c=>RAW[c]=[]);db.clear()}loadUsers()}},0)});
   sb.channel('perfiles-cambios').on('postgres_changes',{event:'*',schema:'public',table:'perfiles'},()=>{if(SESSION)loadUsers()}).subscribe();
   await loadUsers();if(SESSION)startData();
 })();
