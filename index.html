@@ -444,7 +444,12 @@ const CONFIG_ERR=!CFG?'No se encontró el archivo config.js junto a index.html. 
   :!/^eyJ/.test(SB_KEY)?'La clave en config.js no parece la "anon public". Cópiala de Project Settings > API Keys > Legacy API Keys (empieza con eyJ).'
   :!window.supabase?'No se pudo cargar la librería de Supabase. Revisa tu conexión a internet o desactiva el bloqueador de anuncios para esta página.':'';
 const CONFIG_OK=!CONFIG_ERR;
-const sb=CONFIG_OK?supabase.createClient(SB_URL,SB_KEY):null;
+/* Bloqueo de sesión solo dentro de esta pestaña y con tiempo máximo: evita que una pestaña colgada bloquee a las demás */
+const _lk={};const tabLock=async(name,t,fn)=>{const prev=_lk[name]||Promise.resolve();let rel;const cur=new Promise(r=>rel=r);_lk[name]=prev.then(()=>cur,()=>cur);
+  await Promise.race([prev.catch(()=>{}),new Promise(r=>setTimeout(r,6000))]);try{return await fn()}finally{rel()}};
+const withTO=(p,ms,lbl)=>Promise.race([p,new Promise((_,rj)=>setTimeout(()=>rj(new Error('El servidor no respondió a tiempo ('+lbl+')')),ms))]);
+let CONN_ERR='';
+const sb=CONFIG_OK?supabase.createClient(SB_URL,SB_KEY,{auth:{lock:tabLock}}):null;
 const EMAIL_DOM=(window.PLAN_CONFIG&&PLAN_CONFIG.DOMINIO_USUARIOS)||'plan-editorial.app';
 const userKey=u=>norm(u).replace(/[^a-z0-9._-]/g,'');
 const toEmail=u=>userKey(u)+'@'+EMAIL_DOM;
@@ -501,10 +506,10 @@ function viewLogin(){
     ${first?fld('lgNom','Nombre completo'):''}
     ${fld('lgUser','Usuario','text','autocomplete="username" autocapitalize="none" spellcheck="false"')}
     ${fld('lgPass','Clave'+(first?' (mínimo 6 caracteres)':''),'password',first?'autocomplete="new-password"':'autocomplete="current-password"')}
-    <div id="lgMsg" class="note" style="color:var(--bad);min-height:1.2em"></div>
+    <div id="lgMsg" class="note" style="color:var(--bad);min-height:1.2em">${CONN_ERR?'La conexión con el servidor está lenta o falló ('+esc(CONN_ERR)+'). Puedes intentar ingresar igual.':''}</div>
     <button class="btn primary" type="submit" ${authBusy?'disabled':''}>${first?'Crear administrador':'Ingresar'}</button>
    </form>
-   ${first?'':'<span class="note">¿Olvidaste tu clave? Pide al administrador que te asigne una nueva.</span>'}
+   ${first?'':'<span class="note">¿Olvidaste tu clave? Pide al administrador que te asigne una nueva (Usuarios › Restablecer clave). Si eres el administrador, cámbiala en el panel de Supabase › Authentication › Users.</span>'}
   </div>`;
 }
 async function doLogin(e){
@@ -523,11 +528,12 @@ async function doLogin(e){
       const r=await sb.rpc('crear_primer_admin',{p_nombre:nombre,p_usuario:usuario});if(r.error)throw r.error;
       await loadUsers();toast('Administrador creado. Bienvenido, '+nombre+'.');
     }else{
-      const {error}=await sb.auth.signInWithPassword({email:toEmail(usuario),password:pw});
+      msg.style.color='var(--muted)';msg.textContent='Ingresando…';
+      const {error}=await withTO(sb.auth.signInWithPassword({email:toEmail(usuario),password:pw}),20000,'ingreso');msg.style.color='';msg.textContent='';
       if(error){msg.textContent=/invalid/i.test(error.message)?'Usuario o clave incorrectos.':/many|rate/i.test(error.message)?'Demasiados intentos. Espera un momento.':'No se pudo ingresar: '+error.message;return}
       tab='dash';
     }
-  }catch(err){msg.textContent='No se pudo completar: '+(err.message||err)}
+  }catch(err){msg.style.color='';msg.textContent='No se pudo completar: '+(err.message||err)+(/no respondió/.test(err.message||'')?'. Revisa tu internet o el estado del proyecto en Supabase, cierra otras pestañas del sistema y vuelve a intentar.':'')}
   finally{authBusy=false}
 }
 async function becomeAdmin(){const nombre=$('#baNom').value.trim();if(!nombre){toast('Escribe tu nombre.');return}
@@ -592,10 +598,10 @@ function bindUsers(){
 }
 async function loadUsers(){
   if(!sb)return;
-  try{const h=await sb.rpc('hay_admin');HAY_ADMIN=h.error?null:!!h.data}catch(e){}
-  if(SESSION){let r=await sb.from('perfiles').select('*');
-    const mine=x=>(x.data||[]).some(u=>u.id===SESSION.user.id);
-    if(r.error||!mine(r)){try{const s2=await sb.auth.refreshSession();if(s2&&s2.data&&s2.data.session)SESSION=s2.data.session}catch(_){}r=await sb.from('perfiles').select('*')}
+  try{const h=await withTO(sb.rpc('hay_admin'),12000,'hay_admin');HAY_ADMIN=h.error?null:!!h.data}catch(e){}
+  if(SESSION){const q=async()=>{try{return await withTO(sb.from('perfiles').select('*'),15000,'perfiles')}catch(e){return {error:{message:e.message}}}};
+    let r=await q();const mine=x=>(x.data||[]).some(u=>u.id===SESSION.user.id);
+    if(r.error||!mine(r)){await new Promise(z=>setTimeout(z,1200));r=await q()}
     if(!r.error){USR=r.data||[];USR_ERR=''}else USR_ERR=r.error.message||'error';USR_READY=true}else{USR=[];USR_READY=false;USR_ERR=''}
   render();
 }
@@ -627,6 +633,8 @@ function render(){
   $('#statusTxt').textContent=(mode==='db'?(readOnly?'Datos compartidos · solo lectura':'Datos en la nube'):mode==='local'?'Guardado solo en este navegador':'Conectando…')+(mode==='db'&&ME.ready&&scopeLabel()?' · '+scopeLabel():'');
   const lo=$('#logoutBtn');if(lo)lo.hidden=!(mode==='db'&&myAcc());const mp=$('#myPassBtn');if(mp)mp.hidden=!(mode==='db'&&myAcc());
   const v=$('#view');
+  if(CONN_ERR&&ac==='pending'){$('#tabs').innerHTML='';v.innerHTML=`<div class="panel empty" style="max-width:540px;margin:24px auto"><strong>No se pudo conectar con la base de datos</strong>El servidor (Supabase) no respondió. Puede ser tu internet, otra pestaña del sistema bloqueada, o que el proyecto de Supabase esté pausado o con el servicio caído.<div class="note" style="margin-top:6px">Detalle: ${esc(CONN_ERR)}</div><div style="margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><button class="btn primary" id="cnRetry">Reintentar</button><button class="btn" id="cnFix">Reparar sesión y recargar</button></div></div>`;
+    $('#cnRetry').onclick=()=>location.reload();$('#cnFix').onclick=()=>{try{Object.keys(localStorage).filter(k=>/^sb-|supabase/i.test(k)).forEach(k=>localStorage.removeItem(k))}catch(_){}location.reload()};return}
   if(ac==='pending'){$('#tabs').innerHTML='';v.innerHTML='<div class="panel empty"><strong>Verificando acceso…</strong>Un momento, por favor.</div>';return}
   if(ac==='none'){$('#tabs').innerHTML='';v.innerHTML=viewLogin();bindView();return}
   applyScope(ac);scopeClientes(ac);scopeProd(ac);scopeHrs(ac);scopeCot(ac);consolidate();
@@ -5194,7 +5202,9 @@ render();
 (async()=>{
   if(!CONFIG_OK){ME.ready=true;render();return}
   db=makeDb();downloads=webDownloads;assets=webAssets;mode='db';
-  const s=await sb.auth.getSession();SESSION=s.data.session;ME.ready=true;
+  const slow=setTimeout(()=>{if(!ME.ready){CONN_ERR='la conexión está tardando demasiado';render()}},15000);
+  try{const s=await withTO(sb.auth.getSession(),20000,'sesión');SESSION=s.data.session;CONN_ERR=''}catch(e){SESSION=null;CONN_ERR=e.message;try{Object.keys(localStorage).filter(k=>/^sb-/i.test(k)).forEach(k=>localStorage.removeItem(k))}catch(_){}}
+  clearTimeout(slow);ME.ready=true;
   let started=false;
   const PUBP=[],PRIV={};const mergeP=()=>{RAW.personal=PUBP.map(p=>({...p,...(PRIV[p.id]||{}),id:p.id}))};
   let migrated=false;const migrate=()=>{if(migrated||!isAdm())return;const old=PUBP.filter(p=>SENS.some(k=>k in p));if(!old.length)return;migrated=true;old.forEach(p=>put('personal',{...p,...(PRIV[p.id]||{})}).catch(()=>{}))};
@@ -5221,7 +5231,8 @@ render();
     db.collection('produccion_hist').onSnapshot(snap=>{PRODH=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='prod')render()},()=>{});
     db.collection('ventas_hist').onSnapshot(snap=>{VHIST=snap.docs.map(d=>({...d.data(),id:d.id}));if(tab==='ventas')render()},()=>{});
     COLS.forEach(c=>db.collection(c).onSnapshot(snap=>{const rows=snap.docs.map(d=>({...d.data(),id:d.id}));if(c==='personal'){PUBP.length=0;PUBP.push(...rows);mergeP();migrate()}else RAW[c]=rows;render()},()=>toast('No se pudieron cargar los datos. Revisa tu conexión.')))};
-  sb.auth.onAuthStateChange((ev,sess)=>{const had=!!SESSION;SESSION=sess;if(sess){loadUsers().then(startData)}else{USR=[];USR_READY=false;if(had){COLS.forEach(c=>RAW[c]=[]);db.clear()}loadUsers()}});
+  /* se difiere con setTimeout: llamar a Supabase dentro de este aviso bloquea la sesión (deadlock conocido de supabase-js) */
+  sb.auth.onAuthStateChange((ev,sess)=>{if(ev==='INITIAL_SESSION')return;setTimeout(()=>{const had=!!SESSION;SESSION=sess;if(sess){loadUsers().then(startData)}else{USR=[];USR_READY=false;if(had){COLS.forEach(c=>RAW[c]=[]);db.clear()}loadUsers()}},0)});
   sb.channel('perfiles-cambios').on('postgres_changes',{event:'*',schema:'public',table:'perfiles'},()=>{if(SESSION)loadUsers()}).subscribe();
   await loadUsers();if(SESSION)startData();
 })();
