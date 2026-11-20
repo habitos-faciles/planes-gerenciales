@@ -4537,7 +4537,8 @@ function gvParseSheet(aoa){
     const comp=String(r[c.comp]??'').trim(),usr=String(r[c.u]??'').trim(),q=gvNum(r[c.q])||0,t=gvTipoOf(comp,q,usr);
     out.push({cod,nom,f:f.slice(0,19),t,comp,q,sd:gvNum(r[c.sd]),co:gvNum(r[c.co]),pr:gvNum(r[c.pr]),ds:gvNum(r[c.ds]),to:gvNum(r[c.to]),u:usr,cl:String(r[c.cl]??'').trim(),d:t==='TS'?gvDest(comp):''})}
   return {rows:out,ent:ent.trim()}}
-function gvKey(x){return [x.cod,x.f,x.comp,x.q,x.sd].join('|')}
+const gvCompCorto=c=>String(c||'').replace(/^(I\d{3}-\d+)\s*\(.*$/s,'$1');
+function gvKey(x){return [x.cod,x.f,gvCompCorto(x.comp),x.q,x.sd].join('|')}
 function openGvImport(){if(!gvCanImport()){toast('Solo el responsable de la Coordinación de Ventas Denominacionales o el administrador pueden importar.');return}
   let dl=$('#gvIDlg');if(!dl){dl=document.createElement('dialog');dl.id='gvIDlg';dl.style.width='min(860px,calc(100vw - 24px))';document.body.appendChild(dl)}
   gvToastOut(dl);const M=gvModel();
@@ -4559,7 +4560,7 @@ function openGvImport(){if(!gvCanImport()){toast('Solo el responsable de la Coor
     try{let R=parsed.rows;const M2=gvModel();
       if(mode==='merge'&&M2.n){const prev=M2.prods.flatMap(p=>p.mov.map(r=>({cod:p.cod,nom:p.nom,f:r[1],t:r[2],comp:r[3],q:r[4],sd:r[5],co:r[6],pr:r[7],ds:r[8],to:r[9],u:r[10],cl:r[11],d:r[12]})));const seen=new Set(prev.map(gvKey));R=prev.concat(R.filter(x=>!seen.has(gvKey(x))))}
       const pi=new Map(),P=[];R.forEach(x=>{if(!pi.has(x.cod)){pi.set(x.cod,P.length);P.push([x.cod,x.nom])}else if(x.nom)P[pi.get(x.cod)][1]=x.nom});
-      const comp=R.map(x=>[pi.get(x.cod),x.f,x.t,x.comp,x.q,x.sd,x.co,x.pr,x.ds,x.to,x.u,x.cl,x.d||'']);
+      const comp=R.map(x=>[pi.get(x.cod),x.f,x.t,gvCompCorto(x.comp),x.q,x.sd,x.co,x.pr,x.ds,x.to,x.u,x.cl,x.d||'']);
       const impId=uid(),CH=500,docs=[];for(let i=0;i<comp.length;i+=CH)docs.push({id:`kx-${impId}-${i/CH}`,kind:'kx',imp:impId,n:i/CH,r:comp.slice(i,i+CH)});
       const oldIds=GV.filter(d=>d.kind==='kx').map(d=>d.id);
       for(let i=0;i<docs.length;i++){go.textContent=`Guardando ${i+1} de ${docs.length}…`;await db.collection(GV_COL).doc(docs[i].id).set(docs[i])}
@@ -5166,7 +5167,16 @@ function makeDb(){
   const subs={};const cache={};
   /* Carga completa solo al abrir; luego se piden únicamente los registros cambiados (ahorra transferencia/egress de Supabase) */
   let lastSync=Date.now();
-  async function fetchCol(c){let all=[],from=0;for(;;){const r=await sb.from('registros').select('id,data').eq('col',c).range(from,from+999);if(r.error)throw r.error;all=all.concat(r.data);if(r.data.length<1000)break;from+=1000}cache[c]=new Map(all.map(x=>[x.id,x.data]));emit(c)}
+  /* El kardex de Gestión de Ventas (trozos kx-*) no cambia hasta la próxima importación: se guarda en el navegador (IndexedDB) y se descarga solo una vez por importación */
+  const idb=(()=>{let p=null;const open=()=>p||(p=new Promise((res,rej)=>{try{const r=indexedDB.open('planes-cache',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}catch(e){rej(e)}}));
+    const tx=(m,fn)=>open().then(d=>new Promise((res,rej)=>{const t=d.transaction('kv',m);const q=fn(t.objectStore('kv'));t.oncomplete=()=>res(q&&q.result);t.onerror=()=>rej(t.error)}));
+    return {get:k=>tx('readonly',st=>st.get(k)).catch(()=>null),set:(k,v)=>tx('readwrite',st=>{st.clear();return st.put(v,k)}).catch(()=>null)}})();
+  async function pageAll(qf){let all=[],from=0;for(;;){const r=await qf(sb.from('registros').select('id,data')).range(from,from+999);if(r.error)throw r.error;all=all.concat(r.data);if(r.data.length<1000)break;from+=1000}return all}
+  async function fetchGV(c){const base=await pageAll(q=>q.eq('col',c).not('id','like','kx-%'));const imp=base.find(x=>x.id==='kximp'),impId=imp&&imp.data&&imp.data.imp;let kx=[];
+    if(impId){const need=Math.ceil((+imp.data.filas||0)/500),key='kx-'+impId;let got=await idb.get(key);
+      if(!Array.isArray(got)||got.length!==need){got=await pageAll(q=>q.eq('col',c).like('id','kx-'+impId+'-%'));if(got.length===need)idb.set(key,got)}kx=got}
+    cache[c]=new Map(base.concat(kx).map(x=>[x.id,x.data]));emit(c)}
+  async function fetchCol(c){if(typeof GV_COL!=='undefined'&&c===GV_COL)return fetchGV(c);let all=[],from=0;for(;;){const r=await sb.from('registros').select('id,data').eq('col',c).range(from,from+999);if(r.error)throw r.error;all=all.concat(r.data);if(r.data.length<1000)break;from+=1000}cache[c]=new Map(all.map(x=>[x.id,x.data]));emit(c)}
   let syncing=false;
   async function syncChanges(){const cols=Object.keys(subs).filter(c=>(subs[c]||[]).length);if(syncing||!SESSION||!cols.length)return;syncing=true;
     const t0=Date.now(),since=new Date(lastSync-15*60000).toISOString();
